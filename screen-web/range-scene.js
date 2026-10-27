@@ -1,0 +1,70 @@
+import * as THREE from 'three';
+import {GolfScene} from './scene.js';
+import {Golfer} from './golfer.js';
+import {MotionView} from '../shared/motion-view.js';
+import {makeRange} from '../shared/training.js';
+import {clamp} from '../shared/courses.js';
+
+const smooth=t=>t*t*(3-2*t);
+export class RangeScene extends GolfScene {
+ constructor(container,onPhase=()=>{}){super(container);this.onPhase=onPhase;this.preview=false;this.phase='address';this.style='sage';this.camera.near=.08;this.camera.fov=49;this.renderer.toneMappingExposure=.95;this.sun.intensity=2.3;this.lastFrame=performance.now();this.motionView=new MotionView();}
+ resize(){const w=this.container.clientWidth,h=this.container.clientHeight;if(!w||!h)return;this.renderer.setSize(w,h,false);this.camera.aspect=w/h;this.camera.fov=w<650?58:49;this.camera.clearViewOffset();this.camera.updateProjectionMatrix();this.setCamera();}
+ loadRange(settings){
+  this.settings=settings;this.swing=null;this.landedAt=0;this.setPhase('address');super.load(makeRange(settings));this.group.scale.x=-1;
+  this.scene.background=new THREE.Color('#b7dce9');this.scene.fog=new THREE.Fog('#c6e3e7',220,760);
+  this.group.traverse(obj=>{if(obj.geometry?.attributes.color){const c=obj.geometry.attributes.color,p=obj.geometry.attributes.position;for(let i=0;i<c.count;i++){const z=p.getZ(i),x=p.getX(i);const col=new THREE.Color(Math.abs(x)<65?(Math.floor(z/16)%2?'#7cbb86':'#72b37c'):'#5e9b6f');c.setXYZ(i,col.r,col.g,col.b);}c.needsUpdate=true;}});
+  this.group.traverse(obj=>{if(obj.geometry?.type==='SphereGeometry'&&obj.geometry.parameters.radius===.6){obj.scale.set(.2,.12,.2);obj.position.y=3.07;obj.material.color.set('#e5bd75');}});
+  this.actorRig=new THREE.Group();this.group.add(this.actorRig);this.golfer=new Golfer(this.style);this.golfer.root.position.set(-1.42,3,0);this.actorRig.add(this.golfer.root);this.golfer.setClub(settings.clubId);this.actorRig.rotation.y=(settings.aim||0)*Math.PI/180;
+  this.sun.shadow.camera.left=-18;this.sun.shadow.camera.right=18;this.sun.shadow.camera.top=18;this.sun.shadow.camera.bottom=-18;this.sun.shadow.camera.updateProjectionMatrix();this.sun.position.set(-20,45,-20);this.sun.target.position.set(0,3,3);
+  this.flag.scale.setScalar(.55);this.flag.position.y=6.4;
+  const distances=settings.clubId==='putter'?[5,10,15,20]:[50,100,150,200,250,300];
+  for(const z of distances){const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-35,3.025,z),new THREE.Vector3(35,3.025,z)]),new THREE.LineBasicMaterial({color:'#eaf6cf',transparent:true,opacity:.5}));this.group.add(line);this.label(`${z} 米`,settings.clubId==='putter'?-3:-12,3.5,z,settings.clubId==='putter'?1.4:4);}
+  for(const radius of [3,7,12]){const ring=this.ring(radius,radius+.16,radius===3?'#f2c577':'#f3f7d0');ring.position.set(0,3.06,settings.target);this.group.add(ring);}
+  this.forecast=this.ring(1.2,1.48,'#fff9c2');this.forecast.visible=false;this.group.add(this.forecast);
+  this.trace=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:'#ffffff',transparent:true,opacity:.8}));this.group.add(this.trace);
+  const mat=new THREE.Mesh(new THREE.BoxGeometry(3.8,.04,3.2),new THREE.MeshStandardMaterial({color:'#56966a',roughness:1}));mat.position.set(-.55,3.013,0);mat.receiveShadow=true;this.group.add(mat);
+  for(const [x,z,s] of [[-150,310,90],[130,380,120],[-100,460,150],[220,420,140]]){const hill=new THREE.Mesh(new THREE.SphereGeometry(1,18,12),new THREE.MeshStandardMaterial({color:'#6a9e92',roughness:1}));hill.position.set(x,-5,z);hill.scale.set(s,s*.35,s*.65);this.group.add(hill);}
+  const cloudMaterial=new THREE.MeshBasicMaterial({color:'#f5fcfb',transparent:true,opacity:.65});for(let i=0;i<7;i++){const cloud=new THREE.Group();for(let j=0;j<3;j++){const part=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),cloudMaterial);part.scale.set(12+j*3,4+j,6);part.position.x=j*11;cloud.add(part);}cloud.position.set(-180+i*60,75+(i%3)*10,300+(i%2)*80);this.group.add(cloud);}
+  this.resize();this.resetAddress(true);
+ }
+ ring(inner,outer,color){const o=new THREE.Mesh(new THREE.RingGeometry(inner,outer,64),new THREE.MeshBasicMaterial({color,side:THREE.DoubleSide,transparent:true,opacity:.8}));o.rotation.x=-Math.PI/2;return o;}
+ label(text,x,y,z,width){const canvas=document.createElement('canvas');canvas.width=256;canvas.height=96;const ctx=canvas.getContext('2d');ctx.fillStyle='#315f4adb';ctx.beginPath();ctx.roundRect(0,0,256,96,22);ctx.fill();ctx.fillStyle='#f9f9df';ctx.font='500 40px sans-serif';ctx.textAlign='center';ctx.fillText(text,128,62);const label=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(canvas),depthWrite:false}));label.position.set(x,y,z);label.scale.set(width,width*.375,1);this.group.add(label);}
+ setPhase(phase){if(this.phase!==phase){this.phase=phase;this.onPhase?.(phase);}}
+ setStyle(id){this.style=id;this.golfer?.setStyle(id);}
+ setAim(aim){if(!this.settings)return;this.settings={...this.settings,aim};if(this.actorRig)this.actorRig.rotation.y=aim*Math.PI/180;this.setBall(this.hole.tee,aim);}
+ setBall(p,aim=this.settings?.aim||0){if(!this.hole||this.flight)return;super.setBall(p,aim);this.ball.position.set(p.x,3.1,p.z);this.ball.scale.setScalar(.19);this.ballRing.scale.setScalar(.25);this.ballRing.position.y=3.03;}
+ resetAddress(immediate=false){this.flight=null;this.swing=null;this.landedAt=0;this.view='follow';this.orbit=0;this.motionView.reset();if(this.golfer)this.golfer.goal=0;this.setPhase('address');if(this.hole)this.setBall(this.hole.tee);this.setCamera(immediate);}
+ overview(){this.view=this.view==='overview'?'follow':'overview';this.orbit=0;this.setCamera();}
+ setCamera(immediate=false){
+  if(!this.settings)return;const d=Math.max(50,this.settings.target),a=(this.settings.aim||0)*Math.PI/180;
+  if(this.view==='overview'){this.targetPosition.set(30,d*.85,-d*.18);this.targetLook.set(0,3,d*.48);}
+  else if(this.phase==='flight'&&this.flight){const p=this.ball.position;this.targetPosition.set(-p.x+8,p.y+7,p.z-20);this.targetLook.set(-p.x,p.y+1,p.z+7);}
+  else if(this.phase==='landing'&&this.lastResult){const p=this.lastResult.to;this.targetPosition.set(-p.x+12,14,p.z-19);this.targetLook.set(-p.x,3,p.z+1);}
+  else {const orbit=clamp(this.orbit,-.65,.65)+(this.motionView?.yaw||0),x=.3*Math.cos(orbit)-(-6.8)*Math.sin(orbit),z=.3*Math.sin(orbit)+(-6.8)*Math.cos(orbit);this.targetPosition.set(x*Math.cos(a)-z*Math.sin(a),(this.settings.clubId==='putter'?4.7:5.3)+(this.motionView?.pitch||0)*6,x*Math.sin(a)+z*Math.cos(a));this.targetLook.set(-Math.sin(a)*6,3.4,Math.cos(a)*6);}
+  if(immediate){this.camera.position.copy(this.targetPosition);this.currentLook.copy(this.targetLook);this.camera.lookAt(this.currentLook);}
+ }
+ sample(t){
+  this.motionView.sample(t,performance.now());this.lastMotion=performance.now();if(!this.golfer||!['address','rehearsal'].includes(this.phase)||this.swing)return;
+  if(t.stage!=='ready'){this.golfer.goal=0;return;}
+  if(t.state==='BACK')this.golfer.goal=Math.max(.35,Math.min(1,Math.abs(t[t.axis])/(t.peakMax||600)*1.3));else if(t.state==='DOWN')this.golfer.goal=.08;else if(t.state==='COOLDOWN')this.golfer.goal=-.8;else this.golfer.goal=0;
+ }
+ rehearse(report){this.resetAddress();this.setPhase('rehearsal');this.swing={start:performance.now(),phone:report.source==='phone',dry:true};this.forecast.position.set(report.to.x,3.08,report.to.z);this.forecast.visible=true;}
+ playShot(shot,source='screen'){
+  this.resetAddress();this.forecast.visible=false;this.trace.geometry.dispose();this.trace.geometry=new THREE.BufferGeometry().setFromPoints(shot.path.map(p=>new THREE.Vector3(p.x,p.y+.02,p.z)));this.trace.geometry.setDrawRange(0,0);
+  const now=performance.now();this.lastResult=shot;this.swing={start:now,phone:source==='phone',dry:false,shot,impact:source==='phone'?100:540};this.setPhase('swing');this.aimLine.visible=false;
+ }
+ frame(){
+  if(!this.hole||!this.container.clientWidth||!this.container.clientHeight)return;const now=performance.now(),dt=Math.min((now-this.lastFrame)/1000||.016,.05);this.lastFrame=now;this.motionView.update(dt,now);const time=(now-this.startTime)/1000;
+  if(this.swing){const s=this.swing,elapsed=now-s.start,u=clamp((elapsed+(s.phone?440:0))/1150,0,1);this.golfer.goal=u<.34?smooth(u/.34):u<.48?1-smooth((u-.34)/.14):-smooth(Math.min(1,(u-.48)/.34));
+   if(!s.dry&&!this.flight&&elapsed>=s.impact){this.flight={shot:s.shot,start:s.start+s.impact};this.ballRing.visible=false;this.setPhase('flight');}
+   if(u>=1){this.swing=null;if(s.dry){this.golfer.goal=0;this.setPhase('address');}}
+  }
+  if(this.flight){const {shot,start}=this.flight,t=clamp((now-start)/(shot.duration*1000),0,1),p=shot.path,physical=t*p.at(-1).t;let lo=0,hi=p.length-1;while(lo<hi-1){const m=(lo+hi)>>1;if(p[m].t<physical)lo=m;else hi=m;}const a=p[lo],b=p[hi],f=clamp((physical-a.t)/(b.t-a.t||1),0,1);this.ball.position.set(a.x+(b.x-a.x)*f,a.y+(b.y-a.y)*f,a.z+(b.z-a.z)*f);this.ball.scale.setScalar(.65);this.trace.geometry.setDrawRange(0,Math.max(2,Math.floor(t*p.length)));if(t>=1){this.flight=null;this.ball.position.set(shot.to.x,3.1,shot.to.z);this.ball.scale.setScalar(.25);this.ballRing.position.set(shot.to.x,3.04,shot.to.z);this.ballRing.scale.setScalar(.7);this.ballRing.visible=true;this.setPhase('landing');this.landedAt=now;}}
+  if(this.phase==='landing'&&now-this.landedAt>2200)this.resetAddress();
+  if(!this.swing&&this.phase==='address'&&now-(this.lastMotion||0)>1800)this.golfer.goal*=.96;
+  this.golfer?.update(dt,time);if(this.golfer)this.golfer.head.rotation.y+=this.motionView.yaw*.5;this.setCamera();const easing=1-Math.exp(-dt*(this.phase==='flight'?2.4:4));this.camera.position.lerp(this.targetPosition,easing);this.currentLook.lerp(this.targetLook,easing);this.camera.lookAt(this.currentLook);
+  if(this.flag){const p=this.flag.geometry.attributes.position;for(let i=0;i<p.count;i++)p.setZ(i,Math.sin(time*2+p.getX(i))*.1);p.needsUpdate=true;}
+  this.renderer.render(this.scene,this.camera);
+ }
+ clear(){const maps=new Set();this.group.traverse(o=>{if(o.material?.map)maps.add(o.material.map);});for(const texture of maps)texture.dispose();super.clear();}
+}

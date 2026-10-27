@@ -1,0 +1,25 @@
+{
+  "name": "swinglink",
+  "version": "0.6.0",
+  "private": true,
+  "type": "module",
+  "description": "本地三维高尔夫与 iPhone 体感球杆",
+  "scripts": {
+    "start": "node local-gateway/server.js",
+    "dev": "node --watch local-gateway/server.js",
+    "test": "node --test tests/*.test.js",
+    "test:integration": "node tests/gateway.integration.js",
+    "setup:https": "node scripts/setup-https.js",
+    "start:open": "node scripts/start-local.js",
+    "package:mac": "python scripts/package-mac.py",
+    "test:multiplayer": "node tests/multiplayer.integration.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "three": "^0.186.1",
+    "ws": "^8.22.0"
+  }
+}
