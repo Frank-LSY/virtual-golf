@@ -14,6 +14,8 @@ export const TRAINING_CLUBS=[
  {id:'driver',name:'一号木杆',speed:51,loft:28,target:220},
  {id:'iron',name:'7 号铁杆',speed:39,loft:37,target:150},
  {id:'wedge',name:'挖起杆',speed:29,loft:50,target:70},
+ {id:'sand',name:'沙坑杆',speed:25,loft:56,target:45},
+ {id:'chip',name:'劈起杆',speed:18,loft:40,target:30},
  {id:'putter',name:'推杆',speed:5.4,loft:0,target:10}
 ];
 export const MOTION_STATES={IDLE:'准备',BACK:'上杆',DOWN:'下挥',HIT:'击球',COOLDOWN:'收杆'};
@@ -29,8 +31,8 @@ export function practiceSettings(value){
 }
 export function makeRange(settings={clubId:'iron',target:150}){
  const h=makeHole('sunny',0,421);
- return {...h,practice:true,putting:settings.clubId==='putter',name:'晴空训练场',length:340,width:76,elevation:0,slope:0,
-  pin:{x:0,z:settings.target},hazards:[],trees:h.trees.filter(t=>Math.abs(t.x)>78),wind:{x:0,z:0,speed:0},
+ return {...h,practice:true,putting:settings.clubId==='putter',name:'田径训练场',length:340,width:76,elevation:0,slope:0,
+  pin:{x:0,z:settings.target},hazards:[],trees:[],wind:{x:0,z:0,speed:0},
   bounds:{minX:-180,maxX:180,minZ:-50,maxZ:500},route:Array.from({length:81},(_,i)=>({x:0,z:i*340/80}))};
 }
 export function trainingExport(rows){return rows.map(r=>({'球手标识':r.playerId,'球手姓名':r.playerName,'手机编号':r.phoneNumber,'输入手机':r.inputDeviceId,'本杆校准':r.calibration,

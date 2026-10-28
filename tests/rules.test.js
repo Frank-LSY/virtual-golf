@@ -5,7 +5,7 @@ import {SwingDetector,mapSwing} from '../shared/swing.js';
 import {simulateShot,canCapture} from '../game-service/physics.js';
 import {Game} from '../game-service/game.js';
 
-test('all 27 designed holes have playable tees and pins, reproducible terrain and bounded wind',()=>{
+test('all 54 designed holes have playable tees and pins, reproducible terrain and bounded wind',()=>{
  for(const c of COURSES){assert.equal(c.holes.length,9);for(let i=0;i<9;i++){
   const h=makeHole(c.id,i,4242);assert.deepEqual(h,makeHole(c.id,i,4242));assert.equal(surfaceAt(h,h.tee.x,h.tee.z),'tee');assert.equal(surfaceAt(h,h.pin.x,h.pin.z),'green');assert.ok(h.wind.speed>=c.wind[0]&&h.wind.speed<=c.wind[1]);assert.ok(Number.isFinite(heightAt(h,h.pin.x,h.pin.z)));
   for(const power of [.15,.5,1]){const s=simulateShot(h,h.tee,power,0);assert.ok(s.path.length>2);assert.ok(s.path.every(p=>Number.isFinite(p.x+p.y+p.z+p.t)));assert.ok(s.duration<=8);assert.ok(Number.isFinite(s.to.x+s.to.z));}

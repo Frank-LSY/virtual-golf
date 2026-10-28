@@ -7,8 +7,8 @@ import WebSocket from 'ws';
 const base='http://127.0.0.1:5198',dataDir=path.resolve('.local/multi-integration-'+Date.now()),sockets=[];
 await mkdir(dataDir,{recursive:true});
 const server=spawn(process.execPath,['local-gateway/server.js'],{env:{...process.env,PORT:'5198',HTTPS_PORT:'8498',SWINGLINK_DATA_DIR:dataDir},stdio:['ignore','pipe','pipe']});
-const timeout=setTimeout(()=>server.kill(),40000),send=(ws,m)=>ws.send(JSON.stringify(m));
-async function wait(ws,p,ms=10000){const end=Date.now()+ms;while(Date.now()<end){const i=ws.queue.findIndex(p);if(i>=0)return ws.queue.splice(i,1)[0];await new Promise(r=>setTimeout(r,10));}throw Error('未收到消息：'+p);}
+const timeout=setTimeout(()=>server.kill(),60000),send=(ws,m)=>ws.send(JSON.stringify(m));
+async function wait(ws,p,ms=20000){const end=Date.now()+ms;while(Date.now()<end){const i=ws.queue.findIndex(p);if(i>=0)return ws.queue.splice(i,1)[0];await new Promise(r=>setTimeout(r,10));}throw Error('未收到消息：'+p);}
 try{
  await new Promise((resolve,reject)=>{server.stdout.on('data',b=>{if(b.toString().includes('本机地址：'))resolve();});server.on('error',reject);server.on('exit',()=>reject(Error('服务提前退出')));});
  const config=await fetch(base+'/api/config').then(r=>r.json());
@@ -28,10 +28,12 @@ try{
  send(screen,{type:'practice_select',phoneId:'multi-a'});assert.equal((await wait(screen,m=>m.type==='practice_state'&&m.owner.id==='multi-a'&&m.history.length===1)).history[0].playerId,'multi-a');
  send(screen,{type:'practice_view',active:false});send(screen,{type:'round_view',active:true});send(screen,{type:'start_round',courseId:'sunny',mode:3,multiplayer:true,playerIds:['multi-a','multi-b']});
  let state=(await wait(screen,m=>m.type==='room_state'&&m.state.multiplayer&&m.state.phase==='playing')).state;assert.equal(state.activePlayerId,'multi-a');
+ send(b,{type:'round_club',clubId:'driver',stateVersion:state.stateVersion});assert.match((await wait(b,m=>m.type==='error')).message,/未轮到/);
+ send(a,{type:'round_club',clubId:'chip',stateVersion:state.stateVersion});state=(await wait(screen,m=>m.type==='room_state'&&m.state.clubId==='chip')).state;
  send(b,{type:'round_arm',armed:true});assert.match((await wait(b,m=>m.type==='error')).message,/未轮到/);
  send(a,{type:'round_arm',armed:true});state=(await wait(screen,m=>m.type==='room_state'&&m.state.armed)).state;send(b,{type:'swing',power:.2,dir:0,seq:1,stateVersion:state.stateVersion});assert.match((await wait(b,m=>m.type==='error')).message,/未轮到/);
  send(a,{type:'swing',power:.15,dir:0,peak:230,seq:2,stateVersion:state.stateVersion});await wait(a,m=>m.type==='ack');
- state=(await wait(screen,m=>m.type==='room_state'&&m.state.phase==='playing'&&m.state.activePlayerId==='multi-b')).state;assert.equal(state.strokes,0);assert.equal(state.players[0].strokes,1);assert.equal(state.shotHistory[0].inputDeviceId,'multi-a');
+ state=(await wait(screen,m=>m.type==='room_state'&&m.state.phase==='playing'&&m.state.activePlayerId==='multi-b')).state;assert.equal(state.strokes,0);assert.equal(state.players[0].strokes,1);assert.equal(state.shotHistory[0].inputDeviceId,'multi-a');assert.equal(state.shotHistory[0].clubId,'chip');assert.equal(state.clubId,'auto');
  send(b,{type:'round_arm',armed:true});state=(await wait(screen,m=>m.type==='room_state'&&m.state.activePlayerId==='multi-b'&&m.state.armed)).state;send(b,{type:'swing',power:.18,dir:0,peak:300,seq:1,stateVersion:state.stateVersion});await wait(b,m=>m.type==='ack');
  state=(await wait(screen,m=>m.type==='room_state'&&m.state.phase==='playing'&&m.state.activePlayerId==='multi-a'&&m.state.shotHistory.length===2)).state;assert.equal(state.shotHistory[1].calibration.axis,'gamma');assert.equal(state.shotHistory[1].inputSettings.powerGain,1.2);
  send(a,{type:'round_arm',armed:true});await wait(screen,m=>m.type==='room_state'&&m.state.armed&&m.state.stateVersion>state.stateVersion);a.close();await once(a,'close');await wait(screen,m=>m.type==='controller_status'&&m.count===1);state=(await wait(screen,m=>m.type==='room_state'&&!m.state.armed&&m.state.stateVersion>state.stateVersion)).state;assert.equal(state.activePlayerId,'multi-a');

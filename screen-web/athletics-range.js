@@ -1,0 +1,22 @@
+import * as THREE from 'three';
+
+function oval(radius){const points=[];for(let half=0;half<2;half++)for(let i=0;i<=56;i++){const a=(half+i/56)*Math.PI;points.push([Math.cos(a)*radius,(half===0?300:40)+Math.sin(a)*radius]);}return points;}
+function bands(bands){const positions=[],colors=[];for(const [inner,outer,color] of bands){const a=oval(inner),b=oval(outer),c=new THREE.Color(color);for(let i=0;i<a.length;i++){const j=(i+1)%a.length;for(const p of [a[i],b[i],a[j],b[i],b[j],a[j]]){positions.push(p[0],3.028,p[1]);colors.push(c.r,c.g,c.b);}}}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));g.computeVertexNormals();return g;}
+
+export function athleticsRange(){
+ const group=new THREE.Group();group.name='田径训练场';
+ const surround=new THREE.Mesh(new THREE.PlaneGeometry(1400,1400),new THREE.MeshStandardMaterial({color:'#88a77f',roughness:1}));surround.rotation.x=-Math.PI/2;surround.position.set(0,2.98,150);group.add(surround);
+ const trackMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.98,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-3});trackMat.onBeforeCompile=shader=>{shader.vertexShader='varying vec2 trackXZ;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntrackXZ=position.xz;');shader.fragmentShader='varying vec2 trackXZ;\n'+shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nfloat rubber=fract(sin(dot(floor(trackXZ*75.0),vec2(12.9898,78.233)))*43758.5453);diffuseColor.rgb*=1.0+(rubber-.5)*.09*(1.0-smoothstep(5.0,30.0,length(vViewPosition)));');};
+ const track=new THREE.Mesh(bands(Array.from({length:8},(_,i)=>[45+i*1.45,45+(i+1)*1.45,i%2?'#aa584c':'#b76150'])),trackMat);track.receiveShadow=true;group.add(track);
+ const lanes=new THREE.Mesh(bands(Array.from({length:9},(_,i)=>[45+i*1.45-.035,45+i*1.45+.035,'#efece3'])),new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-6}));lanes.position.y=.004;group.add(lanes);
+ const marks=[],add=(x,y,z,sx,sy,sz)=>marks.push({x,y,z,sx,sy,sz});
+ for(const side of [-1,1])for(let i=0;i<6;i++)add(side*(65+i*1.1),3.3+i*.65,70,1.15,.5,110);
+ const bleachers=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:'#c5cbc3',roughness:.85}),marks.length),dummy=new THREE.Object3D();marks.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.scale.set(p.sx,p.sy,p.sz);dummy.updateMatrix();bleachers.setMatrixAt(i,dummy.matrix);});group.add(bleachers);
+ const seats=[];for(const side of [-1,1])for(let row=0;row<5;row++)for(let z=21;z<=119;z+=3)seats.push({x:side*(65+row*1.1),y:3.65+row*.65,z});
+ const seating=new THREE.InstancedMesh(new THREE.BoxGeometry(.65,.12,1.7),new THREE.MeshStandardMaterial({color:'#608c91',roughness:.7}),seats.length);seats.forEach((p,i)=>{dummy.position.set(p.x,p.y,p.z);dummy.scale.set(1,1,1);dummy.updateMatrix();seating.setMatrixAt(i,dummy.matrix);});group.add(seating);
+ const fence=[];for(const x of [-61,61]){for(let z=-5;z<=320;z+=7){fence.push(x,3,z,x,4.2,z);}fence.push(x,4.2,-5,x,4.2,320,x,3.55,-5,x,3.55,320);}
+ const rail=new THREE.BufferGeometry();rail.setAttribute('position',new THREE.Float32BufferAttribute(fence,3));group.add(new THREE.LineSegments(rail,new THREE.LineBasicMaterial({color:'#788b86',transparent:true,opacity:.6})));
+ const poles=new THREE.InstancedMesh(new THREE.CylinderGeometry(.12,.18,16,8),new THREE.MeshStandardMaterial({color:'#d2d8d2',roughness:.65}),8),lights=new THREE.InstancedMesh(new THREE.BoxGeometry(3.2,1.2,.35),new THREE.MeshStandardMaterial({color:'#e6ede6',emissive:'#a6b5af',emissiveIntensity:.12}),4);
+ [[-74,50],[74,50],[-74,275],[74,275]].forEach(([x,z],i)=>{dummy.position.set(x,11,z);dummy.updateMatrix();poles.setMatrixAt(i,dummy.matrix);dummy.position.y=19;dummy.updateMatrix();lights.setMatrixAt(i,dummy.matrix);});for(const [j,[x,z]] of [[-72,20],[-72,120],[72,20],[72,120]].entries()){dummy.position.set(x,7,z);dummy.scale.set(1,.5,1);dummy.updateMatrix();poles.setMatrixAt(j+4,dummy.matrix);}group.add(poles,lights);
+ const roof=new THREE.InstancedMesh(new THREE.BoxGeometry(10,.25,110),new THREE.MeshStandardMaterial({color:'#69858a',roughness:.7}),2);for(const [i,x] of [-69,69].entries()){dummy.position.set(x,11,70);dummy.scale.set(1,1,1);dummy.updateMatrix();roof.setMatrixAt(i,dummy.matrix);}group.add(roof);return group;
+}

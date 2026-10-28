@@ -8,7 +8,7 @@ import {SwingDetector,mapSwing} from '../shared/swing.js';
 test('training measures real simulated flight and signed landing errors for every club',()=>{
  for(const club of TRAINING_CLUBS){const t=new Training();t.configure({clubId:club.id,target:club.target});const {shot,report:r}=t.stroke({power:.65,dir:.1,seq:1},'screen','screen',null,100);
   assert.ok(shot.path.length>10);assert.equal(r.lateral,shot.to.x);assert.equal(r.longitudinal,shot.to.z-club.target);assert.equal(r.targetError,Math.hypot(r.lateral,r.longitudinal));assert.ok(r.roll>0);assert.ok(r.ballSpeed>0);assert.equal(r.peak,null);assert.equal(r.tempo,null);assert.equal(r.feedback.length,2);
-  if(club.id==='putter'){assert.equal(r.carry,0);assert.equal(r.apex,0);assert.equal(r.launchAngle,.75);}else{assert.ok(r.carry>30);assert.ok(r.apex>5);assert.ok(r.travel>r.carry);assert.equal(r.launchAngle,2.5);}
+  if(club.id==='putter'){assert.equal(r.carry,0);assert.equal(r.apex,0);assert.equal(r.launchAngle,.75);}else{assert.ok(r.carry>(club.id==='chip'?15:30));assert.ok(r.apex>(club.id==='chip'?3:5));assert.ok(r.travel>r.carry);assert.equal(r.launchAngle,2.5);}
   const mirrored=new Training();mirrored.configure({clubId:club.id,target:club.target});const left=mirrored.stroke({power:.65,dir:-.1,seq:1},'screen','screen',null,100).report;assert.ok(Math.abs(left.lateral+r.lateral)<1e-8);assert.ok(Math.abs(left.travel-r.travel)<1e-8);
  }
 });

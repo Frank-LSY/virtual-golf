@@ -1,3 +1,4 @@
+import {CLUBS} from '../shared/clubs.js';
 import {GuidedCalibration,CALIBRATION_STEPS} from '../shared/calibration.js';
 import {Connection} from '../shared/connection.js';
 import {SwingDetector,mapSwing,median,SWING_CONFIG} from '../shared/swing.js';
@@ -12,6 +13,8 @@ try{settings=inputSettings(JSON.parse(localStorage.getItem('swinglink-input-sett
 applySettings(settings);
 try{logs=JSON.parse(localStorage.getItem('swinglink-logs'))||[];if(!Array.isArray(logs))logs=[];}catch{}
 $('axis').value=axis;
+$('phone-club').innerHTML='<option value="auto">自动推荐</option>'+CLUBS.map(c=>`<option value="${c.id}">${c.name} · ${c.range} 米</option>`).join('');
+$('phone-club').onchange=()=>{if(online&&roundActive&&roundCanControl&&gamePhase==='playing')conn.send({type:'round_club',clubId:$('phone-club').value,stateVersion});};
 if(calibration){$('reuse-calibration').classList.remove('hidden');$('reuse-calibration').onclick=()=>{reusePeak=calibration.peakMax;$('enable').click();};}
 function warn(text){$('sensor-warning').textContent=text;$('sensor-warning').classList.toggle('hidden',!text);}
 function saveLogs(){logs=logs.slice(0,50);localStorage.setItem('swinglink-logs',JSON.stringify(logs));$('log-count').textContent=`已在这台手机保存 ${logs.length} / 50 条记录。`;}
@@ -29,9 +32,10 @@ $('enable').onclick=async()=>{
 };
 function ready(){stage='ready';wizard=null;$('orb').classList.remove('hidden');localStorage.setItem('swinglink-calibration',JSON.stringify(calibration));conn.send({type:'calibrated',...calibration});$('calibration-progress').classList.add('hidden');$('ready-controls').classList.remove('hidden');$('orb-number').classList.add('hidden');$('phone-illustration').classList.remove('hidden');$('orb').classList.add('ready');detector.reset();renderReady();}
 function renderReady(){if(stage!=='ready')return;const inactive=practiceActive&&!practiceSelected||roundActive&&!roundCanControl;const practiceBusy=playMode==='practice'&&Date.now()<practiceBusyUntil,waiting=playMode==='play'&&locked,active=practiceActive||roundActive,armed=practiceActive?practiceArmed:roundArmed;
- $('title').innerHTML=inactive?'轮到同伴，<br>稍作放松。':!online?'正在恢复连接。':practiceBusy||waiting?(gamePhase==='animating'||practiceBusy?'看一看，<br>这一杆的落点。':'球场已备好，<br>就等你开场。'):active?(armed?'站稳，<br>挥出这一杆。':'先试挥，<br>找到你的节奏。'):'准备好了，<br>随时挥杆。';
- $('instruction').textContent='';$('instruction').innerHTML=inactive?'当前由同伴控制角色。<br>你的握姿和灵敏度仍独立保存。':practiceBusy?'训练球正在运动。<br>等球停稳，再试下一杆。':waiting?'在电脑上开始或继续本局。<br>人物随球位移动后，再准备下一杆。':active?(armed?'下一次挥动将击球。<br>轻转手机仍可调整人物视角。':'试挥不击球，也不计杆数。<br>轻转手机观察，准备好后点击下方按钮。'):'轻轻上杆，顺势挥出。<br>剩下的，交给手机。';
- $('orb-label').textContent=inactive?'等待轮到这台手机':!online?'正在重新连接':practiceBusy||waiting?'等待球局就绪':active&&!armed?'试挥模式 · 不击球':'已准备 · 下一挥击球';
+ $('phone-club-picker').classList.toggle('hidden',!roundActive||practiceActive);$('phone-club').disabled=!online||!roundCanControl||gamePhase!=='playing';
+ $('title').innerHTML=gamePhase==='transferring'&&!practiceActive?'乘车换洞，<br>欣赏沿途风景。':inactive?'轮到同伴，<br>稍作放松。':!online?'正在恢复连接。':practiceBusy||waiting?(gamePhase==='animating'||practiceBusy?'看一看，<br>这一杆的落点。':'球场已备好，<br>就等你开场。'):active?(armed?'站稳，<br>挥出这一杆。':'先试挥，<br>找到你的节奏。'):'准备好了，<br>随时挥杆。';
+ $('instruction').textContent='';$('instruction').innerHTML=gamePhase==='transferring'&&!practiceActive?'所有球手一起前往下一站。<br>到站后重新选杆，再准备击球。':inactive?'当前由同伴控制角色。<br>你的握姿和灵敏度仍独立保存。':practiceBusy?'训练球正在运动。<br>等球停稳，再试下一杆。':waiting?'在电脑上开始或继续本局。<br>人物随球位移动后，再准备下一杆。':active?(armed?'下一次挥动将击球。<br>轻转手机仍可调整人物视角。':'试挥不击球，也不计杆数。<br>轻转手机观察，准备好后点击下方按钮。'):'轻轻上杆，顺势挥出。<br>剩下的，交给手机。';
+ $('orb-label').textContent=gamePhase==='transferring'&&!practiceActive?'球车接驳中 · 暂停击球':inactive?'等待轮到这台手机':!online?'正在重新连接':practiceBusy||waiting?'等待球局就绪':active&&!armed?'试挥模式 · 不击球':'已准备 · 下一挥击球';
  $('phone-practice-arm').classList.toggle('hidden',!active);$('phone-practice-mode').classList.toggle('hidden',!active);$('phone-practice-arm').textContent=armed?'取消准备':'准备击球 →';$('phone-practice-arm').disabled=!online||practiceBusy||waiting||inactive;$('phone-practice-mode').textContent=armed?'已准备 · 体感视角持续生效':'试挥模式 · 体感视角持续生效，不计杆数';
 }
 $('phone-practice-arm').onclick=()=>{if(practiceActive&&!practiceSelected||roundActive&&!roundCanControl)return;conn.send({type:practiceActive?'practice_arm':'round_arm',armed:!(practiceActive?practiceArmed:roundArmed)});};
@@ -85,7 +89,7 @@ conn.addEventListener('message',({detail:m})=>{
  if(m.type==='round_subscription'){if(roundCanControl!==(m.canControl!==false))detector.reset();roundCanControl=m.canControl!==false;if(!practiceActive)activeOwner=m.active?m.playerName||'':'';roundActive=m.active;renderOwner();roundStream=m.stream;roundArmed=!!m.armed;if(m.active&&!practiceActive)setMode('play');document.querySelector('[data-mode="practice"]').disabled=m.active;renderReady();}
  if(m.type==='input_settings_request'){try{applySettings(m.settings,m.requestId);$('tuning-status').textContent='电脑调整的灵敏度已生效。';}catch(e){$('tuning-status').textContent=e.message;}}
  if(m.type==='practice_ack'||m.type==='practice_rehearsal_ack'){$('delivery').textContent=m.rehearsal?'试挥已识别 · 尚未击球':'训练场已击球';$('phone-training-label').textContent=m.rehearsal?'试挥模拟参考 · 球未击出':'本杆模拟击球反馈';$('phone-training-result').classList.remove('hidden');$('phone-training-distance').textContent=`${m.travel.toFixed(1)} 米`;$('phone-training-detail').textContent=`${m.club} · 距目标 ${m.targetError.toFixed(1)} 米 · ${Math.abs(m.lateral)<.5?'方向居中':(m.lateral<0?'偏左 ':'偏右 ')+Math.abs(m.lateral).toFixed(1)+' 米'}`;$('phone-training-tip').textContent=m.feedback.slice(0,2).join(' ');const entry=logs.find(x=>x.seq===m.seq);if(entry){entry.acknowledged=true;saveLogs();}}
- if(m.type==='room_state'&&m.state.stateVersion>=stateVersion){stateVersion=m.state.stateVersion;gamePhase=m.state.phase;roundArmed=roundCanControl&&!!m.state.armed;renderReady();}
+ if(m.type==='room_state'&&m.state.stateVersion>=stateVersion){stateVersion=m.state.stateVersion;gamePhase=m.state.phase;const terrain=m.state.terrain;$('phone-terrain').textContent=terrain?`${terrain.name} · ${terrain.condition}。同杆同力度出球速度为球道的 ${terrain.speedPercent}%。${terrain.roll}。${terrain.tip}`:'';$('phone-club').value=m.state.clubId||'auto';$('phone-club-tip').textContent=`${m.state.selectedClub?.name||'自动推荐'} · ${m.state.selectedClub?.range||'—'} 米参考距离。换杆后重新准备击球。`;if(m.state.putting){const p=m.state.putting;$('phone-club-tip').textContent+=` ${p.pace}，${p.break}。`;}roundArmed=roundCanControl&&!!m.state.armed;renderReady();}
  if(m.type==='input_lock'){locked=m.locked;renderReady();}
  if(m.type==='ack'||m.type==='rehearsal_ack'){$('delivery').textContent=m.type==='rehearsal_ack'?'试挥已接收 · 不计杆数':'已击球 · 计入本局';if(m.type==='rehearsal_ack')$('shot-status').textContent=`试挥参考 ${m.travel.toFixed(1)} 米，球仍在原位。`;const entry=logs.find(x=>x.seq===m.seq);if(entry){entry.acknowledged=true;saveLogs();}}
  if(m.type==='error'){$('shot-status').textContent=m.message;$('delivery').textContent='本次挥杆未被接受';}
@@ -107,4 +111,6 @@ function renderCalibration(hint,progress){
 }
 $('cal-start').onclick=()=>{if(!wizard||wizard.phase==='review')return;wizard.begin(performance.now());renderCalibration();};
 $('cal-redo').onclick=()=>{wizard?.redoPower();renderCalibration();};
-$('cal-use').onclick=()=>{const result=wizard?.result();if(!result)return;calibration={version:SWING_CONFIG.version,...result};axis=result.axis;$('axis').value=axis;applySettings({...settings,...result.settings});$('orb').classList.remove('hidden');ready();};
+$('cal-use').onclick=()=>{const result=wizard?.result();if(!result)return;calibration={version:SWING_CONFIG.version,...result};axis=result.axis;$('axis').value=axis;
+$('phone-club').innerHTML='<option value="auto">自动推荐</option>'+CLUBS.map(c=>`<option value="${c.id}">${c.name} · ${c.range} 米</option>`).join('');
+$('phone-club').onchange=()=>{if(online&&roundActive&&roundCanControl&&gamePhase==='playing')conn.send({type:'round_club',clubId:$('phone-club').value,stateVersion});};applySettings({...settings,...result.settings});$('orb').classList.remove('hidden');ready();};

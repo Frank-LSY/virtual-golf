@@ -31,7 +31,7 @@ for folder in ['screen-web', 'phone-web', 'shared', 'game-service', 'local-gatew
         if file.suffix.lower() in ['.exe', '.dll', '.cmd', '.ps1', '.node']:
             raise RuntimeError('依赖中发现平台专用文件，请检查：' + str(file))
         files.append((file, file.relative_to(ROOT).as_posix()))
-for name in ['package.json', 'package-lock.json', 'README.md', 'Mac使用说明.html', '启动挥杆之间.command', '配置手机连接.command', 'scripts/mac-common.sh', 'scripts/start-local.js', 'scripts/setup-https.js', 'docs/PRD.md', 'docs/TECH.md', 'docs/ASSETS.md', 'docs/IMPLEMENTATION.md']:
+for name in ['package.json', 'package-lock.json', 'README.md', 'Mac使用说明.html', '启动挥杆之间.command', '配置手机连接.command', 'scripts/mac-common.sh', 'scripts/start-local.js', 'scripts/setup-https.js', 'docs/PRD.md', 'docs/TECH.md', 'docs/ASSETS.md', 'docs/IMPLEMENTATION.md', 'docs/ENVIRONMENT-PROMPTS.md', 'docs/COURSE-DESIGN.md']:
     files.append((ROOT / name, name))
 
 def put(z, name, data, executable=False):

@@ -1,3 +1,4 @@
+import {CLUBS} from '../shared/clubs.js';
 import {GuidedCalibration,CALIBRATION_STEPS} from '../shared/calibration.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,7 +20,7 @@ async function phoneHarness(){
  const handlers=new Map(),window={isSecureContext:true,addEventListener:(k,fn)=>handlers.set(k,fn),removeEventListener:k=>handlers.delete(k)};let clock=1000;
  const timers=new Map(),intervals=[];let timerId=0;const setTimeout=(fn,ms)=>{const id=++timerId;timers.set(id,{fn,due:clock+ms});return id;};
  class FakeDate extends Date{constructor(...args){super(...(args.length?args:[clock]));}static now(){return clock;}}
- const injected={GuidedCalibration,CALIBRATION_STEPS,Connection,SwingDetector,mapSwing,median,SWING_CONFIG,INPUT_DEFAULTS,inputSettings,chineseLog,chineseConfig,chineseCalibration,chineseCsv,document,window,navigator:{vibrate(){}},DeviceMotionEvent:{},localStorage,sessionStorage:localStorage,performance:{now:()=>clock},Date:FakeDate,setTimeout,clearTimeout:id=>timers.delete(id),setInterval:fn=>intervals.push(fn)};
+ const injected={CLUBS,GuidedCalibration,CALIBRATION_STEPS,Connection,SwingDetector,mapSwing,median,SWING_CONFIG,INPUT_DEFAULTS,inputSettings,chineseLog,chineseConfig,chineseCalibration,chineseCsv,document,window,navigator:{vibrate(){}},DeviceMotionEvent:{},localStorage,sessionStorage:localStorage,performance:{now:()=>clock},Date:FakeDate,setTimeout,clearTimeout:id=>timers.delete(id),setInterval:fn=>intervals.push(fn)};
  const source=(await readFile(new URL('../phone-web/app.js',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,'');new Function(...Object.keys(injected),source)(...Object.values(injected));
  const sample=(beta,step=40)=>{clock+=step;for(const [id,t] of timers)if(t.due<=clock){timers.delete(id);t.fn();}handlers.get('devicemotion')?.({rotationRate:{alpha:0,beta,gamma:0},accelerationIncludingGravity:{y:0,z:9.8}});};
  return {conn,elements,buttons,storage,sample,advance:ms=>{clock+=ms;for(const fn of intervals)fn();},setHidden:value=>{document.hidden=value;documentHandlers.get('visibilitychange')?.();}};
@@ -70,4 +71,13 @@ test('非当前手机显示等待且不发送挥杆；同伴校准进度刷新�
  h.conn.receive({type:'round_subscription',active:true,canControl:true,stream:true,armed:false});for(const v of [0,150,180,100,90])h.sample(v);
  // 另一台手机校准进度更新引起订阅刷新，主手机的半个挥杆仍需保留。
  h.conn.receive({type:'round_subscription',active:true,canControl:true,stream:true,armed:false});for(const v of [-120,-300,-600,-500,-200])h.sample(v);assert.equal(h.conn.sent.filter(m=>m.type==='swing').length,1);
+});
+
+test('手机仅为当前球手选杆，使用最新版本并反映换杆后取消准备',async()=>{
+ const h=await phoneHarness();await h.elements.get('reuse-calibration').onclick();for(let i=0;i<32;i++)h.sample(0);
+ h.conn.receive({type:'round_subscription',active:true,stream:true,canControl:true,armed:true});h.conn.receive({type:'room_state',state:{stateVersion:7,phase:'playing',armed:true,clubId:'auto',selectedClub:{name:'7 号铁杆',range:165}}});h.conn.receive({type:'input_lock',locked:false});
+ const select=h.elements.get('phone-club');select.value='sand';select.onchange();assert.deepEqual(h.conn.sent.at(-1),{type:'round_club',clubId:'sand',stateVersion:7});
+ h.conn.receive({type:'room_state',state:{stateVersion:8,phase:'playing',armed:false,clubId:'sand',selectedClub:{name:'沙坑杆',range:55}}});assert.equal(select.value,'sand');assert.match(h.elements.get('phone-club-tip').textContent,/沙坑杆/);assert.equal(h.elements.get('phone-practice-arm').textContent,'准备击球 →');
+ h.conn.receive({type:'round_subscription',active:true,stream:false,canControl:false});assert.equal(select.disabled,true);const before=h.conn.sent.length;select.onchange();assert.equal(h.conn.sent.length,before);
+ h.conn.receive({type:'round_subscription',active:true,canControl:true});h.conn.receive({type:'room_state',state:{stateVersion:9,phase:'animating'}});assert.equal(select.disabled,true);select.onchange();assert.equal(h.conn.sent.length,before);
 });

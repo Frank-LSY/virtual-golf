@@ -1,0 +1,40 @@
+{
+  "version": "0.12.0",
+  "source": "original-imagegen",
+  "colorSpace": "sRGB",
+  "atlasGrid": [
+    4,
+    2
+  ],
+  "assets": [
+    {
+      "file": "course-atlas-v1.webp",
+      "width": 1536,
+      "height": 768,
+      "bytes": 458074,
+      "sha256": "92297247a61d96a6b96e9a26cf2ad7af0e98e988e4477f88f82e4516ce2acdb8"
+    },
+    {
+      "file": "sky-v1.webp",
+      "width": 1536,
+      "height": 768,
+      "bytes": 18232,
+      "sha256": "c2dc2428ec3ede20a16e42b83aa92e3cdc40af4575133c01e334085b965eb8ba"
+    },
+    {
+      "file": "cloud-v1.webp",
+      "width": 768,
+      "height": 512,
+      "bytes": 55928,
+      "sha256": "f270d4b6ef33895f713f5ce33e0d107392616af6e2cade5144a79cd1a897aaa0"
+    },
+    {
+      "file": "rough-clumps-v1.webp",
+      "width": 1024,
+      "height": 342,
+      "bytes": 173318,
+      "sha256": "67ae48291363808ef72ef96cf511aa8f6560a72935da536175e86ed65b6db465"
+    }
+  ],
+  "totalBytes": 705552
+}

@@ -1,0 +1,33 @@
+import {COURSES} from '../shared/courses.js';
+import {courseSummary,challengeLabel,localToCourse} from '../shared/course-layout.js';
+import {courseTour,holeTransfer} from '../shared/course-tour.js';
+import {MapView} from './view-controls.js';
+
+export function courseArt(c){
+ const t=courseTour(c.id),b=t.bounds,p=q=>`${q.x.toFixed(1)},${(-q.z).toFixed(1)}`;
+ return `<svg class="course-art" viewBox="${b.minX} ${-b.maxZ} ${b.maxX-b.minX} ${b.maxZ-b.minZ}" aria-hidden="true"><rect x="${b.minX}" y="${-b.maxZ}" width="${b.maxX-b.minX}" height="${b.maxZ-b.minZ}" rx="70" fill="${c.ground}"/>${t.holes.map(h=>`<polyline points="${h.route.map(q=>p(localToCourse(h.placement,q))).join(' ')}" fill="none" stroke="${c.fairway}" stroke-width="${h.width*2}" stroke-linecap="round"/><circle cx="${h.placement.green.x}" cy="${-h.placement.green.z}" r="${h.greenRadius}" fill="${c.green}"/>`).join('')}<circle cx="${t.clubhouse.x}" cy="${-t.clubhouse.z}" r="12" fill="#f3e4bf"/></svg>`;
+}
+export class CourseAtlas {
+ constructor(){
+  this.dialog=document.createElement('dialog');this.dialog.className='course-atlas';this.dialog.setAttribute('aria-label','九洞球场导览');
+  this.dialog.innerHTML='<button class="atlas-close" aria-label="关闭球场导览">×</button><p class="eyebrow">一座球场 · 九段旅程</p><h2 id="atlas-title"></h2><p id="atlas-summary"></p><div class="atlas-layout"><div class="atlas-map"><canvas width="920" height="620" aria-label="九洞全场地图"></canvas><p class="atlas-legend">● 发球台　⚑ 果岭　虚线：球车道　⌂ 会所</p></div><aside><div class="atlas-holes" aria-label="选择查看球洞"></div><h3 id="atlas-hole-title"></h3><p id="atlas-hole-meta"></p><p id="atlas-advice"></p><div class="atlas-rhythm"></div><p id="atlas-transfer"></p><p class="atlas-note">据真实球场理念抽象创作；距离、地形与障碍为游戏设计。</p><a id="atlas-source" target="_blank" rel="noopener"></a></aside></div>';
+  document.body.append(this.dialog);this.canvas=this.dialog.querySelector('canvas');this.map=new MapView(this.canvas,()=>this.draw(),'全场地图');this.dialog.querySelector('.atlas-close').onclick=()=>this.dialog.close();
+ }
+ show(id,seed=421,state=null){this.tour=courseTour(id,seed);this.state=state;this.index=state?.holeIndex||0;this.routes=[];for(let i=0;i<9;i++){try{this.routes.push(holeTransfer(id,seed,i,i===8?null:i+1));}catch{this.routes.push(null);}}this.map.reset();const c=this.tour.course,s=courseSummary(c),$=id=>this.dialog.querySelector('#'+id);$('atlas-title').textContent=c.name;$('atlas-summary').textContent=`${c.theme} · ${c.difficulty} · 9 洞 · 标准杆 ${s.par} · ${s.length.toLocaleString()} 米`;const source=$('atlas-source');source.textContent='设计参考：'+c.source.name+' ↗';source.href=c.source.url;
+  const choices=this.dialog.querySelector('.atlas-holes');choices.innerHTML=c.holes.map((h,i)=>`<button data-hole="${i}" aria-label="查看第 ${i+1} 洞">${i+1}</button>`).join('');choices.querySelectorAll('button').forEach(button=>button.onclick=()=>{this.index=Number(button.dataset.hole);this.detail();});this.detail();if(!this.dialog.open)this.dialog.showModal();
+ }
+ detail(){const h=this.tour.holes[this.index],$=id=>this.dialog.querySelector('#'+id);$('atlas-hole-title').textContent=`${this.index+1}. ${h.name}`;$('atlas-hole-meta').textContent=`标准杆 ${h.par} · ${h.length} 米 · ${challengeLabel(h.challenge)}`;$('atlas-advice').textContent=h.advice;
+  this.dialog.querySelectorAll('[data-hole]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.hole)===this.index)));this.dialog.querySelector('.atlas-rhythm').innerHTML='<span>九洞难度节奏</span><div>'+this.tour.holes.map((q,i)=>`<i class="${i===this.index?'active':''}" style="height:${q.challenge*10}px" title="第 ${i+1} 洞：${challengeLabel(q.challenge)}"><small>${i+1}</small></i>`).join('')+'</div>';
+  const route=this.routes[this.index];$('atlas-transfer').textContent=route?`球车接驳 ${Math.round(route.meters)} 米 → ${this.index===8?'返回会所':`第 ${this.index+2} 洞发球台`}`:'接驳路线将在出发时规划';this.draw();
+ }
+ draw(){if(!this.tour)return;const ctx=this.canvas.getContext('2d'),{tour}=this,c=tour.course,b=tour.bounds,scale=Math.min(860/(b.maxX-b.minX),560/(b.maxZ-b.minZ)),px=x=>460+(x-tour.center.x)*scale,pz=z=>310-(z-tour.center.z)*scale;ctx.clearRect(0,0,920,620);ctx.fillStyle=c.ground;ctx.fillRect(0,0,920,620);this.map.begin(ctx);ctx.lineJoin='round';ctx.lineCap='round';
+  if(tour.reserve?.type==='lake'){const r=tour.reserve;ctx.fillStyle=c.water;ctx.beginPath();ctx.ellipse(px(r.x),pz(r.z),r.rx*scale,r.rz*scale,0,0,Math.PI*2);ctx.fill();}
+  ctx.fillStyle=c.trees;ctx.globalAlpha=.65;for(const h of tour.holes)for(const tree of h.trees){const q=localToCourse(h.placement,tree);ctx.beginPath();ctx.arc(px(q.x),pz(q.z),Math.max(1.3,tree.scale*2*scale),0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
+  for(const h of tour.holes){const points=h.route.map(q=>localToCourse(h.placement,q));ctx.strokeStyle=h.index===this.index?'#e9e2a6':c.fairway;ctx.lineWidth=h.width*2*scale;ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(px(p.x),pz(p.z)):ctx.moveTo(px(p.x),pz(p.z)));ctx.stroke();for(const hazard of h.hazards){const q=localToCourse(h.placement,hazard);ctx.save();ctx.translate(px(q.x),pz(q.z));ctx.rotate(h.placement.heading-hazard.angle);ctx.fillStyle=hazard.type==='water'?c.water:'#e2cea0';ctx.beginPath();ctx.ellipse(0,0,hazard.rx*scale,hazard.rz*scale,0,0,Math.PI*2);ctx.fill();ctx.restore();}const end=h.placement.green;ctx.fillStyle=c.green;ctx.beginPath();ctx.arc(px(end.x),pz(end.z),h.greenRadius*scale,0,Math.PI*2);ctx.fill();}
+  for(const [i,road] of this.routes.entries()){if(!road)continue;ctx.setLineDash([3,4]);ctx.strokeStyle=i===this.index?'#fff9df':'#d3cab7';ctx.lineWidth=i===this.index?2.6:1.4;ctx.beginPath();road.route.forEach((p,j)=>j?ctx.lineTo(px(p.x),pz(p.z)):ctx.moveTo(px(p.x),pz(p.z)));ctx.stroke();}ctx.setLineDash([]);
+  for(const h of tour.holes){const t=h.placement.tee,done=this.state?.scores?.some(s=>s.hole===h.index+1);ctx.fillStyle=h.index===this.index?'#223e31':done?'#55766c':'#fbf7e8';ctx.beginPath();ctx.arc(px(t.x),pz(t.z),12,0,Math.PI*2);ctx.fill();ctx.fillStyle=h.index===this.index||done?'#fffbe9':'#294d3c';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(h.index+1),px(t.x),pz(t.z));const g=h.placement.green;ctx.fillStyle='#2b493b';ctx.fillText('⚑',px(g.x),pz(g.z));}
+  ctx.fillStyle='#f6e3bb';ctx.fillRect(px(tour.clubhouse.x)-10,pz(tour.clubhouse.z)-8,20,16);ctx.font='14px sans-serif';ctx.fillText('会所',px(tour.clubhouse.x),pz(tour.clubhouse.z)-19);
+  if(this.state){const placement=tour.placements[this.state.holeIndex],ball=localToCourse(placement,this.state.ball);ctx.fillStyle='#fff';ctx.strokeStyle='#244f3f';ctx.lineWidth=2;ctx.beginPath();ctx.arc(px(ball.x),pz(ball.z),5,0,Math.PI*2);ctx.fill();ctx.stroke();}
+  this.map.end(ctx);
+ }
+}

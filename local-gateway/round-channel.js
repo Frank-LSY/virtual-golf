@@ -10,14 +10,15 @@ export class RoundChannel {
   const active=this.active(),phone=this.phone();let changed=false;
   if(this.game.state.armed&&(!active||(this.lastPhoneId&&this.lastPhoneId!==phone?.clientId)||(this.lastCalibrated&&!phone?.calibrated))){this.game.setArmed(false);changed=true;}
   this.lastPhoneId=phone?.clientId;this.lastCalibrated=!!phone?.calibrated;
-  for(const c of this.clients)if(c.role==='phone')this.send(c,{type:'round_subscription',active,stream:active&&c===phone,canControl:active&&c===phone,playerId:this.game.player.id,playerName:this.game.player.name,phoneNumber:this.game.player.number,multiplayer:!!this.game.state.multiplayer,armed:active&&c===phone&&!!this.game.state.armed});
+  for(const c of this.clients)if(c.role==='phone')this.send(c,{type:'round_subscription',active,stream:active&&c===phone,canControl:active&&c===phone&&this.game.state.phase==='playing',transferring:this.game.state.phase==='transferring',playerId:this.game.player.id,playerName:this.game.player.name,phoneNumber:this.game.player.number,multiplayer:!!this.game.state.multiplayer,armed:active&&c===phone&&!!this.game.state.armed});
   return changed;
  }
  handle(ws,m){
   if(m.type==='round_view'&&ws.role==='screen'){ws.roundView=m.active===true;this.onState();return true;}
-  if(m.type==='round_arm'||m.type==='swing'){
+  if(m.type==='round_arm'||m.type==='swing'||m.type==='round_club'){
    if(!this.active()||(ws.role==='screen'&&!ws.roundView))throw Error('请先在电脑上打开正式球局。');
-   if(ws.role==='phone'&&(!ws.calibrated||ws!==this.phone()))throw Error('还未轮到这台手机，或当前手机尚未完成校准。');
+   if(ws.role==='phone'&&((!ws.calibrated&&m.type!=='round_club')||ws!==this.phone()))throw Error('还未轮到这台手机，或当前手机尚未完成校准。');
+   if(m.type==='round_club'){this.game.setClub(m.clubId,m.stateVersion);this.onState();return true;}
    if(this.game.state.multiplayer&&m.type==='swing'&&ws.role!=='phone')throw Error('多人对战请使用当前球手绑定的手机挥杆。');
    if(this.game.state.multiplayer&&!this.phone()?.calibrated)throw Error('请等待当前球手的手机连接并完成校准。');
    if(m.type==='round_arm'){this.game.setArmed(m.armed);this.onState();return true;}
