@@ -64,15 +64,22 @@ export class GolfScene {
  }
  trees(h,c){
   const geometry=shape=>{const data=TREE_MESHES[shape],g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(data.positions,3));g.setIndex(data.indices);g.computeVertexNormals();return g;};
-  const dummy=new THREE.Object3D(),batches=new Map();this.treeEntries=new Map();this.treeMaterials=[];
+  const dummy=new THREE.Object3D(),batches=new Map(),fade=!h.practice;this.treeEntries=new Map();this.treeMaterials=[];this.treeFade=fade?{values:new Float32Array(h.trees.length).fill(1),targets:new Float32Array(h.trees.length).fill(1),slots:h.trees.map(()=>[]),meshes:[]}:null;
   h.trees.forEach((tree,i)=>treeParts(h,tree,i).forEach(p=>{if(!batches.has(p.shape))batches.set(p.shape,[]);batches.get(p.shape).push(p);}));
-  for(const [shape,parts] of batches){const trunk=shape==='trunk',material=treeMaterial(trunk?'#8c8060':'#ffffff',trunk?'bark':h.courseId==='pine'?'pine':'leaves'),mesh=new THREE.InstancedMesh(geometry(shape),material,parts.length);mesh.castShadow=true;mesh.receiveShadow=true;this.treeMaterials.push(material);
-   parts.forEach((p,slot)=>{dummy.position.set(p.x,p.y,p.z);dummy.scale.set(p.sx,p.sy,p.sz);dummy.rotation.set(0,p.rotation,0);dummy.updateMatrix();mesh.setMatrixAt(slot,dummy.matrix);if(!trunk){mesh.setColorAt(slot,new THREE.Color(c.trees).multiplyScalar(.92+(p.treeIndex%5)*.045+(p.partIndex%3)*.055));if(!this.treeEntries.has(p.treeIndex))this.treeEntries.set(p.treeIndex,[]);this.treeEntries.get(p.treeIndex).push({mesh,slot,matrix:dummy.matrix.clone()});}});this.group.add(mesh);
+  for(const [shape,parts] of batches){const trunk=shape==='trunk',material=treeMaterial(trunk?'#8c8060':'#ffffff',trunk?'bark':h.courseId==='pine'?'pine':'leaves',fade),mesh=new THREE.InstancedMesh(geometry(shape),material,parts.length);if(fade){mesh.geometry.setAttribute('instanceFade',new THREE.InstancedBufferAttribute(new Float32Array(parts.length).fill(1),1));this.treeFade.meshes.push(mesh);}mesh.castShadow=true;mesh.receiveShadow=true;this.treeMaterials.push(material);
+   parts.forEach((p,slot)=>{if(fade)this.treeFade.slots[p.treeIndex].push([mesh,slot]);dummy.position.set(p.x,p.y,p.z);dummy.scale.set(p.sx,p.sy,p.sz);dummy.rotation.set(0,p.rotation,0);dummy.updateMatrix();mesh.setMatrixAt(slot,dummy.matrix);if(!trunk){mesh.setColorAt(slot,new THREE.Color(c.trees).multiplyScalar(.92+(p.treeIndex%5)*.045+(p.partIndex%3)*.055));if(!this.treeEntries.has(p.treeIndex))this.treeEntries.set(p.treeIndex,[]);this.treeEntries.get(p.treeIndex).push({mesh,slot,matrix:dummy.matrix.clone()});}});this.group.add(mesh);
   }
  }
  updateObstructions(dt){
   if(this.preview||!this.ball||!this.cameraObstacles?.length)return;this.scene.updateMatrixWorld(true);this.obstructionRay??=new THREE.Raycaster();const target=this.ball.getWorldPosition(new THREE.Vector3()),direction=target.clone().sub(this.camera.position),length=direction.length();this.obstructionRay.set(this.camera.position,direction.normalize());this.obstructionRay.far=Math.max(0,length-.15);const blocked=new Set(this.obstructionRay.intersectObjects(this.cameraObstacles,false).map(hit=>hit.object));
   for(const rock of this.cameraObstacles){const inside=new THREE.Box3().setFromObject(rock).containsPoint(this.camera.position),opacity=(blocked.has(rock)||inside)?.16:1;rock.material.opacity+=(opacity-rock.material.opacity)*(1-Math.exp(-dt*12));rock.material.depthWrite=rock.material.opacity>.98;}
+ }
+ // 镜头到球之间的树冠与镜头近旁的树逐渐抖动淡化，避免整屏被树叶挡住；球道前方的真实障碍保持可见。
+ updateTreeFade(dt,target){
+  const f=this.treeFade;if(!f||this.preview||!this.hole)return;const trees=this.hole.trees,cx=-this.camera.position.x,cz=this.camera.position.z,cy=this.camera.position.y,tx=target.x,tz=target.z,dx=tx-cx,dz=tz-cz,len2=dx*dx+dz*dz||1;
+  for(let i=0;i<trees.length;i++){const t=trees[i],r=3.1*t.scale+.8,u=((t.x-cx)*dx+(t.z-cz)*dz)/len2,px=cx+dx*Math.max(0,Math.min(1,u)),pz=cz+dz*Math.max(0,Math.min(1,u)),d=Math.hypot(t.x-px,t.z-pz),near=Math.hypot(t.x-cx,t.z-cz)<r+2.5,top=heightAt(this.hole,t.x,t.z)+9.5*t.scale,between=u>-.05&&u<.97&&d<r&&cy<top+4;f.targets[i]=near||between?.18:1;}
+  const k=1-Math.exp(-dt*7);const dirty=new Set();for(let i=0;i<trees.length;i++){const v=f.values[i],next=Math.abs(f.targets[i]-v)<.01?f.targets[i]:v+(f.targets[i]-v)*k;if(next!==v){f.values[i]=next;for(const [mesh,slot] of f.slots[i]){mesh.geometry.attributes.instanceFade.array[slot]=next;dirty.add(mesh);}}}
+  for(const mesh of dirty)mesh.geometry.attributes.instanceFade.needsUpdate=true;
  }
  audioFrame(position){
   this.group.updateWorldMatrix(true,false);this.camera.updateWorldMatrix(true,false);const p=position||this.ball?.position||this.ballPosition,source=this.group.localToWorld(new THREE.Vector3(p.x,p.y??heightAt(this.hole,p.x,p.z),p.z)),e=this.camera.matrixWorld.elements;return {source,listener:this.camera.getWorldPosition(new THREE.Vector3()),right:new THREE.Vector3(e[0],e[1],e[2]).normalize(),forward:new THREE.Vector3(-e[8],-e[9],-e[10]).normalize()};

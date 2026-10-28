@@ -36,10 +36,12 @@ export function addTerrainTextures(material){
   shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\nnormal=courseBump(normal,surfaceRelief);');
  };material.customProgramCacheKey=()=> 'golf-terrain-atlas-v1';material.userData.atlas=atlas;return material;
 }
-export function treeMaterial(color,kind){
+// fade=true 时按实例属性做有序抖动透明，挡住球和镜头之间视线的树会被淡化；阴影保持不变。
+export function treeMaterial(color,kind,fade=false){
  const material=new THREE.MeshStandardMaterial({color,roughness:.96}),cell=ATLAS_CELLS[kind],atlas=environmentTexture('atlas');
  material.onBeforeCompile=shader=>{shader.uniforms.courseAtlas={value:atlas};shader.uniforms.courseReady={value:atlas.userData.ready?1:0};material.userData.courseReady=shader.uniforms.courseReady;
   shader.vertexShader='varying vec3 treePosition; varying vec3 treeNormal;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntreePosition=position;treeNormal=normal;');
+  if(fade){shader.vertexShader='attribute float instanceFade; varying float vTreeFade;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvTreeFade=instanceFade;');shader.fragmentShader='varying float vTreeFade;\n'+shader.fragmentShader.replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\nif(vTreeFade<.995){ivec2 q=ivec2(mod(gl_FragCoord.xy,4.0));int i=q.x+q.y*4;float m[16]=float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);if((m[i]+.5)/16.>=vTreeFade)discard;}');}
   shader.fragmentShader='varying vec3 treePosition; varying vec3 treeNormal;\n'+shader.fragmentShader;
   shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\n'+ATLAS_GLSL+'\nuniform float courseReady; float barkHeight;');
   const uv=kind==='bark'?'vec2(atan(treePosition.x,treePosition.z)*.6366,treePosition.y*.75)':'(abs(treeNormal.y)>.55?treePosition.xz:abs(treeNormal.x)>.55?treePosition.zy:treePosition.xy)*'+(kind==='pine'?'1.3':'2.0');
@@ -49,7 +51,7 @@ export function treeMaterial(color,kind){
    barkHeight=relief*${kind==='bark'?'.025':'.018'}*detail;
   `);
   shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\nnormal=courseBump(normal,barkHeight);');
- };material.customProgramCacheKey=()=> 'tree-atlas-'+kind;material.userData.atlas=atlas;return material;
+ };material.customProgramCacheKey=()=> 'tree-atlas-'+kind+(fade?'-fade':'');material.userData.atlas=atlas;return material;
 }
 export function refreshTexture(material){if(material?.userData.courseReady)material.userData.courseReady.value=material.userData.atlas?.userData.ready?1:0;}
 

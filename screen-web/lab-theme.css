@@ -1,0 +1,91 @@
+/* 练习室与 0.14.0 界面风格对齐：白色玻璃面板、无衬线粗体标题、圆体数字、阳光黄主按钮。 */
+.training{padding:8px 4% 48px;max-width:1600px}
+.training h1,.training h2,.training .range-top h2{font-family:var(--font);font-weight:900;letter-spacing:.01em}
+.training-head{margin-bottom:14px}
+.training-head h1{font-size:30px;margin:4px 0 0}
+.training-head .eyebrow{font-size:12px;letter-spacing:.06em;color:var(--grass-deep)}
+.training-head-actions{gap:10px}
+.training-head-actions button{font-size:13px;padding:11px 16px}
+.training-head .secondary{background:#fff}
+.avatar-select{font-size:13px;font-weight:700;color:var(--muted)}
+.avatar-select select{border:2px solid var(--line-2);border-radius:12px;background:#fff;color:var(--ink);font:700 13px var(--font);padding:8px 12px}
+
+.training-owner{display:flex;align-items:center;flex-wrap:wrap;gap:14px 18px;padding:14px 18px;margin-bottom:16px;background:#fff;border-radius:var(--r);box-shadow:var(--shadow-s)}
+.training-owner label{font-size:13px;font-weight:700;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.training-owner select{padding:9px 12px;border:2px solid var(--line-2);border-radius:12px;background:#fff;color:var(--ink);font-weight:700;max-width:260px}
+.training-owner>div{flex:1;min-width:200px}
+.training-owner b{font-size:16px;font-weight:900}
+.training-owner p{font-size:13px;line-height:1.6;color:var(--muted);margin:4px 0 0}
+.training-owner button{font-size:13px;padding:11px 16px;white-space:nowrap}
+
+.training .range-stage{border:6px solid #fff;border-radius:26px;box-shadow:var(--shadow-l)}
+.training .range-top .eyebrow{font-size:12px;letter-spacing:.06em;color:#fff;background:rgba(18,55,42,.55);padding:3px 10px;border-radius:999px;display:inline-block}
+.training .range-top h2{font-size:30px;color:#fff;text-shadow:0 2px 12px rgba(10,40,25,.5);margin:8px 0 10px}
+.range-mode-badge{font-size:12px;font-weight:800;border-radius:999px;background:rgba(255,255,255,.92);padding:5px 12px;color:var(--ink-2);border:0;box-shadow:var(--shadow-s)}
+.is-armed .range-mode-badge{background:var(--sun);color:#3a2a00}
+.training .range-weather{background:var(--glass);border:0;box-shadow:var(--shadow-s);font-size:12px;font-weight:700;color:var(--ink-2)}
+.range-weather b{font:900 22px var(--font-num);color:var(--ink)}
+.swing-hud{color:var(--ink)}
+.hud-label,.swing-hud>p{font-size:12px;font-weight:800;background:rgba(255,255,255,.88);padding:3px 9px;border-radius:999px;display:inline-block}
+.swing-hud>strong{font:900 40px var(--font-num);text-shadow:0 2px 10px rgba(255,255,255,.7)}
+.swing-hud>strong small{font:800 14px var(--font)}
+.swing-meter{background:rgba(255,255,255,.55);border:2px solid #fff;border-radius:10px}
+.swing-meter-fill{background:linear-gradient(0deg,var(--sun),var(--flag));border-radius:8px}
+.swing-meter i span{font:800 11px var(--font-num);color:var(--ink-2)}
+.hud-gyro,.target-hud{background:var(--glass);border:0;box-shadow:var(--shadow);backdrop-filter:blur(14px);border-radius:var(--r)}
+.hud-gyro span{font-size:12px;font-weight:700}
+.hud-gyro b{font:900 15px var(--font-num)}
+.hud-gyro small{font-size:11px;color:var(--muted)}
+.target-hud>div>span,.target-hud>p,.target-hud dt{font-size:12px;font-weight:700;color:var(--muted)}
+.target-hud dl>div{font-size:12px}
+.target-hud dd{font:800 12px var(--font-num)}
+.target-hud strong{font:900 28px var(--font-num)}
+.target-hud strong small{font:800 12px var(--font)}
+.target-hud canvas{border-radius:12px}
+.training .range-stage-status{background:var(--glass);border:0;box-shadow:var(--shadow-s);font-size:13px;font-weight:700;color:var(--ink-2)}
+.swing-steps{font-size:12px;font-weight:800}
+.swing-steps .active{background:var(--sun);color:#3a2a00}
+.range-camera-tools button{font-size:12px;font-weight:700;padding:8px 10px;background:var(--glass);border:0;border-radius:10px;box-shadow:var(--shadow-s)}
+.range-action-bar{background:var(--glass);border:0;border-radius:20px;box-shadow:var(--shadow);gap:18px}
+.manual-power,.range-aim>label{font-size:12px;font-weight:700;color:var(--muted)}
+.manual-power output,.range-aim output{font:900 15px var(--font-num);color:var(--ink)}
+.range-aim{border-left:1px dashed var(--line-2)}
+.range-aim button{font:900 20px var(--font);color:var(--ink-2)}
+.range-action-bar>button{font-size:14px;min-width:120px;padding:13px 18px}
+.range-action-bar>button.primary{background:var(--sun);color:#3a2a00}
+.is-armed .range-action-bar>button.primary{background:#fff;color:var(--flag);box-shadow:0 4px 0 #f2b3a5;border:2px solid var(--flag)}
+
+.training .range-controls{align-items:center;gap:16px;padding:16px 4px;flex-wrap:wrap}
+.training .range-controls label{font-size:13px;font-weight:700;color:var(--muted);flex-direction:row;align-items:center;gap:10px;width:auto!important;max-width:none!important;flex:none}
+.training .range-controls select,.training .range-controls input[type=number]{font:700 14px var(--font);height:40px;border:2px solid var(--line-2);border-radius:12px;background:#fff;color:var(--ink);padding:6px 10px}
+.training .range-controls label select{width:150px}
+.training .range-controls label input{width:90px}
+.training .range-controls button{height:40px;font-size:13px;padding:0 14px}
+.training .shot-feedback{background:#fff;border:0;border-radius:var(--r-l);box-shadow:var(--shadow-s)}
+.feedback-heading span{font-size:12px;font-weight:700;color:var(--muted)}
+.feedback-metrics span{font-size:12px;font-weight:700;color:var(--muted)}
+.feedback-metrics strong{font:900 32px var(--font-num);color:var(--ink)}
+.feedback-metrics strong small{font:800 13px var(--font)}
+.feedback-secondary{font-size:13px;color:var(--ink-2);border-color:var(--line)}
+.feedback-coach{font-size:13px;color:var(--ink-2)}
+.training-label{font-size:12px;font-weight:700;background:var(--grass-soft);color:var(--grass-deep);border-radius:999px;padding:3px 10px}
+.train-caption,.training .training-method,.train-note,.tune-status{font-size:12px;color:var(--muted)}
+.train-panel{background:#fff;border:0;border-radius:var(--r);box-shadow:var(--shadow-s)}
+.train-status{font-size:12px;font-weight:700}
+.train-status.live i{background:var(--grass)}
+.gyro-row label,.sensor-pairs>div,.tune-control>span{font-size:12px}
+.gyro-row strong{font:900 26px var(--font-num)}
+.sensor-trace{background:var(--paper);border-radius:10px}
+.train-tuning h3{font-size:14px;font-weight:900}
+.tune-control small{font-size:11px}
+.train-small-button,.tune-actions>button:last-child{font-size:12px;font-weight:700;border:2px solid var(--line-2);border-radius:10px;background:#fff}
+.tune-actions .primary{font-size:13px}
+.training-history{border-top:2px dashed var(--line-2)}
+.training-history-head>p{font-size:13px;color:var(--muted)}
+.training-history-head button{font-size:13px;font-weight:700;padding:8px 12px;border-radius:10px;background:#fff;box-shadow:var(--shadow-s)}
+.training th,.training td{font-size:13px}
+.training tr.selected{background:var(--grass-soft)}
+.training-empty{font-size:14px;font-weight:700;border:2px dashed var(--line-2);border-radius:16px;color:var(--muted)}
+.club-inset{background:var(--glass);border:0;border-radius:var(--r);box-shadow:var(--shadow-s)}
+.club-inset p{font-size:12px;font-weight:700}
+@media(max-width:1000px){.training .range-controls label select{width:130px}}

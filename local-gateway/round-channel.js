@@ -17,10 +17,10 @@ export class RoundChannel {
   if(m.type==='round_view'&&ws.role==='screen'){ws.roundView=m.active===true;this.onState();return true;}
   if(m.type==='round_arm'||m.type==='swing'||m.type==='round_club'){
    if(!this.active()||(ws.role==='screen'&&!ws.roundView))throw Error('请先在电脑上打开正式球局。');
-   if(ws.role==='phone'&&((!ws.calibrated&&m.type!=='round_club')||ws!==this.phone()))throw Error('还未轮到这台手机，或当前手机尚未完成校准。');
+   if(ws.role==='phone'&&((!ws.calibrated&&m.type!=='round_club')||ws!==this.phone()))throw Error('还未轮到这台手机，或这台手机尚未启用体感。');
    if(m.type==='round_club'){this.game.setClub(m.clubId,m.stateVersion);this.onState();return true;}
    if(this.game.state.multiplayer&&m.type==='swing'&&ws.role!=='phone')throw Error('多人对战请使用当前球手绑定的手机挥杆。');
-   if(this.game.state.multiplayer&&!this.phone()?.calibrated)throw Error('请等待当前球手的手机连接并完成校准。');
+   if(this.game.state.multiplayer&&!this.phone()?.calibrated)throw Error('请等待当前球手的手机连接并启用体感。');
    if(m.type==='round_arm'){this.game.setArmed(m.armed);this.onState();return true;}
    const dry=!this.game.state.armed,shot=dry?this.game.rehearse(m,ws.clientId):this.game.stroke(m,ws.clientId,{source:ws.role,calibration:ws.calibration,inputSettings:ws.inputSettings});
    if(dry){for(const c of this.observers())this.send(c,{type:'round_rehearsal',shot,source:ws.role});}

@@ -51,11 +51,11 @@ export class TrainingChannel {
    if(!ws.practiceView)throw Error('请先打开挥杆练习室。');this.range.configure(m.settings);this.persist();for(const c of this.observers())this.snapshot(c);this.changed();return true;
   }
   if(m.type==='practice_arm'){
-   if(typeof m.armed!=='boolean'||!this.observers().length||(ws.role==='screen'&&!ws.practiceView)||(ws.role==='phone'&&(!ws.calibrated||ws!==this.phone())))throw Error('请连接并完成校准后，在训练场准备击球。');
+   if(typeof m.armed!=='boolean'||!this.observers().length||(ws.role==='screen'&&!ws.practiceView)||(ws.role==='phone'&&(!ws.calibrated||ws!==this.phone())))throw Error('请连接手机并启用体感后，在训练场准备击球。');
    if(Date.now()<this.range.busyUntil)throw Error('请等球停稳后再准备下一杆。');this.range.armed=m.armed;this.changed();return true;
   }
   if((m.type==='test_swing'&&ws.role==='phone')||(['practice_shot','practice_rehearse'].includes(m.type)&&ws.role==='screen')){
-   if(ws.role==='phone'&&(!ws.calibrated||ws!==this.phone()))throw Error('请先完成当前手机的校准。');
+   if(ws.role==='phone'&&(!ws.calibrated||ws!==this.phone()))throw Error('请先在当前手机上启用体感（无需校准）。');
    if(ws.role==='screen'&&!ws.practiceView)throw Error('请先打开挥杆练习室。');
    const rehearsal=m.type==='practice_rehearse'||(ws.role==='phone'&&!this.range.armed);
    if(!rehearsal&&!this.range.armed)throw Error('请先点击“准备击球”，或先试挥找手感。');

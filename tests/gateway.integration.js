@@ -29,7 +29,7 @@ try{
  const send=(ws,m)=>ws.send(JSON.stringify(m));
  screen=await connect('screen','integration-screen');let snap=(await wait(screen,m=>m.type==='room_state')).state;
  phone=await connect('phone','integration-phone');await wait(phone,m=>m.type==='ready');await wait(screen,m=>m.type==='controller_status'&&m.connected);
- send(phone,{type:'test_swing',power:.4,dir:0,peak:300,seq:1});assert.match((await wait(phone,m=>m.type==='error')).message,/校准/);
+ send(phone,{type:'test_swing',power:.4,dir:0,peak:300,seq:1});assert.match((await wait(phone,m=>m.type==='error')).message,/启用体感/);
  send(phone,{type:'calibrated',peakMax:600,dirZero:0,noise:3});await wait(screen,m=>m.type==='controller_status'&&m.calibrated);
  send(screen,{type:'practice_view',active:true});assert.equal((await wait(screen,m=>m.type==='practice_state')).history.length,0);await wait(phone,m=>m.type==='practice_subscription'&&m.stream);
  const settings={powerGain:1.2,directionGain:.75,threshold:100,gamma:1.8};send(screen,{type:'set_input_settings',phoneId:'integration-phone',settings,requestId:'tune-1'});assert.deepEqual((await wait(phone,m=>m.type==='input_settings_request')).settings,settings);

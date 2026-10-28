@@ -5,6 +5,7 @@ import {clamp,distance,heightAt,surfaceAt,slopeAt,clubFor} from '../shared/cours
 import {treeColliders,sweepTrees,treeBounce} from '../shared/trees.js';
 import {sweepWater,SPLASH_DURATION,WATER_LEVEL} from '../shared/water.js';
 import {rollStep,cupContact,sampleRim} from '../shared/putting.js';
+import {CLUB_SPIN} from '../shared/clubs.js';
 export const DT=1/120;
 export const CAPTURE_SPEED=1.9;
 
@@ -72,7 +73,7 @@ export function simulateShot(h,from,power,dir,aim=0,options={}){
     if(rolling){v.x*=s==='sand'?.55:.78;v.z*=s==='sand'?.55:.78;}
    }
    if(!rolling&&s!=='sand'&&s!=='rough'&&impactSpeed>.6)impacts.push({type:'ground',surface:s,phase:'land',t,position:{x:p.x,y:ground-BALL_RADIUS,z:p.z},speed:incoming,verticalSpeed:impactSpeed});
-   if(!rolling){v.y=Math.abs(v.y)*profile.bounce;v.x*=profile.retention;v.z*=profile.retention;if(v.y<1.3||++bounces>2)rolling=true;}
+   if(!rolling){const spin=bounces===0?(CLUB_SPIN[club.id]??1):1;v.y=Math.abs(v.y)*profile.bounce*spin;v.x*=profile.retention*spin;v.z*=profile.retention*spin;if(v.y<1.3||++bounces>2)rolling=true;}
    lastSurface=s;
   }
   if(rolling&&!tree&&options.capture!==false&&s==='green'&&t>=cupCooldown){
@@ -100,5 +101,5 @@ export function simulateShot(h,from,power,dir,aim=0,options={}){
  if(!penalty&&!holed&&['sand','rough'].includes(endSurface)){settleTime=t;for(let k=1;k<=16;k++){const u=k/16;p={x:end.x,y:end.y-depth*u*u*(3-2*u),z:end.z};path.push({...p,t:settleTime+u});}t=settleTime+1;}
  const to=penalty&&!h.practice?{...from}:{x:p.x,z:p.z,...(depth?{sandDepth:depth}:{})};
  const travelTime=captureTime??waterTime??settleTime??t,baseDuration=clamp(travelTime*(putting?.8:.48),1.3,8),rimExtra=rimTime!==null&&rimEndTime!==null?Math.max(0,1.05-(rimEndTime-rimTime)*baseDuration/Math.max(.01,travelTime)):0;
- return {from,to,path,holed,penalty,impacts,waterTime,settleTime,terrain,endSurface,cupOutcome,rimTime,rimEndTime,rimExtra,lie:surfaceAt(h,to.x,to.z),travel:distance(from,end),duration:baseDuration+rimExtra+(holed?DROP_DURATION:waterTime!==null?SPLASH_DURATION:settleTime!==null?SETTLE_DURATION:0),captureTime,club:club.name,clubId:club.id,power,dir,carry:putting?0:distance(from,landing||end),roll:groundTravel,apex,ballSpeed:speed,launchAngle:(aim+dir*25*(putting?.3:1)),loft:conditions.loft};
+ return {from,to,path,holed,penalty,impacts,waterTime,settleTime,terrain,endSurface,cupOutcome,rimTime,rimEndTime,rimExtra,lie:surfaceAt(h,to.x,to.z),travel:distance(from,end),duration:baseDuration+rimExtra+(holed?DROP_DURATION:waterTime!==null?SPLASH_DURATION:settleTime!==null?SETTLE_DURATION:0),captureTime,club:club.name,clubId:club.id,power,dir,carry:putting?0:distance(from,landing||end),landing:landing?{x:landing.x,z:landing.z}:null,roll:groundTravel,apex,ballSpeed:speed,launchAngle:(aim+dir*25*(putting?.3:1)),loft:conditions.loft};
 }

@@ -39,13 +39,13 @@ export function impactLayers(event){
 
 // 仅合成一次噪声缓冲；每次接触最多四层，总计最多十二组空间声源。
 export class SpatialGolfAudio {
- constructor(contextFactory,frameProvider,{maxVoices=12}={}){this.contextFactory=contextFactory;this.frameProvider=frameProvider;this.maxVoices=maxVoices;this.voices=new Set();}
+ constructor(contextFactory,frameProvider,{maxVoices=12,output}={}){this.contextFactory=contextFactory;this.frameProvider=frameProvider;this.maxVoices=maxVoices;this.output=output;this.voices=new Set();}
  init(){if(this.context)return;this.context=this.contextFactory();const c=this.context;this.noise=c.createBuffer(1,c.sampleRate,c.sampleRate);const samples=this.noise.getChannelData(0);for(let i=0;i<samples.length;i++)samples[i]=Math.random()*2-1;}
  strike(shot){if(!shot)return;this.play(strikeLayers(shot.clubId,shot.terrain?.surface,shot.power),shot.path?.[0]||shot.from);}
  impact(event){if(event.phase==='launch')return;this.play(impactLayers(event),event.position);}
  play(layers,position){
   if(!layers.length)return;try{this.init();this.context.resume();while(this.voices.size>=this.maxVoices)this.release(this.voices.values().next().value);
-   const c=this.context,now=c.currentTime,filter=c.createBiquadFilter(),gain=c.createGain(),pan=c.createStereoPanner?.();filter.type='lowpass';filter.Q.value=.3;filter.connect(gain);if(pan){gain.connect(pan);pan.connect(c.destination);}else gain.connect(c.destination);
+   const c=this.context,now=c.currentTime,filter=c.createBiquadFilter(),gain=c.createGain(),pan=c.createStereoPanner?.();filter.type='lowpass';filter.Q.value=.3;filter.connect(gain);const out=this.output?.()||c.destination;if(pan){gain.connect(pan);pan.connect(out);}else gain.connect(out);
    const voice={position:{...position},filter,gain,pan,nodes:[],sources:[],remaining:layers.length};this.voices.add(voice);this.position(voice,true);
    for(const layer of layers){const source=layer.noise?c.createBufferSource():c.createOscillator(),envelope=c.createGain(),start=now+(layer.delay||0),end=start+layer.duration;source.connect(envelope);voice.nodes.push(envelope);voice.sources.push(source);
     if(layer.noise){source.buffer=this.noise;const colour=c.createBiquadFilter();colour.type='bandpass';colour.frequency.value=layer.filter;colour.Q.value=.55;envelope.connect(colour);colour.connect(filter);voice.nodes.push(colour);}else{source.type=layer.wave;source.frequency.setValueAtTime(layer.frequency,start);source.frequency.exponentialRampToValueAtTime(layer.end,end);envelope.connect(filter);}

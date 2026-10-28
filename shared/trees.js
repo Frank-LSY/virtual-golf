@@ -51,20 +51,39 @@ export function treeParts(h,tree,index=0){
  }
  return parts.map((p,partIndex)=>({rotation,...p,treeIndex:index,partIndex}));
 }
+// 同一棵树数组只构建一次碰撞体；预判与正式击球在同一球位反复模拟时复用。
+const colliderCache=new WeakMap();
 export function treeColliders(h){
+ const trees=h.trees||[],cached=colliderCache.get(trees);if(cached&&cached.seed===h.seed&&cached.courseId===h.courseId&&cached.length===trees.length)return cached.list;
+ const list=buildColliders(h);indexColliders(list);colliderCache.set(trees,{seed:h.seed,courseId:h.courseId,length:trees.length,list});return list;
+}
+const CELL=8;
+// XZ 网格只做候选筛选，候选按原顺序检测，结果与逐个遍历一致。
+function indexColliders(list){
+ const grid=new Map();list.forEach((p,i)=>{p.order=i;const q=p.box;for(let x=Math.floor(q[0]/CELL);x<=Math.floor(q[1]/CELL);x++)for(let z=Math.floor(q[4]/CELL);z<=Math.floor(q[5]/CELL);z++){const k=x*4096+z;if(!grid.has(k))grid.set(k,[]);grid.get(k).push(p);}});
+ Object.defineProperty(list,'grid',{value:grid,enumerable:false});return list;
+}
+function candidates(colliders,a,b,radius){
+ const grid=colliders.grid;if(!grid)return colliders;
+ const x0=Math.floor((Math.min(a.x,b.x)-radius)/CELL),x1=Math.floor((Math.max(a.x,b.x)+radius)/CELL),z0=Math.floor((Math.min(a.z,b.z)-radius)/CELL),z1=Math.floor((Math.max(a.z,b.z)+radius)/CELL);
+ if((x1-x0+1)*(z1-z0+1)>64)return colliders;
+ let out=null,multi=false;for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++){const cell=grid.get(x*4096+z);if(!cell)continue;if(!out)out=cell;else{if(!multi){out=[...out];multi=true;}for(const p of cell)if(!out.includes(p))out.push(p);}}
+ if(!out)return [];if(multi)out.sort((p,q)=>p.order-q.order);return out;
+}
+function buildColliders(h){
  return (h.trees||[]).flatMap((tree,index)=>treeParts(h,tree,index).map(p=>{
   const c=Math.cos(p.rotation),s=Math.sin(p.rotation),mesh=TREE_MESHES[p.shape],vertices=[];
   for(let i=0;i<mesh.positions.length;i+=3){const x=mesh.positions[i]*p.sx,y=mesh.positions[i+1]*p.sy,z=mesh.positions[i+2]*p.sz;vertices.push({x:p.x+c*x+s*z,y:p.y+y,z:p.z-s*x+c*z});}
   const bounds={};for(const axis of ['x','y','z']){bounds['min'+axis]=Math.min(...vertices.map(v=>v[axis]));bounds['max'+axis]=Math.max(...vertices.map(v=>v[axis]));}
   const planes=mesh.planes.map(plane=>{const [x,y,z]=plane.n,n={x:c*x/p.sx+s*z/p.sz,y:y/p.sy,z:-s*x/p.sx+c*z/p.sz},length=Math.hypot(n.x,n.y,n.z);return {n:{x:n.x/length,y:n.y/length,z:n.z/length},d:plane.d/length};});
-  return {...p,bounds,planes};
+  return {...p,bounds,planes,box:[bounds.minx,bounds.maxx,bounds.miny,bounds.maxy,bounds.minz,bounds.maxz]};
  }));
 }
 const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
 export function sweepTrees(colliders,a,b,radius){
  let best=null;
- for(const p of colliders){
-  if(['x','y','z'].some(k=>Math.max(a[k],b[k])+radius<p.bounds['min'+k]||Math.min(a[k],b[k])-radius>p.bounds['max'+k]))continue;
+ for(const p of candidates(colliders,a,b,radius)){
+  const q=p.box;if((a.x>b.x?a.x:b.x)+radius<q[0]||(a.x<b.x?a.x:b.x)-radius>q[1]||(a.z>b.z?a.z:b.z)+radius<q[4]||(a.z<b.z?a.z:b.z)-radius>q[5]||(a.y>b.y?a.y:b.y)+radius<q[2]||(a.y<b.y?a.y:b.y)-radius>q[3])continue;
   const origin={x:a.x-p.x,y:a.y-p.y,z:a.z-p.z},delta={x:b.x-a.x,y:b.y-a.y,z:b.z-a.z};
   let near=0,far=1,normal=null,inside=true,closest=-Infinity,exitNormal=null,rejected=false;
   for(const {n,d} of p.planes){

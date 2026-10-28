@@ -2,7 +2,8 @@ import {distance,surfaceAt,heightAt,clamp} from './courses.js';
 export const WALK_LIMIT=18;
 export const LANDING_PAUSE=900;
 const safe=(h,p)=>!['water','out'].includes(surfaceAt(h,p.x,p.z))&&!h.trees.some(t=>distance(t,p)<1.5*t.scale);
-export function parkingAt(h,p){const a=Math.atan2(h.pin.x-p.x,h.pin.z-p.z),q={x:p.x-3.8*Math.cos(a),z:p.z+3.8*Math.sin(a)};if(safe(h,q))return q;for(let r=2;r<=10;r+=2)for(let k=0;k<12;k++){const b=k*Math.PI/6,q={x:p.x+Math.cos(b)*r,z:p.z+Math.sin(b)*r};if(safe(h,q))return q;}return {...p};}
+// 球车停在球手身后侧方，避开第三人称镜头的取景范围（镜头位于球后约 6.8 米）。
+export function parkingAt(h,p){const a=Math.atan2(h.pin.x-p.x,h.pin.z-p.z),f={x:Math.sin(a),z:Math.cos(a)},side={x:-Math.cos(a),z:Math.sin(a)};for(const [back,out] of [[4.4,4.8],[5.6,4.2],[3.2,5.6],[4.4,-5.2]]){const q={x:p.x-f.x*back+side.x*out,z:p.z-f.z*back+side.z*out};if(safe(h,q))return q;}for(let r=2;r<=10;r+=2)for(let k=0;k<12;k++){const b=k*Math.PI/6,q={x:p.x+Math.cos(b)*r,z:p.z+Math.sin(b)*r};if(safe(h,q))return q;}return {...p};}
 export function clearTravelSegment(h,a,b){const n=Math.max(1,Math.ceil(distance(a,b)));for(let i=0;i<=n;i++){const t=i/n;if(!safe(h,{x:a.x+(b.x-a.x)*t,z:a.z+(b.z-a.z)*t}))return false;}return true;}
 // 小型球场导航网格：球车绕开水面、边界和树干，再移除多余折点。
 export function cartRoute(h,start,end){
@@ -20,7 +21,7 @@ export function movementPlan(h,from,to,holed=false){
  const meters=distance(from,to);if(holed||meters<.15)return {mode:'none',duration:0,meters,route:[from,to]};
  if(meters<=WALK_LIMIT)return {mode:'walk',duration:clamp(meters/2.5*1000,1000,7000),meters,route:[from,to]};
  const route=cartRoute(h,parkingAt(h,from),parkingAt(h,to));if(!route)return {mode:'walk',duration:6000,meters,route:[from,to]};
- const length=route.slice(1).reduce((sum,p,i)=>sum+distance(route[i],p),0),boarding=650,driving=clamp(length/42*1000,1800,4500),alighting=750;
+ const length=route.slice(1).reduce((sum,p,i)=>sum+distance(route[i],p),0),boarding=1000,driving=clamp(length/42*1000,1800,4500),alighting=1050;
  return {mode:'cart',duration:boarding+driving+alighting,boarding,driving,alighting,meters,route};
 }
 export function sampleRoute(route,t){const lengths=route.slice(1).map((p,i)=>distance(route[i],p)),total=lengths.reduce((a,b)=>a+b,0);let remaining=clamp(t,0,1)*total;for(let i=0;i<lengths.length;i++){if(remaining<=lengths[i]||i===lengths.length-1){const a=route[i],b=route[i+1],f=clamp(remaining/(lengths[i]||1),0,1);return {x:a.x+(b.x-a.x)*f,z:a.z+(b.z-a.z)*f,heading:Math.atan2(b.x-a.x,b.z-a.z),distance:clamp(t,0,1)*total};}remaining-=lengths[i];}return {...route[0],heading:0,distance:0};}

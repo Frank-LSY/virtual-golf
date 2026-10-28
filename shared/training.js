@@ -18,10 +18,11 @@ export const TRAINING_CLUBS=[
  {id:'chip',name:'劈起杆',speed:18,loft:40,target:30},
  {id:'putter',name:'推杆',speed:5.4,loft:0,target:10}
 ];
-export const MOTION_STATES={IDLE:'准备',BACK:'上杆',DOWN:'下挥',HIT:'击球',COOLDOWN:'收杆'};
+// 识别状态：旧版规则的状态机，以及 0.18 起流式识别的最近一次判断（idle 等待 / swing 挥杆 / reject 不是挥杆）。
+export const MOTION_STATES={IDLE:'准备',BACK:'上杆',DOWN:'下挥',HIT:'击球',COOLDOWN:'收杆',idle:'等待挥杆',swing:'识别到挥杆',reject:'不是挥杆'};
 export function motionSample(t){
- if(!t||!['alpha','beta','gamma'].every(k=>Number.isFinite(t[k])&&Math.abs(t[k])<=10000)||!['alpha','beta','gamma'].includes(t.axis)||!MOTION_STATES[t.state]||!['intro','still','calibrating','calibration_done','ready'].includes(t.stage)||!Number.isFinite(t.tilt)||Math.abs(t.tilt)>360||!Number.isFinite(t.hz)||t.hz<0||t.hz>1000)throw Error('传感器数据无效。');
- return {alpha:t.alpha,beta:t.beta,gamma:t.gamma,axis:t.axis,state:t.state,stage:t.stage,tilt:t.tilt,hz:t.hz,peakMax:Number.isFinite(t.peakMax)?t.peakMax:null};
+ if(!t||!['alpha','beta','gamma'].every(k=>Number.isFinite(t[k])&&Math.abs(t[k])<=10000)||!['alpha','beta','gamma','auto'].includes(t.axis)||!MOTION_STATES[t.state]||!['intro','still','calibrating','calibration_done','ready'].includes(t.stage)||!Number.isFinite(t.tilt)||Math.abs(t.tilt)>360||!Number.isFinite(t.hz)||t.hz<0||t.hz>1000)throw Error('传感器数据无效。');
+ return {alpha:t.alpha,beta:t.beta,gamma:t.gamma,axis:t.axis,...(['model','rule'].includes(t.detector)?{detector:t.detector}:{}),state:t.state,stage:t.stage,tilt:t.tilt,hz:t.hz,peakMax:Number.isFinite(t.peakMax)?t.peakMax:null};
 }
 export function practiceSettings(value){
  const club=TRAINING_CLUBS.find(c=>c.id===value?.clubId);

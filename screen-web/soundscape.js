@@ -9,7 +9,7 @@ export function birdPhrase(random=Math.random){
  return {notes,pan:(random()-.5)*1.4,next:6+random()*8};
 }
 export class CourseAmbience {
- constructor(contextFactory,{enabled=true,random=Math.random}={}){this.contextFactory=contextFactory;this.random=random;this.enabled=enabled;this.visible=true;this.windSpeed=1;this.voices=new Set();this.nextBird=0;this.unlocked=false;}
+ constructor(contextFactory,{enabled=true,random=Math.random,output}={}){this.contextFactory=contextFactory;this.output=output;this.random=random;this.enabled=enabled;this.visible=true;this.windSpeed=1;this.voices=new Set();this.nextBird=0;this.unlocked=false;}
  unlock(){
   if(!this.enabled)return;
   try{this.context??=this.contextFactory();this.context.resume();this.unlocked=true;if(!this.windSource)this.createWind();if(!this.nextBird)this.nextBird=this.context.currentTime+2+this.random()*2;}catch{}
@@ -20,8 +20,9 @@ export class CourseAmbience {
   this.windSource=c.createBufferSource();this.windSource.buffer=buffer;this.windSource.loop=true;
   this.low=c.createBiquadFilter();this.low.type='lowpass';this.low.frequency.value=1350;this.low.Q.value=.4;
   this.high=c.createBiquadFilter();this.high.type='highpass';this.high.frequency.value=100;
-  this.windGain=c.createGain();this.windGain.gain.value=0;this.windSource.connect(this.high);this.high.connect(this.low);this.low.connect(this.windGain);this.windGain.connect(c.destination);this.windSource.start();
+  this.windGain=c.createGain();this.windGain.gain.value=0;this.windSource.connect(this.high);this.high.connect(this.low);this.low.connect(this.windGain);this.windGain.connect(this.destination());this.windSource.start();
  }
+ destination(){return this.output?.()||this.context.destination;}
  setWeather(speed){this.windSpeed=clamp(Number(speed)||0,0,8);}
  setEnabled(enabled){this.enabled=!!enabled;if(!enabled)this.quiet();else if(this.unlocked)this.unlock();}
  setVisible(visible){this.visible=!!visible;if(!visible)this.quiet();else if(this.context)this.nextBird=this.context.currentTime+3;}
@@ -32,7 +33,7 @@ export class CourseAmbience {
    const osc=c.createOscillator(),gain=c.createGain(),pan=c.createStereoPanner?.(),t=start+note.delay;
    osc.type='sine';osc.frequency.setValueAtTime(note.start,t);osc.frequency.exponentialRampToValueAtTime(note.peak,t+note.duration*.35);osc.frequency.exponentialRampToValueAtTime(note.end,t+note.duration);
    gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(level,t+.018);gain.gain.exponentialRampToValueAtTime(.0001,t+note.duration);
-   osc.connect(gain);if(pan){pan.pan.value=phrase.pan;gain.connect(pan);pan.connect(c.destination);}else gain.connect(c.destination);
+   osc.connect(gain);const out=this.destination();if(pan){pan.pan.value=phrase.pan;gain.connect(pan);pan.connect(out);}else gain.connect(out);
    const voice={osc,gain,pan};this.voices.add(voice);osc.onended=()=>{osc.disconnect();gain.disconnect();pan?.disconnect();this.voices.delete(voice);};osc.start(t);osc.stop(t+note.duration+.025);
   }
   this.nextBird=start+phrase.next;

@@ -41,9 +41,10 @@ export function routeAt(h,t){
   return {x:axis('x'),z:axis('z')};
 }
 export function routeDistance(h,x,z){
-  let best=Infinity;
-  for(let i=1;i<h.route.length;i++) {const a=h.route[i-1],b=h.route[i],dx=b.x-a.x,dz=b.z-a.z,t=clamp(((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz),0,1);best=Math.min(best,Math.hypot(x-a.x-t*dx,z-a.z-t*dz));}
-  return best;
+  // 平方距离比较并按纵向区间剪枝；与逐段 hypot 求最小值结果相同，但每步物理调用更省时。
+  let best=Infinity;const r=h.route;
+  for(let i=1;i<r.length;i++) {const a=r[i-1],b=r[i],gap=z<a.z&&z<b.z?Math.min(a.z,b.z)-z:z>a.z&&z>b.z?z-Math.max(a.z,b.z):0;if(gap*gap>=best)continue;const dx=b.x-a.x,dz=b.z-a.z,t=clamp(((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz),0,1),ex=x-a.x-t*dx,ez=z-a.z-t*dz,d=ex*ex+ez*ez;if(d<best)best=d;}
+  return Math.sqrt(best);
 }
 export function ellipseValue(p,x,z){const c=Math.cos(p.angle||0),s=Math.sin(p.angle||0),dx=x-p.x,dz=z-p.z; return ((dx*c+dz*s)/p.rx)**2+((-dx*s+dz*c)/p.rz)**2;}
 export function landValue(h,x,z){ return (x/98)**4+((z-h.length/2)/(h.length/2+48))**6; }
@@ -83,6 +84,6 @@ export function clubFor(h,ball){
  if(lie==='sand')return {id:'sand',name:'沙坑杆',mode:'沙坑救球',range:55,speed:25,loft:56};
  if(d<35)return {id:'chip',name:'劈起杆',mode:'短距离切球',range:38,speed:18,loft:40};
  if(d<90)return {id:'wedge',name:'挖起杆',mode:'攻果岭',range:85,speed:29,loft:50};
- if(d<185)return {id:'iron',name:'7 号铁杆',mode:'攻果岭',range:165,speed:39,loft:37};
+ if(d<170)return {id:'iron',name:'7 号铁杆',mode:'攻果岭',range:165,speed:39,loft:37};
  return {id:'driver',name:'一号木杆',mode:'远距离击球',range:265,speed:51,loft:28};
 }

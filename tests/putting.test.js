@@ -6,7 +6,6 @@ import {BALL_RADIUS,CUP_RADIUS,DROP_DURATION,sampleShot} from '../shared/ball.js
 import {simulateShot} from '../game-service/physics.js';
 import {ImpactEffects} from '../screen-web/impact-effects.js';
 import {GreenGuide} from '../screen-web/green-guide.js';
-import {LoopMusic} from '../screen-web/music.js';
 import {Game} from '../game-service/game.js';
 import {roundExport} from '../shared/players.js';
 
@@ -47,8 +46,4 @@ test('洞缘事件只播放一次且特效释放，玩家击球记录保留擦�
  const h=makeHole('sunny',0,421),g=new Game();g.start('sunny',3);g.state.seed=421;g.state.ball={x:h.pin.x,z:h.pin.z-2};g.state.aim=-4;g.savePlayer();g.setArmed(true);
  const shot=g.stroke({power:.08,dir:0,seq:1,stateVersion:g.state.stateVersion},'screen');let count=0;const effects=new ImpactEffects(()=>count++);effects.reset(shot);effects.sample(100,0);effects.sample(100,1);assert.equal(count,shot.impacts.length);effects.update(3000);assert.equal(effects.bursts.length,0);assert.equal(effects.children.length,0);
  const record=roundExport(g.snapshot())['击球记录'][0];assert.equal(record['碰撞反馈'][0]['类型'],'绕洞后弹出');assert.equal(record['进洞'],false);assert.ok(g.snapshot().putting);
-});
-test('背景音乐循环、独立音量与开关持久化，浏览器拒绝自动播放时可恢复',async()=>{
- const memory=new Map(),storage={getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,v)},audio={paused:true,addEventListener(){},pause(){this.paused=true;},async play(){if(this.blocked)throw Object.assign(Error(),{name:'NotAllowedError'});this.paused=false;}};
- const music=new LoopMusic(audio,storage);assert.equal(audio.loop,true);assert.equal(await music.play(),false);music.setSource('local.mp3');audio.blocked=true;assert.equal(await music.play(),false);assert.match(music.message,/点击/);audio.blocked=false;assert.equal(await music.play(),true);music.setVolume(.4);music.pause();assert.equal(audio.paused,true);assert.equal(new LoopMusic({...audio},storage).enabled,false);assert.equal(new LoopMusic({...audio},storage).audio.volume,.4);assert.equal(memory.has('swinglink-sound'),false);
 });
