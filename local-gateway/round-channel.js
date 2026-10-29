@@ -28,7 +28,7 @@ export class RoundChannel {
    this.send(ws,{type:dry?'rehearsal_ack':'ack',seq:m.seq,travel:shot.travel,club:shot.club,playerId:this.game.player.id,playerName:this.game.player.name});return true;
   }
   if(m.type==='sensor_sample'&&ws.role==='phone'){
-   const now=Date.now();if(!this.active()||ws!==this.phone()||now-(ws.lastRoundTelemetry||0)<65)return true;
+   const now=Date.now();if(!this.active()||ws!==this.phone()||now-(ws.lastRoundTelemetry||0)<30)return true;
    const sample=motionSample(m.sample);ws.lastRoundTelemetry=now;
    for(const c of this.observers())this.send(c,{type:'sensor_sample',scope:'round',phoneId:ws.clientId,receivedAt:now,sample,settings:ws.inputSettings||INPUT_DEFAULTS});return true;
   }

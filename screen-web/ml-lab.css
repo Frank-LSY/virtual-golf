@@ -180,3 +180,19 @@
 .ml-review-box div{display:flex;gap:8px}
 .ml-session-stats{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.5}
 .ml-live-actions{flex-wrap:wrap}
+/* 0.20：5 档力度采集进度、动作采样、力度误差与动作幅度 */
+.ml-level-seg button{padding:7px 9px}
+.ml-level-cue{margin:-2px 0 6px;font-size:12px;line-height:1.6}
+.ml-cov th:first-child{width:18%}.ml-cov th:last-child{width:17%}
+.ml-cov td small{font-weight:600;color:var(--faint);font-size:10px}
+.ml-cov td.ok{color:var(--grass-deep);background:rgba(37,160,90,.08)}
+.ml-cov td.some{color:#8a6100}
+.ml-cov .ml-poses{text-align:left;font-weight:700}
+.ml-poses span{display:inline-block;margin:2px 8px 2px 0;padding:2px 8px;border-radius:999px;background:var(--paper);font-size:12px}
+.ml-poses span.ok{background:var(--grass-soft);color:var(--grass-deep)}
+#ml-live-tier[data-tier=l1],#ml-live-tier[data-tier=l2]{background:#e3f3fe;color:#1b7fc8}
+#ml-live-tier[data-tier=l3]{background:var(--sun-soft);color:#8a6100}
+#ml-live-tier[data-tier=l4],#ml-live-tier[data-tier=l5]{background:var(--flag-soft);color:#c2421f}
+#ml-live-tier[data-tier=pose]{background:var(--grass-soft);color:var(--grass-deep)}
+.ml-power-levels{grid-column:1/-1;margin:4px 0 0;font-size:12px;line-height:1.7}
+.ml-motion-cal{margin:6px 0 0;font-size:12px;color:var(--ink-2);line-height:1.6}

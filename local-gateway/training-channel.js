@@ -1,5 +1,5 @@
 import {Training} from '../game-service/training.js';
-import {inputSettings,INPUT_DEFAULTS,motionSample} from '../shared/training.js';
+import {inputSettings,INPUT_DEFAULTS,motionSample,swingKin} from '../shared/training.js';
 
 // 原始传感器只转发给正在观看练习室的屏幕，不写入磁盘。
 export class TrainingChannel {
@@ -43,7 +43,7 @@ export class TrainingChannel {
   }
   if(m.type==='sensor_sample'&&ws.role==='phone'){
    if(!this.observers().length)return false;
-   const now=Date.now();if(ws!==this.phone()||now-(ws.lastTelemetry||0)<65)return true;
+   const now=Date.now();if(ws!==this.phone()||now-(ws.lastTelemetry||0)<30)return true;
    const sample=motionSample(m.sample);ws.lastTelemetry=now;
    this.publish({type:'sensor_sample',phoneId:ws.clientId,receivedAt:now,sample});return true;
   }
@@ -59,7 +59,7 @@ export class TrainingChannel {
    if(ws.role==='screen'&&!ws.practiceView)throw Error('请先打开挥杆练习室。');
    const rehearsal=m.type==='practice_rehearse'||(ws.role==='phone'&&!this.range.armed);
    if(!rehearsal&&!this.range.armed)throw Error('请先点击“准备击球”，或先试挥找手感。');
-   const result=this.range.stroke(m,ws.clientId,ws.role,ws.inputSettings||INPUT_DEFAULTS,Date.now(),rehearsal);
+   const result=this.range.stroke(m,ws.clientId,ws.role,ws.inputSettings||INPUT_DEFAULTS,Date.now(),rehearsal);result.kin=ws.role==='phone'?swingKin(m.kin):null;
    Object.assign(result.report,{playerId:this.owner().id,playerName:this.owner().name,phoneNumber:this.owner().number,inputDeviceId:ws.role==='phone'?ws.clientId:null,calibration:ws.calibration||null});if(!rehearsal)this.persist();
    this.publish({type:rehearsal?'practice_rehearsal':'practice_result',...result});this.send(ws,{type:rehearsal?'practice_rehearsal_ack':'practice_ack',seq:m.seq,...result.report,busyUntil:this.range.busyUntil});
    // 保留旧版诊断接收端；正式球局状态不会改变。

@@ -1,15 +1,14 @@
 // 握持图解与挥杆动作示范（原创矢量图 + CSS 动画），手机与电脑共用。
-// 正面视角：双臂与手机绕两肩中点转动；全挥杆、切杆、推杆的幅度不同，力度档位改变幅度。
-const AMPLITUDE={
- full:{light:[78,-82],mid:[104,-108],heavy:[128,-134]},
- partial:{light:[46,-48],mid:[64,-66],heavy:[82,-86]},
- putt:{light:[11,-12],mid:[17,-19],heavy:[24,-27]}
-};
+// 正面视角：双臂与手机绕两肩中点转动；挥杆与推杆按 5 档力度改变上杆幅度（膝 / 腰 / 胸 / 肩 / 完整上杆）。
+// 动作采样的“停住”类示范上杆后停住、不挥下去。
+const LEVEL_AMPLITUDE={swing:[[34,-40],[58,-64],[84,-92],[108,-116],[132,-136]],putt:[[8,-9],[12,-14],[16,-18],[20,-23],[25,-28]]};
+const TIER_LEVEL={light:2,mid:3,heavy:5};
+const POSE_LEVEL={waist:2,shoulder:4,top:5};
 export const MOTION_TIPS=Object.freeze({
- full:'上杆到手臂高过肩，顺势下挥，收杆到另一侧',
- partial:'上杆到腰与肩之间，挥出幅度与上杆相近',
- putt:'双肩像钟摆一样小幅摆动，手腕保持稳定',
- other:'照提示做日常动作，不要做挥杆'
+ swing:'上杆到提示的高度，顺势下挥，收杆到另一侧',
+ putt:'双肩像钟摆一样摆动，后摆长度按提示，手腕保持稳定',
+ other:'照提示做日常动作，不要做挥杆',
+ pose:'慢慢上杆到提示的高度停住，不要挥下去'
 });
 export const GRIPS=Object.freeze({vertical:'竖握',horizontal:'横握'});
 export const GRIP_TIPS=Object.freeze({
@@ -30,20 +29,24 @@ const STYLE=`<style>
 .sl-fig .swing{transform-box:view-box;transform-origin:100px 80px;animation:sl-swing 3.4s infinite}
 .sl-fig.putt .swing{animation-name:sl-putt}
 .sl-fig.other .swing{animation:sl-other 2.4s infinite ease-in-out}
+.sl-fig.hold .swing{animation:sl-hold 3.2s infinite}
 .sl-fig.paused .swing{animation-play-state:paused}
 @keyframes sl-swing{0%,14%{transform:rotate(0deg);animation-timing-function:ease-in-out}46%{transform:rotate(var(--top));animation-timing-function:linear}52%{transform:rotate(var(--top));animation-timing-function:cubic-bezier(.6,0,.9,.6)}60%{transform:rotate(0deg);animation-timing-function:cubic-bezier(.2,.6,.4,1)}70%{transform:rotate(var(--finish))}88%{transform:rotate(var(--finish));animation-timing-function:ease-in-out}100%{transform:rotate(0deg)}}
 @keyframes sl-putt{0%,16%{transform:rotate(0deg);animation-timing-function:ease-in-out}44%{transform:rotate(var(--top))}50%{transform:rotate(var(--top));animation-timing-function:ease-in-out}70%{transform:rotate(var(--finish))}86%{transform:rotate(var(--finish));animation-timing-function:ease-in-out}100%{transform:rotate(0deg)}}
+@keyframes sl-hold{0%,12%{transform:rotate(0deg);animation-timing-function:ease-in-out}55%,85%{transform:rotate(var(--top))}100%{transform:rotate(0deg)}}
 @keyframes sl-other{0%,100%{transform:translate(0,0) rotate(0deg)}20%{transform:translate(0,-26px) rotate(-8deg)}40%{transform:translate(6px,-30px) rotate(10deg)}60%{transform:translate(-6px,-22px) rotate(-6deg)}80%{transform:translate(0,-6px) rotate(3deg)}}
 @media (prefers-reduced-motion:reduce){.sl-fig .swing{animation:none;transform:rotate(var(--top))}}
 </style>`;
 
 function arcPath(top,finish){const r=78,pt=a=>{const t=a*Math.PI/180;return [100-Math.sin(t)*r,80+Math.cos(t)*r];};const [x0,y0]=pt(top),[x1,y1]=pt(finish),large=Math.abs(top-finish)>180?1:0;return `M${x0.toFixed(1)} ${y0.toFixed(1)}A${r} ${r} 0 ${large} 0 ${x1.toFixed(1)} ${y1.toFixed(1)}`;}
 
-// 挥杆动作示范：label 为 full / partial / putt / other，tier 为 light / mid / heavy（默认 mid）。
-export function motionSVG(label='full',tier='mid',{title=true,grip='vertical'}={}){
- const kind=AMPLITUDE[label]?label:'other',[top,finish]=kind==='other'?[0,0]:(AMPLITUDE[kind][tier]||AMPLITUDE[kind].mid);
- const arc=kind==='other'?'':`<path class="arc" d="${arcPath(top,finish)}"/>`;
- return `<svg class="sl-fig ${kind}" viewBox="0 0 200 220" role="img" aria-label="${title?MOTION_TIPS[kind]:''}" style="--top:${top}deg;--finish:${finish}deg">${STYLE}
+// 挥杆动作示范：label 为 swing / putt / other（兼容旧的 full / partial），level 为 1–5 档（也接受旧的 light / mid / heavy）；
+// pose 为动作采样的停住位置（waist / shoulder / top），只上杆不挥下去。
+export function motionSVG(label='swing',level=3,{title=true,grip='vertical',pose=null}={}){
+ const kind=label==='full'||label==='partial'?'swing':LEVEL_AMPLITUDE[label]?label:'other',lv=POSE_LEVEL[pose]||TIER_LEVEL[level]||Math.max(1,Math.min(5,Number(level)||(label==='partial'?2:3))),hold=!!POSE_LEVEL[pose];
+ const [top,finish]=kind==='other'?[0,0]:LEVEL_AMPLITUDE[kind][lv-1];
+ const arc=kind==='other'?'':`<path class="arc" d="${hold?arcPath(top,0):arcPath(top,finish)}"/>`,cls=hold?'swing hold':kind;
+ return `<svg class="sl-fig ${cls}" viewBox="0 0 200 220" role="img" aria-label="${title?MOTION_TIPS[hold?'pose':kind]:''}" style="--top:${top}deg;--finish:${finish}deg">${STYLE}
  <line class="ground" x1="30" y1="206" x2="170" y2="206"/>${kind==='other'?'':'<circle class="ball" cx="100" cy="199" r="5"/>'}${arc}
  <path class="limb" d="M100 128L80 203M100 128L120 203M100 128L100 76"/><path class="limb" d="M84 82H116"/>
  <circle class="head" cx="100" cy="56" r="14"/>

@@ -5,13 +5,14 @@ import {rollBall} from './visuals.js';
 import * as THREE from 'three';
 import {GolfScene} from './scene.js';
 import {Golfer} from './golfer.js';
+import {SwingMotion,SwingReplay,planSwing,swingGoal,FOLLOW_PHASES} from './swing-motion.js';
 import {MotionView} from '../shared/motion-view.js';
 import {makeRange} from '../shared/training.js';
 import {clamp} from '../shared/courses.js';
 
 const smooth=t=>t*t*(3-2*t);
 export class RangeScene extends GolfScene {
- constructor(container,onPhase=()=>{}){super(container);this.onPhase=onPhase;this.preview=false;this.phase='address';this.style='sage';this.camera.near=.08;this.camera.fov=49;this.renderer.toneMappingExposure=.95;this.sun.intensity=2.3;this.lastFrame=performance.now();this.motionView=new MotionView();}
+ constructor(container,onPhase=()=>{}){super(container);this.onPhase=onPhase;this.preview=false;this.phase='address';this.style='sage';this.camera.near=.08;this.camera.fov=49;this.renderer.toneMappingExposure=.95;this.sun.intensity=2.3;this.lastFrame=performance.now();this.motionView=new MotionView();this.motion=new SwingMotion();this.replay=null;}
  resize(){const w=this.container.clientWidth,h=this.container.clientHeight;if(!w||!h)return;this.renderer.setSize(w,h,false);this.camera.aspect=w/h;this.camera.fov=w<650?58:49;this.camera.clearViewOffset();this.camera.updateProjectionMatrix();this.setCamera();}
  loadRange(settings){
   this.settings=settings;this.swing=null;this.landedAt=0;this.setPhase('address');super.load(makeRange(settings));this.group.scale.x=-1;this.ocean.visible=false;
@@ -46,22 +47,26 @@ export class RangeScene extends GolfScene {
   else {const orbit=clamp(this.orbit,-.65,.65)+(this.motionView?.yaw||0),x=.3*Math.cos(orbit)-(-6.8)*Math.sin(orbit),z=.3*Math.sin(orbit)+(-6.8)*Math.cos(orbit);this.targetPosition.set(x*Math.cos(a)-z*Math.sin(a),(this.settings.clubId==='putter'?4.7:5.3)+(this.motionView?.pitch||0)*6,x*Math.sin(a)+z*Math.cos(a));this.targetLook.set(-Math.sin(a)*6,3.4,Math.cos(a)*6);}
   if(immediate){this.camera.position.copy(this.targetPosition);this.currentLook.copy(this.targetLook);this.camera.lookAt(this.currentLook);}
  }
+ // 手机实时姿势进入时间线，由 frame() 插值驱动小人。
  sample(t){
-  this.motionView.sample(t,performance.now());this.lastMotion=performance.now();if(!this.golfer||!['address','rehearsal'].includes(this.phase)||this.swing)return;
-  if(t.stage!=='ready'){this.golfer.goal=0;return;}
-  if(t.state==='BACK')this.golfer.goal=Math.max(.35,Math.min(1,Math.abs(t[t.axis])/(t.peakMax||600)*1.3));else if(t.state==='DOWN')this.golfer.goal=.08;else if(t.state==='COOLDOWN')this.golfer.goal=-.8;else this.golfer.goal=0;
+  this.motionView.sample(t,performance.now());this.lastMotion=performance.now();if(this.motion.push(t))return;
+  if(this.golfer&&t.stage!=='ready'&&['address','rehearsal'].includes(this.phase)&&!this.swing)this.golfer.goal=0;
  }
- rehearse(report){this.resetAddress();this.setPhase('rehearsal');this.swing={start:performance.now(),phone:report.source==='phone',dry:true};this.forecast.position.set(report.to.x,3.08,report.to.z);this.forecast.visible=true;}
- playShot(shot,source='screen'){
+ replaySwing(speed=.35){const last=this.motion.lastSwing();if(!last||!this.golfer||!['address','landing'].includes(this.phase)||this.swing)return false;this.replay=new SwingReplay(last.points,{speed});return true;}
+ hasReplay(){return !!this.motion.lastSwing();}
+ rehearse(report,kin=null){this.resetAddress();this.setPhase('rehearsal');const now=performance.now();this.swing={start:now,phone:report.source==='phone',dry:true,plan:planSwing(this.motion,{source:report.source,kin,power:report.power,now})};this.forecast.position.set(report.to.x,3.08,report.to.z);this.forecast.visible=true;}
+ playShot(shot,source='screen',kin=null){
   this.resetAddress();this.forecast.visible=false;this.trace.setShot(shot);this.effects.reset(shot);
-  const now=performance.now();this.lastResult=shot;this.swing={start:now,phone:source==='phone',dry:false,shot,impact:source==='phone'?100:540};this.setPhase('swing');this.aimLine.visible=false;
+  const now=performance.now(),plan=planSwing(this.motion,{source,kin,power:shot.power,now});this.lastResult=shot;this.swing={start:now,phone:source==='phone',dry:false,shot,plan,impact:plan.impact};this.setPhase('swing');this.aimLine.visible=false;
  }
  frame(){
   if(!this.hole||!this.container.clientWidth||!this.container.clientHeight)return;const now=performance.now(),dt=Math.min((now-this.lastFrame)/1000||.016,.05);this.lastFrame=now;this.motionView.update(dt,now);const time=(now-this.startTime)/1000;
-  if(this.swing){const s=this.swing,elapsed=now-s.start,u=clamp((elapsed+(s.phone?440:0))/1150,0,1);this.golfer.goal=u<.34?smooth(u/.34):u<.48?1-smooth((u-.34)/.14):-smooth(Math.min(1,(u-.48)/.34));
+  if(this.golfer)this.golfer.tracking=false;
+  if(this.swing&&this.golfer){const s=this.swing,elapsed=now-s.start;this.golfer.goal=swingGoal(s.plan,elapsed,this.motion,now);this.golfer.tracking=s.plan.mode!=='canned';
    if(!s.dry&&!this.flight&&elapsed>=s.impact){this.flight={shot:s.shot,start:s.start+s.impact};this.ballRing.visible=false;this.setPhase('flight');}
-   if(u>=1){this.swing=null;if(s.dry){this.golfer.goal=0;this.setPhase('address');}}
-  }
+   if(elapsed>=s.plan.end){this.swing=null;if(s.dry){if(!this.motion.live(now))this.golfer.goal=0;this.setPhase('address');}}
+  }else if(this.replay&&this.golfer){this.golfer.goal=this.replay.value(now);this.golfer.tracking=true;if(this.replay.done(now)){this.replay=null;this.golfer.goal=0;}}
+  else if(this.golfer&&this.motion.live(now)&&FOLLOW_PHASES.has(this.phase)){this.golfer.goal=this.motion.value(now);this.golfer.tracking=true;}
   if(this.flight){const {shot,start}=this.flight,previous=this.ball.position.clone(),p=sampleShot(shot,(now-start)/1000);this.ball.position.set(p.x,p.y,p.z);this.ball.scale.setScalar(1);rollBall(this.ball,previous,p);this.trace.reveal(p.index);this.effects.sample(p.time,now);if(p.done){this.flight=null;this.ball.position.set(shot.to.x,3+BALL_RADIUS,shot.to.z);this.ballRing.position.set(shot.to.x,3.04,shot.to.z);this.ballRing.scale.setScalar(.35);this.ballRing.visible=true;this.setPhase('landing');this.landedAt=now;}}
   if(this.phase==='landing'&&now-this.landedAt>2200)this.resetAddress();
   if(!this.swing&&this.phase==='address'&&now-(this.lastMotion||0)>1800)this.golfer.goal*=.96;

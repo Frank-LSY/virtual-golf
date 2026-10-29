@@ -52,7 +52,7 @@ export function streamCandidates(rec,opts={}){const tr=new PeakTracker(opts),out
 export function anchorNear(res,t0,time){const i=Math.round((time-t0)*res.hz/1000);return findAnchor(res,{from:Math.max(0,i-4),to:Math.min(res.n-1,i+3)});}
 
 // 由预测得到力量：先用这个人在这台手机上的力度映射；还没有时用所有球手合并的“总体映射”；都没有时按角速度峰值估算。
-const FALLBACK_PEAK={full:1000,partial:900,putt:500};
+const FALLBACK_PEAK={swing:1000,putt:500};
 export function streamPower(label,s,profile,{peak=0,fallbackProfile=null,fallbackPeak=null,gain=1}={}){
  const swing=SWING_CLASSES.includes(label),own=swing?powerFromScore(profile,label,s):null,pop=swing&&own===null?powerFromScore(fallbackProfile,label,s):null;
  const source=own!==null?'personal':pop!==null?'population':'peak',base=own??pop??Math.min(1,Math.max(0,peak/(fallbackPeak||FALLBACK_PEAK[label]||800)))**1.6;
@@ -91,7 +91,7 @@ export function wristRollAngle(res,from,to){
 // 有上杆、上杆顶点的低谷、方向相反且更快的下挥；不需要感应轴、满力值或握姿零点。
 export const HEURISTIC=Object.freeze({minPeak:120,minPuttPeak:45,puttBelow:300,minBackswing:80,downswing:[40,700],maxBackRatio:1.2,minBackRatio:.2,stillBefore:300,stillLevel:45});
 export function heuristicDecision(res,anchor,opts={}){
- const o={...HEURISTIC,...opts},t=swingTiming(res,anchor),peak=t.peak,fail=reason=>({label:'other',confidence:1,probs:{full:0,partial:0,putt:0,other:1},reason,timing:t});
+ const o={...HEURISTIC,...opts},t=swingTiming(res,anchor),peak=t.peak,fail=reason=>({label:'other',confidence:1,probs:{swing:0,putt:0,other:1},reason,timing:t});
  if(t.topIndex===null)return fail('没有上杆');
  const putt=peak<o.puttBelow;if(peak<(putt?o.minPuttPeak:o.minPeak))return fail('动作太轻');
  if(t.backswingMs<o.minBackswing)return fail('上杆太短');if(t.downswingMs<o.downswing[0]||t.downswingMs>o.downswing[1])return fail('下挥节奏不像挥杆');
@@ -100,7 +100,7 @@ export function heuristicDecision(res,anchor,opts={}){
  const n0=Math.max(0,t.startIndex-Math.round(o.stillBefore*res.hz/1000));let pre=0;for(let i=n0;i<=t.startIndex;i++)pre+=raw[i];pre/=Math.max(1,t.startIndex-n0+1);if(pre>o.stillLevel)return fail('上杆前没有站稳');
  const ser=referenceSeries(res,t.startIndex,anchor),bi=bp-t.startIndex,ai=anchor-t.startIndex,dotp=ser.g[bi*3]*ser.g[ai*3]+ser.g[bi*3+1]*ser.g[ai*3+1]+ser.g[bi*3+2]*ser.g[ai*3+2];
  if(dotp>0)return fail('上杆与下挥方向没有反转');
- const label=putt?'putt':'full';return {label,confidence:1,probs:{full:label==='full'?1:0,partial:0,putt:label==='putt'?1:0,other:0},reason:null,timing:t};
+ const label=putt?'putt':'swing';return {label,confidence:1,probs:{swing:label==='swing'?1:0,putt:label==='putt'?1:0,other:0},reason:null,timing:t};
 }
 
 // 流式识别器：push 每个传感器样本；判断后返回 {kind:'swing'|'reject', prediction, ...}。

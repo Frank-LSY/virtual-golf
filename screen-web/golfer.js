@@ -3,11 +3,36 @@ import * as THREE from 'three';
 
 export const GOLFER_STYLES={sage:{name:'青苔',shirt:'#457968',cap:'#f3e7cf',trousers:'#e2dcc9'},coast:{name:'海盐',shirt:'#527bba',cap:'#eff5f3',trousers:'#273d52'},sunset:{name:'落日',shirt:'#cc775b',cap:'#f7e4bc',trousers:'#45534e'},plum:{name:'暮光',shirt:'#886799',cap:'#f2e7ed',trousers:'#3a354d'}};
 const v=(x,y,z)=>new THREE.Vector3(x,y,z);
+// 挥杆关键姿势（u：0 站位，正值上杆，负值送杆）：双手位置与杆身方向。u = 力度档位 / 5（膝 .2、腰 .4、胸 .6、肩 .8、完整上杆 1）。
+// 坐标在人物局部空间：+x 为上杆一侧，-x 为目标方向，+z 朝向球。
+const SWING_KEYS=[
+ [-1.05,[-.4,1.93,.08],[.27,.53,-.8]],
+ [-1,[-.42,1.9,.1],[.27,.53,-.8]],
+ [-.8,[-.55,1.72,.2],[.15,.95,-.4]],
+ [-.6,[-.56,1.45,.34],[-.45,.85,-.15]],
+ [-.35,[-.42,1.13,.5],[-1,.12,.15]],
+ [-.15,[-.13,1.02,.64],[-.3,-.9,.7]],
+ [0,[0,1.03,.65],[0,-.925,.77]],
+ [.2,[.2,1.03,.6],[.7,-.6,.35]],
+ [.4,[.4,1.13,.48],[1,.02,.12]],
+ [.6,[.5,1.38,.36],[.55,.82,-.05]],
+ [.8,[.53,1.66,.28],[.05,.95,-.3]],
+ [1,[.48,1.92,.2],[-.82,.3,-.48]],
+ [1.12,[.44,1.96,.18],[-.9,.15,-.42]]
+].map(([u,h,d])=>({u,h:v(...h),d:v(...d).normalize()}));
+// 关键姿势之间：双手走 Catmull-Rom 曲线，杆身方向做归一化插值。
+export function swingPose(u){
+ const k=SWING_KEYS,x=Math.max(k[0].u,Math.min(k.at(-1).u,u));let i=0;while(i<k.length-2&&x>k[i+1].u)i++;
+ const a=k[i],b=k[i+1],f=(x-a.u)/((b.u-a.u)||1),p0=k[Math.max(0,i-1)].h,p3=k[Math.min(k.length-1,i+2)].h,f2=f*f,f3=f2*f;
+ const hand=new THREE.Vector3();for(const c of ['x','y','z'])hand[c]=.5*((2*a.h[c])+(-p0[c]+b.h[c])*f+(2*p0[c]-5*a.h[c]+4*b.h[c]-p3[c])*f2+(-p0[c]+3*a.h[c]-3*b.h[c]+p3[c])*f3);
+ const dir=a.d.clone().lerp(b.d,f);if(dir.lengthSq()<1e-6)dir.copy(f<.5?a.d:b.d);dir.normalize();
+ return {hand,dir};
+}
 
 // 原创程序化人物：关节随姿势变化，双手始终握在同一球杆上。
 export class Golfer {
  constructor(style='sage'){
-  this.root=new THREE.Group();this.root.rotation.y=Math.PI/2;this.pose=0;this.goal=0;this.putting=false;
+  this.root=new THREE.Group();this.root.rotation.y=Math.PI/2;this.pose=0;this.goal=0;this.putting=false;this.tracking=false;
   const material=(color,extra={})=>new THREE.MeshStandardMaterial({color,roughness:.78,...extra});
   this.skin=material('#dda57f',{roughness:.62});this.shirt=material('#457968',{roughness:.93});this.cap=material('#f3e7cf');this.pants=material('#e2dcc9');this.white=material('#f9f5e8');this.dark=material('#293e37');
   this.body=new THREE.Group();this.root.add(this.body);
@@ -54,10 +79,12 @@ export class Golfer {
  }
  update(dt,time){
   if(this.locomotion&&this.locomotion!=='rest'){this.updateTravel();return;}this.club.visible=true;
-  this.pose+=(this.goal-this.pose)*(1-Math.exp(-dt*18));const p=this.pose,back=Math.max(0,p),follow=Math.max(0,-p),amount=this.putting?.24:1;
-  const rest=v(0,1.03,.65),top=v(.55,1.99,.22),finish=v(-.62,1.95,.17);const hand=rest.clone().lerp(p>=0?top:finish,Math.min(1,Math.abs(p))*amount);
-  const head= v(0,.105,1.42).lerp(p>=0?v(.27,2.73,-.72):v(-.28,2.62,-.84),Math.min(1,Math.abs(p))*amount);
-  const twist=(back*.65-follow*.98)*amount;this.body.rotation.y=twist;this.body.position.y=Math.sin(time*1.6)*.006*(1-Math.abs(p));this.head.rotation.x=.16-back*.13-follow*.16;this.head.rotation.y=follow*-.4;
+  // 跟随手机时响应更快（时间常数约 35 毫秒），自动动画时更柔和。
+  this.pose+=(this.goal-this.pose)*(1-Math.exp(-dt*(this.tracking?28:18)));const p=this.pose,back=Math.max(0,Math.min(1.12,p)),follow=Math.max(0,Math.min(1.05,-p)),amount=this.putting?.24:1;
+  let hand,head;
+  if(this.putting){const rest=v(0,1.03,.65),top=v(.55,1.99,.22),finish=v(-.62,1.95,.17);hand=rest.clone().lerp(p>=0?top:finish,Math.min(1,Math.abs(p))*amount);head=v(0,.105,1.42).lerp(p>=0?v(.27,2.73,-.72):v(-.28,2.62,-.84),Math.min(1,Math.abs(p))*amount);}
+  else{const pose=swingPose(p);hand=pose.hand;head=hand.clone().addScaledVector(pose.dir,1.2);}
+  const twist=this.putting?(back*.65-follow*.98)*amount:Math.min(1,back)*.78-Math.min(1,follow)*1.05;this.body.rotation.y=twist;this.body.position.y=Math.sin(time*1.6)*.006*(1-Math.abs(p));this.head.rotation.x=.16-back*.13-follow*.16;this.head.rotation.y=follow*-.4;
   for(const leg of this.legs){const lift=leg.sign===1?follow*.065:back*.018,shift=(back*.035-follow*.05)*amount;leg.foot.position.set(leg.sign*.24,.09+lift,.15);leg.sole.position.set(leg.sign*.24,.035+lift,.15);leg.foot.rotation.z=-lift*1.8;this.placeLimb(leg.upper,v(leg.sign*.18+shift,.94,0),v(leg.sign*.26+shift*.6,.52,.12+back*.025));this.placeLimb(leg.lower,v(leg.sign*.26+shift*.6,.52,.12+back*.025),v(leg.sign*.24,.16+lift,.06));}
   this.club.position.copy(hand);this.club.quaternion.setFromUnitVectors(v(0,-1,0),head.sub(hand).normalize());
   for(const arm of this.arms){const shoulder=v(arm.sign*.29,1.57,.12).applyAxisAngle(v(0,1,0),twist);const end=hand.clone().add(v(arm.sign*.033,-arm.sign*.035,0));const elbow=shoulder.clone().lerp(end,.52);elbow.z-=.09;elbow.x+=arm.sign*(.1+back*.06);this.placeLimb(arm.upper,shoulder,elbow);this.placeLimb(arm.lower,elbow,end);arm.elbow.position.copy(elbow);arm.hand.position.copy(end);}

@@ -1,5 +1,6 @@
 // 训练与评估：样本准备、类别平衡交叉熵 + 力度排序损失、按批次划分、留一交叉验证与最近质心基线。
-import {CLASSES,TIERS,SWING_CLASSES} from './labels.js';
+// 0.20 起：3 类标签；力度用 0–1 的档位值（5 档上杆幅度），旧数据按旧类别换算，只在同一旧类别内比较先后。
+import {CLASSES,SWING_CLASSES,normalizeLabel,legacyPower,powerGroup} from './labels.js';
 import {decodeRecording} from './codec.js';
 import {resample,findAnchor,windowAt,features,featureVector,WINDOW,FEATURES} from './signal.js';
 import {augment} from './augment.js';
@@ -10,8 +11,10 @@ const sigmoid=x=>1/(1+Math.exp(-x));
 // 把存储的样本变成训练条目：解码 → 50 Hz → 锚点 → 未增强窗口；未标注样本 y 为 null。
 export function prepareItem(sample,{features=FEATURES}={}){
  const raw=sample.recording||sample.data,rec=raw?.enc?decodeRecording(raw):raw,res=resample(rec);
- const anchor=findAnchor(res,{from:Math.min(res.n-1,20)});const y=CLASSES.indexOf(sample.label);
- return {id:sample.id,profile:sample.profile||'unknown',session:sample.session||sample.sessionId||'default',source:sample.source||'collect',y:y>=0?y:null,label:y>=0?sample.label:null,tier:TIERS.indexOf(sample.tier)>=0?TIERS.indexOf(sample.tier):null,weight:Number.isFinite(sample.weight)?sample.weight:1,res,rec,anchor,anchorTime:rec.t[0]+anchor*1000/res.hz,features,x:windowAt(res,anchor,{features})};
+ const anchor=findAnchor(res,{from:Math.min(res.n-1,20)}),label=normalizeLabel(sample.label),y=CLASSES.indexOf(label),swing=SWING_CLASSES.includes(label);
+ // 力度：新档位直接用；旧样本（未迁移的全挥杆 / 切杆 / 推杆 + 轻中重）按旧类别换算。
+ const legacy=sample.legacy||(sample.label&&sample.label!==label?{label:sample.label,tier:sample.tier}:sample.tier?{label:sample.label,tier:sample.tier}:null),power=!swing?null:Number.isFinite(sample.power)?sample.power:legacy?legacyPower(legacy.label,legacy.tier):null;
+ return {id:sample.id,profile:sample.profile||'unknown',session:sample.session||sample.sessionId||'default',source:sample.source||'collect',y:y>=0?y:null,label:y>=0?label:null,power,group:powerGroup({legacy}),pose:sample.pose||null,weight:Number.isFinite(sample.weight)?sample.weight:1,res,rec,anchor,anchorTime:rec.t[0]+anchor*1000/res.hz,features,x:windowAt(res,anchor,{features})};
 }
 // 困难负样本：流式识别在这段录音里也会判断、但不是真正击球峰值的候选（上杆峰、预备晃杆、收杆后的动作），
 // 以“非挥杆”训练，让模型学会等到真正的下挥峰再触发。只用于训练，不参与分类指标。
@@ -21,19 +24,21 @@ export function streamExtras(item,{max=6,weight=.6}={}){
  for(const c of streamCandidates(item.rec)){
   const a=anchorNear(item.res,t0,c.time),d=a-item.anchor;
   if(Math.abs(d)<=3)continue;if(item.y!==other&&d>0&&d<=skipAfter)continue;
-  out.push({...item,id:`${item.id}#${out.length}`,parent:item.id,y:other,label:'other',tier:null,weight:item.weight*weight,anchor:a,x:windowAt(item.res,a,{features:item.features}),extra:true});
+  out.push({...item,id:`${item.id}#${out.length}`,parent:item.id,y:other,label:'other',power:null,weight:item.weight*weight,anchor:a,x:windowAt(item.res,a,{features:item.features}),extra:true});
   if(out.length>=max)break;
  }
  return out;
 }
 export function prepare(samples,{extras=false,features=FEATURES}={}){const out=[];for(const s of samples){try{const it=prepareItem(s,{features});out.push(it);if(extras)out.push(...streamExtras(it));}catch{}}return out;}
 function augmentedInput(item,r){
- const tiered=item.tier!==null,res=augment(item.res,r,{tierSafe:tiered}),scale=res.n/item.res.n,anchor=Math.max(0,Math.min(res.n-1,Math.round(item.anchor*scale)+Math.round((r()*2-1)*3)));
+ const tiered=item.power!==null,res=augment(item.res,r,{tierSafe:tiered}),scale=res.n/item.res.n,anchor=Math.max(0,Math.min(res.n-1,Math.round(item.anchor*scale)+Math.round((r()*2-1)*3)));
  return windowAt(res,findAnchor(res,{from:Math.max(0,anchor-4),to:Math.min(res.n-1,anchor+4)})+Math.round((r()*2-1)*2),{features:item.features});
 }
 export function classWeights(items){const counts=new Array(CLASSES.length).fill(0);for(const it of items)if(it.y!==null)counts[it.y]+=it.weight;const total=counts.reduce((a,b)=>a+b,0),present=counts.filter(c=>c>0).length||1;return counts.map(c=>c>0?Math.min(4,total/(present*c)):0);}
-// 批内成对排序损失：同一球手、同一挥杆类别、档位不同的样本对。
-function rankingPairs(batch){const pairs=[];for(let i=0;i<batch.length;i++)for(let j=0;j<batch.length;j++){const a=batch[i],b=batch[j];if(a.tier===null||b.tier===null||a.tier>=b.tier||a.profile!==b.profile||a.y!==b.y||!SWING_CLASSES.includes(CLASSES[a.y]))continue;pairs.push([i,j]);}return pairs;}
+// 力度可比较：同一球手、同一类别；同一力度组内相差 ≥ 0.1，跨组（新档位与旧数据）相差 ≥ 0.4 才认为先后确定。
+export function comparable(a,b){if(a.power===null||b.power===null||a.power==null||b.power==null||a.profile!==b.profile||a.y!==b.y||!SWING_CLASSES.includes(CLASSES[a.y]))return false;return b.power-a.power>=(a.group===b.group?.1-1e-9:.4-1e-9);}
+// 批内成对排序损失：可比较的样本对，力度高的分数应更高。
+function rankingPairs(batch){const pairs=[];for(let i=0;i<batch.length;i++)for(let j=0;j<batch.length;j++)if(comparable(batch[i],batch[j]))pairs.push([i,j]);return pairs;}
 
 export function trainModel(items,{epochs=40,batch=32,lr=3e-3,seed=1,params=null,freezeEncoder=false,rankWeight=.5,augmentData=true,onProgress=null,validation=null,shouldStop=null}={}){
  const train=items.filter(it=>it.y!==null);if(!train.length)throw Error('没有已标注的样本，无法训练。');
@@ -66,9 +71,10 @@ export function metricsFrom(predictions){
  for(const p of labeled)confusion[p.item.y][p.pred]++;
  const perClass=CLASSES.map((name,c)=>{const tp=confusion[c][c],fn=confusion[c].reduce((a,b)=>a+b,0)-tp,fp=confusion.reduce((a,row)=>a+row[c],0)-tp,precision=tp+fp?tp/(tp+fp):0,recall=tp+fn?tp/(tp+fn):0;return {name,support:tp+fn,precision,recall,f1:precision+recall?2*precision*recall/(precision+recall):0};});
  const present=perClass.filter(c=>c.support>0),other=CLASSES.indexOf('other'),others=labeled.filter(p=>p.item.y===other),swings=labeled.filter(p=>p.item.y!==other);
- const groups=new Map();for(const p of labeled)if(p.item.tier!==null&&p.item.y!==other){const k=p.item.profile+'|'+p.item.y;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(p);}
- let rho=0,rhoN=0,pairOk=0,pairN=0;for(const list of groups.values()){if(list.length<4||new Set(list.map(p=>p.item.tier)).size<2)continue;rho+=spearman(list.map(p=>p.s),list.map(p=>p.item.tier))*list.length;rhoN+=list.length;for(const a of list)for(const b of list)if(a.item.tier<b.item.tier){pairN++;if(b.s>a.s)pairOk++;}}
- return {count:labeled.length,accuracy:labeled.length?labeled.filter(p=>p.pred===p.item.y).length/labeled.length:0,macroF1:present.length?present.reduce((s,c)=>s+c.f1,0)/present.length:0,perClass,confusion,falseTrigger:others.length?others.filter(p=>p.pred!==other).length/others.length:null,missRate:swings.length?swings.filter(p=>p.pred===other).length/swings.length:null,intensityRho:rhoN?rho/rhoN:null,pairOrder:pairN?pairOk/pairN:null};
+ const groups=new Map();for(const p of labeled)if(Number.isFinite(p.item.power)&&p.item.y!==other){const k=p.item.profile+'|'+p.item.y+'|'+(p.item.group||'v2');if(!groups.has(k))groups.set(k,[]);groups.get(k).push(p);}
+ let rho=0,rhoN=0,pairOk=0,pairN=0,err=0,errN=0;for(const list of groups.values()){if(list.length<4||new Set(list.map(p=>p.item.power)).size<2)continue;rho+=spearman(list.map(p=>p.s),list.map(p=>p.item.power))*list.length;rhoN+=list.length;for(const a of list)for(const b of list)if(comparable(a.item,b.item)){pairN++;if(b.s>a.s)pairOk++;}}
+ for(const p of labeled)if(Number.isFinite(p.power)&&Number.isFinite(p.item.power)&&p.item.y!==other){err+=Math.abs(p.power-p.item.power);errN++;}
+ return {count:labeled.length,accuracy:labeled.length?labeled.filter(p=>p.pred===p.item.y).length/labeled.length:0,macroF1:present.length?present.reduce((s,c)=>s+c.f1,0)/present.length:0,perClass,confusion,falseTrigger:others.length?others.filter(p=>p.pred!==other).length/others.length:null,missRate:swings.length?swings.filter(p=>p.pred===other).length/swings.length:null,intensityRho:rhoN?rho/rhoN:null,pairOrder:pairN?pairOk/pairN:null,powerError:errN?err/errN:null};
 }
 export function evaluate(params,items){return metricsFrom(predictItems(params,items));}
 

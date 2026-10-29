@@ -10,13 +10,14 @@ import {rollBall} from './visuals.js';
 import * as THREE from 'three';
 import {GolfScene} from './scene.js';
 import {Golfer} from './golfer.js';
+import {SwingMotion,SwingReplay,planSwing,swingGoal,FOLLOW_PHASES} from './swing-motion.js';
 import {MotionView} from '../shared/motion-view.js';
 import {clamp,heightAt,distance,clubFor,routeAt} from '../shared/courses.js';
 
 const ease=t=>t*t*(3-2*t);
 const INTRO_MS=5200;
 export class PlayerScene extends GolfScene {
- constructor(container,onPhase=()=>{}){super(container);this.onPhase=onPhase;this.phase='address';this.motionView=new MotionView();this.lastFrame=performance.now();this.style='sage';}
+ constructor(container,onPhase=()=>{}){super(container);this.onPhase=onPhase;this.phase='address';this.motionView=new MotionView();this.motion=new SwingMotion();this.replay=null;this.lastFrame=performance.now();this.style='sage';}
  resize(){if(this.preview)return super.resize();const w=this.container.clientWidth,h=this.container.clientHeight;if(!w||!h)return;this.renderer.setSize(w,h,false);this.camera.aspect=w/h;this.camera.near=.08;this.camera.fov=w<650?59:49;this.camera.clearViewOffset();this.camera.updateProjectionMatrix();this.setCamera();}
  load(hole){
   this.endJourney();
@@ -70,18 +71,20 @@ export class PlayerScene extends GolfScene {
  }
  finish(p,aim=0){if(this.preview)return super.finish(p);if(['swing','flight','settling','splash','cup','holed','landing','moving','boarding','driving','alighting'].includes(this.phase))return;this.setBall(p,aim);}
  resetAddress(){if(['swing','flight','settling','splash','cup','holed','moving','boarding','driving','alighting'].includes(this.phase))return;this.view='follow';this.orbit=0;this.motionView.reset();this.golfer.goal=0;this.setCamera();}
+ // 手机实时姿势进入时间线，由 frame() 插值驱动小人；旧版手机（没有 u）只在未启用体感时让小人回到站位。
  sample(t){
-  this.motionView.sample(t,performance.now());this.lastMotion=performance.now();if(!this.golfer||!['address','rehearsal'].includes(this.phase)||this.swing)return;
-  if(t.stage!=='ready'){this.golfer.goal=0;return;}
-  this.golfer.goal=t.state==='BACK'?Math.max(.3,Math.min(1,Math.abs(t[t.axis])/(t.peakMax||600)*1.3)):t.state==='DOWN'?.08:t.state==='COOLDOWN'?-.8:0;
+  this.motionView.sample(t,performance.now());this.lastMotion=performance.now();if(this.motion.push(t))return;
+  if(this.golfer&&t.stage!=='ready'&&['address','rehearsal'].includes(this.phase)&&!this.swing)this.golfer.goal=0;
  }
+ // 慢放最近一杆（真实轨迹）；speed 为播放速度。
+ replaySwing(speed=.35){const last=this.motion.lastSwing();if(!last||!this.golfer||!['address','landing','settling'].includes(this.phase)||this.swing)return false;this.replay=new SwingReplay(last.points,{speed});return true;}
  rehearse(shot,source='screen'){
-  if(this.preview)return;this.view='follow';this.swing={start:performance.now(),phone:source==='phone',dry:true};this.setPhase('rehearsal');const p=shot.path.at(-1);this.forecast.position.set(p.x,heightAt(this.hole,p.x,p.z)+.07,p.z);this.forecast.visible=true;
+  if(this.preview)return;this.view='follow';this.replay=null;const now=performance.now();this.swing={start:now,phone:source==='phone',dry:true,plan:planSwing(this.motion,{source,kin:shot.kin,power:shot.power,now})};this.setPhase('rehearsal');const p=shot.path.at(-1);this.forecast.position.set(p.x,heightAt(this.hole,p.x,p.z)+.07,p.z);this.forecast.visible=true;
  }
  playShot(shot,source='screen'){
   if(this.preview)return;this.walk=null;this.flight=null;this.lastResult=shot;this.holed=false;this.ball.visible=true;this.golfer.setClub(shot.clubId||this.selectedClubId||'iron');this.forecast.visible=false;this.view='follow';this.orbit=0;this.slopeVisible=false;this.slopeGrid.visible=false;
   this.trace.setShot(shot);this.effects.reset(shot);this.terrainDetails.launch();this.impactUntil=0;this.rimming=false;this.lastFlightSample=null;this.rollSpeed=0;
-  this.swing={start:performance.now(),phone:source==='phone',dry:false,shot,impact:source==='phone'?100:540};this.intro=null;this.onIntro?.(false);this.guide.visible=false;this.flightCam=null;this.flightMeta=this.planFlight(shot);this.setPhase('swing');this.aimLine.visible=false;
+  const now=performance.now(),plan=planSwing(this.motion,{source,kin:shot.kin,power:shot.power,now});this.replay=null;this.swing={start:now,phone:source==='phone',dry:false,shot,plan,impact:plan.impact};this.intro=null;this.onIntro?.(false);this.guide.visible=false;this.flightCam=null;this.flightMeta=this.planFlight(shot);this.setPhase('swing');this.aimLine.visible=false;
  }
  setCamera(immediate=false){
   this.updateViewUI();  if(this.preview)return super.setCamera(immediate);if(!this.hole)return;const p=this.movement?this.movement.current:this.ballPosition||this.hole.tee,h=this.hole;
@@ -145,10 +148,13 @@ export class PlayerScene extends GolfScene {
   if(this.journey){const now=performance.now(),dt=Math.min(.05,(now-this.lastFrame)/1000||.016);this.lastFrame=now;this.journeyLabel=this.journey.update(Date.now(),dt);return;}
   if(this.preview)return super.frame();if(!this.hole||!this.golfer||!this.container.clientWidth||!this.container.clientHeight)return;
   const now=performance.now(),dt=Math.min((now-this.lastFrame)/1000||.016,.05),time=(now-this.startTime)/1000;this.lastFrame=now;this.motionView.update(dt,now);
-  if(this.swing){const s=this.swing,elapsed=now-s.start,u=clamp((elapsed+(s.phone?440:0))/1150,0,1);this.golfer.goal=u<.34?ease(u/.34):u<.48?1-ease((u-.34)/.14):-ease(Math.min(1,(u-.48)/.34));
+  // 小人：击球计划（实时跟随 / 真实轨迹回放 / 固定动画）→ 慢放 → 实时跟随手机 → 静置。
+  this.golfer.tracking=false;
+  if(this.swing){const s=this.swing,elapsed=now-s.start;this.golfer.goal=swingGoal(s.plan,elapsed,this.motion,now);this.golfer.tracking=s.plan.mode!=='canned';
    if(!s.dry&&!this.flight&&elapsed>=s.impact){this.flight={shot:s.shot,start:s.start+s.impact};this.ballRing.visible=false;this.setPhase('flight');}
-   if(u>=1){this.swing=null;if(s.dry){this.golfer.goal=0;this.setPhase('address');}}
-  }
+   if(elapsed>=s.plan.end){this.swing=null;if(s.dry){if(!this.motion.live(now))this.golfer.goal=0;this.setPhase('address');}}
+  }else if(this.replay){this.golfer.goal=this.replay.value(now);this.golfer.tracking=true;if(this.replay.done(now)){this.replay=null;this.golfer.goal=0;}}
+  else if(this.motion.live(now)&&FOLLOW_PHASES.has(this.phase)&&!this.holed){this.golfer.goal=this.motion.value(now);this.golfer.tracking=true;}
   if(this.flight){const {shot,start}=this.flight,previous=this.ball.position.clone(),p=sampleShot(shot,(now-start)/1000);const prior=this.lastFlightSample;this.rollSpeed=prior&&p.time>prior.time?Math.hypot(p.x-prior.x,p.z-prior.z)/(p.time-prior.time):shot.ballSpeed;this.lastFlightSample=p;this.ball.position.set(p.x,p.y,p.z);this.ball.scale.setScalar(1);rollBall(this.ball,previous,p);this.trace.reveal(p.index);this.rimming=p.rimming;this.effects.sample(p.time,now);if(p.settling&&this.phase!=='settling'){this.setPhase('settling');this.terrainDetails.setBall(shot.to);this.setCamera();}if(p.settling)this.trace.fade(Math.max(0,1-(p.time-shot.settleTime)*1.6));if(p.dropping&&this.phase!=='cup')this.setPhase('cup');if(p.splashing){if(this.phase!=='splash'){this.setPhase('splash');this.setCamera(true);}this.ball.visible=p.y>WATER_LEVEL-BALL_RADIUS;this.trace.fade(Math.max(0,1-(p.time-shot.waterTime)*2));}
    if(p.done){this.flight=null;this.landedAt=start+shot.duration*1000;if(shot.holed){this.holed=true;this.ball.visible=false;this.trace.visible=false;this.golfer.goal=-.65;this.setPhase('holed');}else this.setPhase('landing');}
   }

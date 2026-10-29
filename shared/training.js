@@ -20,9 +20,17 @@ export const TRAINING_CLUBS=[
 ];
 // 识别状态：旧版规则的状态机，以及 0.18 起流式识别的最近一次判断（idle 等待 / swing 挥杆 / reject 不是挥杆）。
 export const MOTION_STATES={IDLE:'准备',BACK:'上杆',DOWN:'下挥',HIT:'击球',COOLDOWN:'收杆',idle:'等待挥杆',swing:'识别到挥杆',reject:'不是挥杆'};
+const ARC_PHASES=['idle','address','back','down','follow','hold'];
+// 挥杆轨迹（击球时随挥杆发送）：25 Hz 的小人姿势序列与击球峰值时刻，用于电脑端回放下挥与对齐击球时机。
+export function swingKin(k){
+ if(!k||typeof k!=='object'||!Array.isArray(k.u)||k.u.length<3||k.u.length>150||!k.u.every(v=>Number.isFinite(v)&&Math.abs(v)<=1.2)||!Number.isFinite(k.t0)||!Number.isFinite(k.dt)||k.dt<10||k.dt>100||!Number.isFinite(k.impactAt))return null;
+ return {t0:Math.round(k.t0),dt:Math.round(k.dt*10)/10,u:k.u.map(v=>Math.round(v*1000)/1000),impactAt:Math.round(k.impactAt),now:Number.isFinite(k.now)?Math.round(k.now):null,top:Number.isFinite(k.top)?Math.round(k.top*10)/10:null,topU:Number.isFinite(k.topU)?Math.round(k.topU*1000)/1000:null};
+}
 export function motionSample(t){
  if(!t||!['alpha','beta','gamma'].every(k=>Number.isFinite(t[k])&&Math.abs(t[k])<=10000)||!['alpha','beta','gamma','auto'].includes(t.axis)||!MOTION_STATES[t.state]||!['intro','still','calibrating','calibration_done','ready'].includes(t.stage)||!Number.isFinite(t.tilt)||Math.abs(t.tilt)>360||!Number.isFinite(t.hz)||t.hz<0||t.hz>1000)throw Error('传感器数据无效。');
- return {alpha:t.alpha,beta:t.beta,gamma:t.gamma,axis:t.axis,...(['model','rule'].includes(t.detector)?{detector:t.detector}:{}),state:t.state,stage:t.stage,tilt:t.tilt,hz:t.hz,peakMax:Number.isFinite(t.peakMax)?t.peakMax:null};
+ // 0.20：小人跟随所需的手机时间戳 t（毫秒）、姿势 u（-1.2–1.2）、挥杆弧度 arc（°）与动作阶段 phase。
+ const pose=Number.isFinite(t.u)&&Math.abs(t.u)<=1.2&&Number.isFinite(t.t)&&t.t>=0?{t:Math.round(t.t),u:Math.round(t.u*1000)/1000,...(Number.isFinite(t.arc)&&Math.abs(t.arc)<=720?{arc:Math.round(t.arc*10)/10}:{}),...(ARC_PHASES.includes(t.phase)?{phase:t.phase}:{})}:{};
+ return {alpha:t.alpha,beta:t.beta,gamma:t.gamma,axis:t.axis,...(['model','rule'].includes(t.detector)?{detector:t.detector}:{}),state:t.state,stage:t.stage,tilt:t.tilt,hz:t.hz,peakMax:Number.isFinite(t.peakMax)?t.peakMax:null,...pose};
 }
 export function practiceSettings(value){
  const club=TRAINING_CLUBS.find(c=>c.id===value?.clubId);

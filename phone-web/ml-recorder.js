@@ -17,5 +17,4 @@ export class TrialSegmenter {
  }
 }
 export function sampleId(){try{return crypto.randomUUID().replace(/-/g,'');}catch{return Date.now().toString(36)+Math.random().toString(36).slice(2,12);}}
-export const ML_LABEL_TIPS={full:'完整上杆、下挥、收杆',partial:'半幅上杆，大约到腰或肩，再挥出',putt:'钟摆式小幅推杆，手腕保持稳定',other:'按提示做动作，不要挥杆'};
-export const ML_TIER_TEXT={light:'轻力度 · 约三成',mid:'中等力度 · 约六成',heavy:'大力 · 舒适的最大挥幅'};
+export const ML_LABEL_TIPS={swing:'上杆到提示的高度，顺势下挥、收杆',putt:'钟摆式推杆，后摆长度按提示，手腕保持稳定',other:'按提示做动作，不要挥杆',pose:'慢慢上杆到提示的位置停住，不要挥下去'};

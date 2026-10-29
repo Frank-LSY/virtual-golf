@@ -4,7 +4,7 @@ import {randomBytes} from 'node:crypto';
 import {prepare,trainModel,evaluate,splitBySession,centroidBaseline,metricsFrom} from '../shared/ml/train.js';
 import {serializeModel,deserializeModel} from '../shared/ml/net.js';
 import {FEATURES} from '../shared/ml/signal.js';
-import {emptyProfile,predictWindow,observe,fineTuneHead} from '../shared/ml/adapt.js';
+import {emptyProfile,predictWindow,observe,fineTuneHead,powerFromScore} from '../shared/ml/adapt.js';
 import {CLASSES,SWING_CLASSES,STREAM_VERSION} from '../shared/ml/labels.js';
 import {streamMetrics,STREAM} from '../shared/ml/stream.js';
 import {decodeRecording} from '../shared/ml/codec.js';
@@ -27,10 +27,18 @@ const STREAM_SOURCES=new Set(['collect','adapt']);
 export function streamEntries(items){return items.filter(it=>!it.extra&&it.y!==null&&STREAM_SOURCES.has(it.source)&&it.rec).map(it=>({rec:it.rec,label:it.label,profile:null,anchorTime:it.anchorTime}));}
 export function streamCurve(model,entries,thresholds=[.5,.6,.7,.8,.9]){return thresholds.map(threshold=>{const m=streamMetrics(model,entries,{threshold});return {threshold,onTimeRate:m.onTimeRate,detectRate:m.detectRate,earlyRate:m.earlyRate,missRate:m.missRate,falseTriggerRate:m.falseTriggerRate,swings:m.swings,others:m.others};});}
 export function rebuildProfiles(model,samples){
- const profiles={},features=model.features||1;for(const s of [...samples].sort((a,b)=>String(a.time).localeCompare(String(b.time)))){if(!s.label)continue;const [item]=prepare([s],{features});if(!item)continue;const key=s.profile||'unknown',profile=profiles[key]||(profiles[key]=emptyProfile(key)),p=predictWindow(model,profile,item.x);observe(profile,{e:p.e,label:s.label,s:p.s,tier:s.tier,weight:s.weight??1});
-  // “*” 为所有球手合并的总体映射，新球手或新设备还没有个人映射时使用。
-  observe(profiles['*']||(profiles['*']=emptyProfile('*')),{e:p.e,label:s.label,s:p.s,tier:s.tier,weight:s.weight??1});}
+ const profiles={},features=model.features||1;for(const s of [...samples].sort((a,b)=>String(a.time).localeCompare(String(b.time)))){if(!s.label)continue;const [item]=prepare([s],{features});if(!item)continue;const key=s.profile||'unknown',profile=profiles[key]||(profiles[key]=emptyProfile(key)),p=predictWindow(model,profile,item.x),obs={e:p.e,label:item.label,s:p.s,power:item.power,weight:s.weight??1,kin:s.kin||null,pose:s.pose||null};observe(profile,obs);
+  // “*” 为所有球手合并的总体映射，新球手或新设备还没有个人映射时使用（不合并动作幅度，各人差异大）。
+  observe(profiles['*']||(profiles['*']=emptyProfile('*')),{...obs,kin:null,pose:null});}
  return profiles;
+}
+// 力度误差：用训练批次建立每位球手的力度映射，再预测验证批次的力度，与目标档位比较。
+export function powerEvaluation(model,train,val){
+ // 与实际运行一致：先用这个人的映射，没有时用全体球手的总体映射。
+ const profiles={'*':emptyProfile('*')};for(const it of train)if(!it.extra&&it.y!==null){const prof=profiles[it.profile]??=emptyProfile(it.profile),p=predictWindow(model,prof,it.x);observe(prof,{e:p.e,label:CLASSES[it.y],s:p.s,power:it.power});observe(profiles['*'],{e:p.e,label:CLASSES[it.y],s:p.s,power:it.power});}
+ const levels={};let err=0,n=0,within=0;
+ for(const it of val){const label=CLASSES[it.y];if(!SWING_CLASSES.includes(label)||!Number.isFinite(it.power))continue;const own=profiles[it.profile]||emptyProfile(it.profile),p=predictWindow(model,own,it.x),power=powerFromScore(own,label,p.s)??powerFromScore(profiles['*'],label,p.s);if(power===null)continue;const e=Math.abs(power-it.power);err+=e;n++;if(e<=.1+1e-9)within++;const key=`${label}:${it.power.toFixed(1)}`;(levels[key]??=[]).push(Math.round(power*100)/100);}
+ return {count:n,mae:n?err/n:null,within10:n?within/n:null,levels};
 }
 function withAdaptation(model,items,profile){return metricsFrom(items.map(it=>{const p=predictWindow(model,profile,it.x);return {item:it,probs:CLASSES.map(c=>p.probs[c]),pred:CLASSES.indexOf(p.label),s:p.s};}));}
 // 留一球手：其余数据训练 → 零样本；再用该球手每类前 5 条做原型与头部适配 → 剩余样本评估。
@@ -44,7 +52,7 @@ export function transferEvaluation(items,{epochs=20,shots=5,onProgress=()=>{}}={
   if(query.length<4)return;const zero=evaluate(model.params,query),state=emptyProfile(profile);
   // 先微调头部，再用微调后的嵌入计算个人原型，保证原型与推理处于同一嵌入空间。
   const tuned=fineTuneHead(model,[...others,...support.map(it=>({...it,weight:2}))],{epochs:5});
-  for(const it of support){const p=predictWindow(tuned,state,it.x);observe(state,{e:p.e,label:CLASSES[it.y],s:p.s,tier:it.tier===null?null:['light','mid','heavy'][it.tier]});}
+  for(const it of support){const p=predictWindow(tuned,state,it.x);observe(state,{e:p.e,label:CLASSES[it.y],s:p.s,power:it.power});}
   const adapted=withAdaptation(tuned,query,state);
   results.push({profile,zeroShotF1:zero.macroF1,adaptedF1:adapted.macroF1,query:query.length,support:support.length});
  });
@@ -59,16 +67,16 @@ async function run(job){
   const classes=new Set(labeled.map(it=>it.y));if(classes.size<2)throw Error('至少需要两类动作才能训练。');
   const epochs=job.epochs||45,{train,val}=splitBySession(items),total=epochs+12;
   const first=trainModel(train,{epochs,seed:job.seed||1,validation:val,onProgress:e=>progress('train',e.epoch/total,{epoch:e.epoch,loss:e.loss,trainAccuracy:e.trainAccuracy,valF1:e.valF1??null})});
-  const validation=val.length?evaluate(first.params,val):null,baseline=val.length?centroidBaseline(train,val):null;
+  const validation=val.length?evaluate(first.params,val):null,baseline=val.length?centroidBaseline(train,val):null,powerCheck=val.length?powerEvaluation({params:first.params,features,classes:CLASSES},train,val):null;if(validation&&powerCheck){validation.powerError=powerCheck.mae;validation.powerWithin=powerCheck.within10;validation.powerCount=powerCheck.count;validation.powerLevels=powerCheck.levels;}
   progress('stream',epochs/total);const entries=streamEntries(val),evalModel={params:first.params,features},curve=entries.length?streamCurve(evalModel,entries):[],threshold=job.threshold||STREAM.threshold,stream=entries.length?streamMetrics(evalModel,entries,{threshold}):null;
   // 用全部数据再训练 12 轮，得到最终部署的模型。
   const final=trainModel(items,{epochs:12,lr:1.5e-3,params:first.params,seed:(job.seed||1)+1,onProgress:e=>progress('final',(epochs+e.epoch)/total,{epoch:epochs+e.epoch,loss:e.loss,trainAccuracy:e.trainAccuracy})});
-  const model={id:`${new Date().toISOString().replace(/[-:T.Z]/g,'').slice(0,14)}-${randomBytes(2).toString('hex')}`,params:final.params,trainedAt:new Date().toISOString(),samples:labeled.length,kind:'full',stream:STREAM_VERSION,features:FEATURES,metrics:{validation:summary(validation),baseline:summary(baseline),stream,streamCurve:curve,streamThreshold:threshold,rule:entries.length?(h=>({falseTrigger:h.falseTriggerRate,missRate:h.missRate,stream:h}))(streamMetrics(null,entries)):null,legacyRule:ruleMetrics(job.samples.filter(s=>val.some(v=>v.id===s.id)),val),trainCount:train.filter(it=>it.y!==null&&!it.extra).length,extraCount:items.filter(it=>it.extra).length,valCount:val.length,history:first.history.map(h=>({epoch:h.epoch,loss:+h.loss.toFixed(4),valF1:h.valF1??null}))}};
+  const model={id:`${new Date().toISOString().replace(/[-:T.Z]/g,'').slice(0,14)}-${randomBytes(2).toString('hex')}`,params:final.params,classes:CLASSES,trainedAt:new Date().toISOString(),samples:labeled.length,kind:'full',stream:STREAM_VERSION,features:FEATURES,labels:2,metrics:{validation:validation&&{...summary(validation),powerError:validation.powerError??null,powerWithin:validation.powerWithin??null,powerCount:validation.powerCount??0,powerLevels:validation.powerLevels||null},baseline:summary(baseline),stream,streamCurve:curve,streamThreshold:threshold,rule:entries.length?(h=>({falseTrigger:h.falseTriggerRate,missRate:h.missRate,stream:h}))(streamMetrics(null,entries)):null,legacyRule:ruleMetrics(job.samples.filter(s=>val.some(v=>v.id===s.id)),val),trainCount:train.filter(it=>it.y!==null&&!it.extra).length,extraCount:items.filter(it=>it.extra).length,valCount:val.length,history:first.history.map(h=>({epoch:h.epoch,loss:+h.loss.toFixed(4),valF1:h.valF1??null}))}};
   progress('profiles',1);const profiles=rebuildProfiles(model,job.samples);
   return {model:serializeModel(model),profiles};
  }
  if(job.kind==='head'){
-  const base=deserializeModel(job.model);if(labeled.length<4)throw Error('样本不足，无法微调。');
+  const base=deserializeModel(job.model);if(base.legacy)throw Error('这是旧版标签（全挥杆 / 切杆）的模型，请重新完整训练后再在线微调。');if(labeled.length<4)throw Error('样本不足，无法微调。');
   const tuned=fineTuneHead(base,items,{epochs:job.epochs||5});const model={...tuned,id:`${base.id.split('+')[0]}+${randomBytes(2).toString('hex')}`,trainedAt:new Date().toISOString(),kind:'head',parent:base.id,stream:base.stream||0,features:base.features||1,samples:labeled.length,metrics:{...base.metrics,tunedAt:new Date().toISOString(),tunedOn:labeled.length}};
   return {model:serializeModel(model),profiles:rebuildProfiles(model,job.samples)};
  }
