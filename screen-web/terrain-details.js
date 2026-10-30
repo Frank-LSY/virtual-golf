@@ -27,7 +27,7 @@ function grassMesh(points,seed){
 }
 export class TerrainDetails extends THREE.Group {
  constructor(hole,groundMaterial=null){
-  super();this.hole=hole;this.groundMaterial=groundMaterial;this.patch=new THREE.Mesh(new THREE.BufferGeometry(),terrainMaterial(hole));this.patch.receiveShadow=true;this.patch.visible=false;this.add(this.patch);const rng=random(hole.seed+705),points=[];
+  super();this.hole=hole;this.groundMaterial=groundMaterial;this.patch=new THREE.Mesh(new THREE.BufferGeometry(),terrainMaterial(hole));this.patch.userData.noOutline=true;this.patch.receiveShadow=true;this.patch.visible=false;this.add(this.patch);const rng=random(hole.seed+705),points=[];
   for(let i=0;i<26000&&points.length<4200;i++){const x=(rng()-.5)*196,z=-25+rng()*(hole.length+55);if(surfaceAt(hole,x,z)==='rough')points.push({x,y:heightAt(hole,x,z),z});}
   this.grass=grassMesh(points,hole.seed);this.add(this.grass);this.local=null;this.lie=new THREE.Group();this.add(this.lie);
   const depression=new THREE.Mesh(new THREE.CircleGeometry(.145,32),new THREE.MeshStandardMaterial({color:'#b49a6b',roughness:1,transparent:true,opacity:.24,depthWrite:false}));depression.rotation.x=-Math.PI/2;depression.position.y=.004;this.lie.add(depression);

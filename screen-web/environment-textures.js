@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {random} from '../shared/courses.js';
+import {cartoonSkyTexture,cartoonCloudTexture} from './toon-look.js';
 
 export const ENVIRONMENT_ASSETS=Object.freeze({atlas:'course-atlas-v1.webp',sky:'sky-v1.webp',cloud:'cloud-v1.webp',rough:'rough-clumps-v1.webp'});
 export const ATLAS_CELLS=Object.freeze({fairway:[0,1],green:[1,1],rough:[2,1],sand:[3,1],bark:[0,0],leaves:[1,0],pine:[2,0],water:[3,0]});
@@ -29,9 +30,9 @@ export function addTerrainTextures(material){
    vec3 surfaceTex=courseTex(terrainXZ*tileScale,groundCell);float grainLuma=courseLuma(surfaceTex);
    float meanLuma=groundKind>2.5?.24:groundKind>1.5?.68:groundKind>.5?.11:.18;
    float grainContrast=clamp(grainLuma/meanLuma,.58,1.42);
-   diffuseColor.rgb*=mix(1.0,grainContrast,textureDetail*.67*courseReady);
+   diffuseColor.rgb*=mix(1.0,grainContrast,textureDetail*.26*courseReady);
    roughnessFactor=mix(roughnessFactor,groundKind>2.5?.82:.97,textureDetail*courseReady);
-   surfaceRelief=grainLuma*(groundKind>2.5?.0015:groundKind>1.5?.007:.005)*textureDetail*courseReady;
+   surfaceRelief=grainLuma*(groundKind>2.5?.0006:groundKind>1.5?.0028:.002)*textureDetail*courseReady;
   `);
   shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\nnormal=courseBump(normal,surfaceRelief);');
  };material.customProgramCacheKey=()=> 'golf-terrain-atlas-v1';material.userData.atlas=atlas;return material;
@@ -47,8 +48,8 @@ export function treeMaterial(color,kind,fade=false){
   const uv=kind==='bark'?'vec2(atan(treePosition.x,treePosition.z)*.6366,treePosition.y*.75)':'(abs(treeNormal.y)>.55?treePosition.xz:abs(treeNormal.x)>.55?treePosition.zy:treePosition.xy)*'+(kind==='pine'?'1.3':'2.0');
   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
    vec3 leaves=courseTex(${uv},vec2(${cell[0]}.0,${cell[1]}.0));float relief=courseLuma(leaves);float detail=(1.0-smoothstep(35.0,210.0,length(vViewPosition)))*courseReady;
-   diffuseColor.rgb*=mix(1.0,clamp(relief/${kind==='bark'?'.19':kind==='pine'?'.09':'.16'},.55,1.45),detail*.72);
-   barkHeight=relief*${kind==='bark'?'.025':'.018'}*detail;
+   diffuseColor.rgb*=mix(1.0,clamp(relief/${kind==='bark'?'.19':kind==='pine'?'.09':'.16'},.55,1.45),detail*.3);
+   barkHeight=relief*${kind==='bark'?'.01':'.007'}*detail;
   `);
   shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\nnormal=courseBump(normal,barkHeight);');
  };material.customProgramCacheKey=()=> 'tree-atlas-'+kind+(fade?'-fade':'');material.userData.atlas=atlas;return material;
@@ -57,8 +58,8 @@ export function refreshTexture(material){if(material?.userData.courseReady)mater
 
 export class CourseAtmosphere {
  constructor(scene){
-  this.sky=new THREE.Mesh(new THREE.SphereGeometry(1000,32,16),new THREE.MeshBasicMaterial({map:environmentTexture('sky'),side:THREE.BackSide,depthWrite:false,fog:false,toneMapped:false}));this.sky.frustumCulled=false;this.sky.renderOrder=-20;scene.add(this.sky);
-  const mat=new THREE.MeshBasicMaterial({map:environmentTexture('cloud'),transparent:true,depthWrite:false,fog:true,opacity:.82,side:THREE.DoubleSide,toneMapped:false});
+  this.sky=new THREE.Mesh(new THREE.SphereGeometry(1000,32,16),new THREE.MeshBasicMaterial({map:cartoonSkyTexture(),side:THREE.BackSide,depthWrite:false,fog:false,toneMapped:false}));this.sky.userData.noOutline=true;this.sky.frustumCulled=false;this.sky.renderOrder=-20;scene.add(this.sky);
+  const mat=new THREE.MeshBasicMaterial({map:cartoonCloudTexture(),transparent:true,depthWrite:false,fog:false,opacity:.97,side:THREE.DoubleSide,toneMapped:false});
   this.clouds=new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1),mat,7);this.clouds.frustumCulled=false;this.clouds.renderOrder=-10;this.clouds.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(this.clouds);this.dummy=new THREE.Object3D();
  }
  load(hole){const rng=random(hole.seed+990);this.center=hole.length*.5;this.cloudData=Array.from({length:7},(_,i)=>({x:(i-3)*150+(rng()-.5)*50,y:105+rng()*55,z:this.center+420+rng()*210,width:105+rng()*95,phase:rng()*6}));}

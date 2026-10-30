@@ -29,6 +29,12 @@ export function terrainMaterial(hole){
  diffuseColor.rgb *= 1.0 + sand * (rake * .035 + (grain - .5) * .13);
  float rough = smoothstep(.65, .95, groundKind) * (1.0 - smoothstep(1.05, 1.4, groundKind));
  diffuseColor.rgb *= 1.0 - rough * .05 + rough * sin(terrainXZ.x * 15.0 + terrainXZ.y * 8.0) * .025;
+ // 0.21.1 卡通草坪：球道上清楚的深浅修剪条纹（每条 13 米），果岭上细格纹。
+ float fairwayBand = 1.0 - smoothstep(.25, .75, groundKind);
+ float stripe = smoothstep(-.08, .08, sin(terrainXZ.y * .2417));
+ diffuseColor.rgb *= 1.0 + fairwayBand * (stripe * .1 - .05);
+ float checker = smoothstep(-.06, .06, sin(terrainXZ.x * .85) * sin(terrainXZ.y * .85));
+ diffuseColor.rgb *= 1.0 + puttingGreen * (checker * .07 - .035);
  `);};return addTerrainTextures(material);
 }
 export function holeCup(hole){

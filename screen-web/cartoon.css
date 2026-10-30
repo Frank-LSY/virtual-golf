@@ -155,7 +155,7 @@ body[data-game="golf"] .sub-nav [data-game="skyroll"],body[data-game="skyroll"] 
 .lobby-footer{font-weight:700}
 
 /* ---------- 高尔夫：球局 HUD ---------- */
-.hud-panel,.intro-card,.guide-label{border:var(--ol) solid var(--ol-c)!important;box-shadow:var(--pop-s)!important}
+.hud-panel,.guide-label{border:var(--ol) solid var(--ol-c)!important;box-shadow:var(--pop-s)!important}
 .hud-hole-badge{border:2.5px solid var(--ol-c);background:var(--golf)!important;color:#fff}
 .hud-back{border:2.5px solid var(--ol-c);box-shadow:0 2px 0 var(--ol-c)}
 .hud-score{border:2.5px solid var(--ol-c);box-shadow:0 2px 0 var(--ol-c)}

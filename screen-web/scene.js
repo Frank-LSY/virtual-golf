@@ -2,6 +2,7 @@ import {CourseLandscape} from './course-landscape.js';
 import {courseTour} from '../shared/course-tour.js';
 import {courseToLocal} from '../shared/course-layout.js';
 import {CourseAtmosphere,treeMaterial,refreshTexture} from './environment-textures.js';
+import {configureToonRenderer,hookToonRenderer,cartoonColor} from './toon-look.js';
 import {GreenGuide} from './green-guide.js';
 import {CUP_LABELS} from '../shared/putting.js';
 import {ViewState,overviewPose} from '../shared/view.js';
@@ -19,10 +20,10 @@ import {COURSES,clamp,heightAt,surfaceAt,landValue,random,distance} from '../sha
 export class GolfScene {
  constructor(container){
   this.container=container;this.scene=new THREE.Scene();this.camera=new THREE.PerspectiveCamera(39,1,.5,2200);this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
-  this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.8));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.12;container.append(this.renderer.domElement);
-  this.scene.add(new THREE.HemisphereLight('#fffbe5','#688d91',1.7));
-  this.sun=new THREE.DirectionalLight('#fff0d7',2.8);this.sun.position.set(-110,180,-40);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);Object.assign(this.sun.shadow.camera,{left:-180,right:180,top:240,bottom:-240,near:1,far:650});this.sun.shadow.bias=-.0008;this.sun.shadow.normalBias=.6;this.scene.add(this.sun);this.scene.add(this.sun.target);this.atmosphere=new CourseAtmosphere(this.scene);
-  this.viewState=new ViewState();const fill=new THREE.DirectionalLight('#dceaff',.9);fill.position.set(80,60,100);this.scene.add(fill);this.currentLook=new THREE.Vector3();this.targetLook=new THREE.Vector3();this.targetPosition=new THREE.Vector3();this.group=new THREE.Group();this.scene.add(this.group);this.preview=true;this.orbit=0;this.startTime=performance.now();this.flight=null;this.view='follow';this.slopeVisible=false;
+  this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.8));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.12;configureToonRenderer(this.renderer);hookToonRenderer(this.renderer,this.scene);container.append(this.renderer.domElement);
+  this.scene.add(new THREE.HemisphereLight('#fffbe5','#6f8fb0',1.65));
+  this.sun=new THREE.DirectionalLight('#fff0d7',2.4);this.sun.position.set(-110,180,-40);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);Object.assign(this.sun.shadow.camera,{left:-180,right:180,top:240,bottom:-240,near:1,far:650});this.sun.shadow.bias=-.0008;this.sun.shadow.normalBias=.6;this.scene.add(this.sun);this.scene.add(this.sun.target);this.atmosphere=new CourseAtmosphere(this.scene);
+  this.viewState=new ViewState();const fill=new THREE.DirectionalLight('#dceaff',.42);fill.position.set(80,60,100);this.scene.add(fill);this.currentLook=new THREE.Vector3();this.targetLook=new THREE.Vector3();this.targetPosition=new THREE.Vector3();this.group=new THREE.Group();this.scene.add(this.group);this.preview=true;this.orbit=0;this.startTime=performance.now();this.flight=null;this.view='follow';this.slopeVisible=false;
   new ResizeObserver(()=>this.resize()).observe(container);
   bindViewGestures(this.renderer.domElement,{drag:(x,y)=>{if(this.view==='overview'||this.preview||this.slopeVisible){this.viewState.rotate(-x*.007);this.viewState.tilt(y*.15);}else this.orbit+=x*.006;this.setCamera();},zoom:f=>{if(this.view!=='overview'&&!this.preview&&!this.slopeVisible)return false;this.viewState.scale(f);this.setCamera();},rotate:a=>{this.viewState.rotate(a);this.setCamera();}});
   this.viewToolbar=document.createElement('div');this.viewToolbar.className='scene-view-tools';container.append(this.viewToolbar);
@@ -33,17 +34,16 @@ export class GolfScene {
  mount(container,preview){this.container=container;container.append(this.renderer.domElement,this.viewToolbar);this.preview=preview;this.view=preview?'overview':'follow';this.orbit=0;this.resize();new ResizeObserver(()=>this.resize()).observe(container);}
  clear(){this.group.traverse(obj=>{if(!obj.geometry?.userData.sharedBallGeometry)obj.geometry?.dispose();const materials=Array.isArray(obj.material)?obj.material:[obj.material];for(const m of materials)m?.dispose();});this.scene.remove(this.group);this.group=new THREE.Group();this.scene.add(this.group);}
  load(hole){
-  this.viewState.reset();this.hole=hole;this.ballPosition={x:0,z:0};this.flight=null;this.clear();const c=COURSES.find(c=>c.id===hole.courseId);this.palette=c;this.scene.background=new THREE.Color(c.sky);this.scene.fog=new THREE.Fog(c.sky,500,1200);this.atmosphere.load(hole);
+  this.viewState.reset();this.hole=hole;this.ballPosition={x:0,z:0};this.flight=null;this.clear();const c=COURSES.find(c=>c.id===hole.courseId);this.palette=c;this.scene.background=new THREE.Color('#9fd6ff');this.scene.fog=new THREE.Fog(cartoonColor(c.sky,{saturation:1.6,lightness:1}),520,1250);this.atmosphere.load(hole);
   const nx=146,nz=Math.ceil((hole.length+130)/1.65),width=220,depth=hole.length+130,geo=new THREE.PlaneGeometry(width,depth,nx,nz);geo.rotateX(-Math.PI/2);geo.translate(0,0,hole.length/2);
-  const pos=geo.attributes.position,colors=[],kinds=[];const base=new THREE.Color(c.grass),fair=new THREE.Color(c.fairway),green=new THREE.Color(c.green),sand=new THREE.Color('#e7d7a9'),edge=new THREE.Color('#d6c8a0');
+  const pos=geo.attributes.position,colors=[],kinds=[];const toonGround=hex=>cartoonColor(hex,{saturation:1.04,lightness:.93}),base=toonGround(c.grass),fair=toonGround(c.fairway),green=toonGround(c.green),sand=new THREE.Color('#e7d7a9'),edge=new THREE.Color('#d6c8a0');
   for(let i=0;i<pos.count;i++){
    const x=pos.getX(i),z=pos.getZ(i),y=heightAt(hole,x,z),s=surfaceAt(hole,x,z);pos.setY(i,y);
    kinds.push(s==='sand'?2:s==='rough'?1:s==='green'?3:0);const col=(s==='fairway'||s==='tee'?fair:s==='green'?green:s==='sand'?sand:base).clone();
-   if(s==='fairway')col.multiplyScalar(Math.floor(z/13)%2===0?1:1.035);
    if(s==='rough')col.multiplyScalar(1+Math.sin(x*.11+z*.18)*.025);
    if(landValue(hole,x,z)>.75)col.lerp(new THREE.Color(c.ground||c.grass),clamp((landValue(hole,x,z)-.75)/.15,0,1));colors.push(col.r,col.g,col.b);
   }
-  geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geo.setAttribute('terrainKind',new THREE.Float32BufferAttribute(kinds,1));geo.computeVertexNormals();const terrain=new THREE.Mesh(geo,terrainMaterial(hole));terrain.receiveShadow=true;this.group.add(terrain);
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geo.setAttribute('terrainKind',new THREE.Float32BufferAttribute(kinds,1));geo.computeVertexNormals();const terrain=new THREE.Mesh(geo,terrainMaterial(hole));terrain.receiveShadow=true;terrain.userData.noOutline=true;this.group.add(terrain);
   const ocean=new THREE.Mesh(new THREE.PlaneGeometry(2200,2200),pondMaterial(c.water));ocean.rotation.x=-Math.PI/2;ocean.position.set(0,-3.5,hole.length/2);this.group.add(ocean);this.ocean=ocean; ocean.visible=!!hole.practice;
   if(!hole.practice){const landscape=new CourseLandscape(courseTour(hole.courseId,hole.seed-hole.index*7919),{activeIndex:hole.index}),origin=courseToLocal(hole.placement,{x:0,z:0});landscape.rotation.y=-hole.placement.heading;landscape.position.set(origin.x,0,origin.z);this.group.add(landscape);}
   this.ponds=[];for(const p of hole.hazards.filter(p=>p.type==='water')){

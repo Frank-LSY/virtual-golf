@@ -1,6 +1,6 @@
 // 云端滚球音效：全部实时合成的卡通音色，接入共用的“音效”母线（受音效开关与音量控制）。
 // 撞栏“咚”、弹射柱“啵嘤”、加速带“咻”、检查点双音、坠落滑音、复活“啵”、风车横杆“咔”、上浮台“嘟”；
-// 另有一条随速度变化的滚动底噪。
+// 另有随速度、路面变化的滚动声（低频滚动 + 细碎颗粒 + 转动节奏）。
 export class SkyrollSfx{
  constructor(context,output,{enabled=()=>true}={}){this.context=context;this.output=output;this.enabled=enabled;this.last={};}
  get c(){return this.context();}
@@ -23,14 +23,37 @@ export class SkyrollSfx{
    else if(kind==='countdown'&&this.ok('countdown',.5)){this.tone('sine',660,660,.09,.12);}
   }catch{}
  }
- // 滚动底噪：速度越快越响、越亮；冰面更细、云絮更闷。
+ // 滚动声（0.21.1 重做）：真实滚球的声音不是一片“沙沙”的噪声，而是三层叠在一起——
+ //  · 低频滚动隆隆声：窄带共振（约 90–220 赫兹），音高随速度升高；
+ //  · 细碎颗粒声：球面与跑道上的细小凹凸逐个碰撞，形成随速度变密的“咯咯”声；
+ //  · 转动节奏：球每转一圈轻微起伏一次（频率 = 速度 / 球周长）。
+ // 冰面更亮、更轻滑，云絮更闷、更软；速度越快越响。
+ ensureRoll(){
+  if(this.rollOut)return;const c=this.c,sr=c.sampleRate,len=Math.floor(sr*4);
+  // 低频底噪：多生成一小段，再与开头交叉，循环接缝处没有跳变（否则每圈会“咚”一下）。
+  const fadeN=Math.floor(sr*.08),raw=new Float32Array(len+fadeN);let v=0;for(let i=0;i<raw.length;i++){v=(v+(Math.random()*2-1)*.02)*.998;raw[i]=v;}
+  const brown=c.createBuffer(1,len,sr),b=brown.getChannelData(0);let peak=0;for(let i=0;i<len;i++){b[i]=i<fadeN?raw[i]*(i/fadeN)+raw[len+i]*(1-i/fadeN):raw[i];peak=Math.max(peak,Math.abs(b[i]));}for(let i=0;i<len;i++)b[i]/=peak||1;
+  // 颗粒：泊松分布的短促碰撞，每个约 1–2 毫秒，振幅随机；首尾无缝衔接。
+  const grit=c.createBuffer(1,len,sr),g=grit.getChannelData(0);let t=0;while(t<len){t+=Math.floor(-Math.log(1-Math.random())*sr/220);if(t>=len)break;const a=(.25+Math.random()*.75)*(Math.random()<.12?1.8:1),decay=sr*(.0008+Math.random()*.0012);for(let k=0;k<decay*5&&t+k<len;k++)g[(t+k)%len]+=a*Math.exp(-k/decay)*(Math.random()*2-1);}
+  let gp=0;for(let i=0;i<len;i++)gp=Math.max(gp,Math.abs(g[i]));for(let i=0;i<len;i++)g[i]/=gp||1;
+  const out=this.rollOut=c.createGain();out.gain.value=0;out.connect(this.output());
+  const rumble=c.createBufferSource();rumble.buffer=brown;rumble.loop=true;this.rumbleBP=c.createBiquadFilter();this.rumbleBP.type='bandpass';this.rumbleBP.Q.value=2.4;const rumbleLP=c.createBiquadFilter();rumbleLP.type='lowpass';rumbleLP.frequency.value=420;
+  this.rumbleAM=c.createGain();this.rumbleAM.gain.value=1;this.rumbleGain=c.createGain();this.rumbleGain.gain.value=0;rumble.connect(this.rumbleBP);this.rumbleBP.connect(rumbleLP);rumbleLP.connect(this.rumbleAM);this.rumbleAM.connect(this.rumbleGain);this.rumbleGain.connect(out);
+  this.spin=c.createOscillator();this.spin.frequency.value=1;const depth=c.createGain();depth.gain.value=.3;this.spin.connect(depth);depth.connect(this.rumbleAM.gain);
+  this.gritSrc=c.createBufferSource();this.gritSrc.buffer=grit;this.gritSrc.loop=true;this.gritBP=c.createBiquadFilter();this.gritBP.type='bandpass';this.gritBP.Q.value=1.3;this.gritGain=c.createGain();this.gritGain.gain.value=0;this.gritSrc.connect(this.gritBP);this.gritBP.connect(this.gritGain);this.gritGain.connect(out);
+  rumble.start();this.spin.start();this.gritSrc.start();
+ }
+ static rollParams(speed,surface='normal'){
+  const v=Math.max(0,Math.min(1,speed/8)),k={normal:{pitch:1,rumble:1,grit:1,gritHz:1300,density:1},ice:{pitch:1.5,rumble:.45,grit:.55,gritHz:3200,density:1.7},fluff:{pitch:.7,rumble:.4,grit:.18,gritHz:650,density:.6}}[surface]||{pitch:1,rumble:1,grit:1,gritHz:1300,density:1};
+  return {level:speed<.15?0:Math.min(1,(speed-.15)/.6),rumbleHz:(85+130*v)*k.pitch,rumbleGain:.42*Math.pow(v,.8)*k.rumble,spinHz:Math.max(.2,speed/(2*Math.PI*.48)),gritRate:(.35+1.9*v)*k.density,gritHz:k.gritHz*(.8+.5*v),gritGain:.34*Math.pow(v,.9)*k.grit};
+ }
  roll(speed,surface='normal',active=true){
   try{
-   if(!this.enabled()||!active||document.hidden||speed<.15){if(this.rollGain)this.rollGain.gain.setTargetAtTime(0,this.c.currentTime,.08);return;}
-   const c=this.c;if(!this.rollSrc){const n=c.sampleRate*2,b=c.createBuffer(1,n,c.sampleRate),d=b.getChannelData(0);let v=0;for(let i=0;i<n;i++){v=v*.97+(Math.random()*2-1)*.03;d[i]=v*6;}this.rollSrc=c.createBufferSource();this.rollSrc.buffer=b;this.rollSrc.loop=true;this.rollFilter=c.createBiquadFilter();this.rollFilter.type='lowpass';this.rollGain=c.createGain();this.rollGain.gain.value=0;this.rollSrc.connect(this.rollFilter);this.rollFilter.connect(this.rollGain);this.rollGain.connect(this.output());this.rollSrc.start();}
-   const v=Math.min(1,speed/8),t=c.currentTime,f=surface==='ice'?2200:surface==='fluff'?260:700;
-   this.rollFilter.frequency.setTargetAtTime(f*(.6+v),t,.1);this.rollGain.gain.setTargetAtTime((surface==='fluff'?.05:.09)*v,t,.1);
+   if(!this.enabled()||!active||document.hidden||speed<.15){if(this.rollOut)this.rollOut.gain.setTargetAtTime(0,this.c.currentTime,.06);return;}
+   this.ensureRoll();const c=this.c,t=c.currentTime,p=SkyrollSfx.rollParams(speed,surface);
+   this.rollOut.gain.setTargetAtTime(p.level,t,.05);this.rumbleBP.frequency.setTargetAtTime(p.rumbleHz,t,.08);this.rumbleGain.gain.setTargetAtTime(p.rumbleGain,t,.08);this.spin.frequency.setTargetAtTime(p.spinHz,t,.1);
+   this.gritSrc.playbackRate.setTargetAtTime(p.gritRate,t,.08);this.gritBP.frequency.setTargetAtTime(p.gritHz,t,.08);this.gritGain.gain.setTargetAtTime(p.gritGain,t,.08);
   }catch{}
  }
- stop(){try{this.rollGain?.gain.setTargetAtTime(0,this.c.currentTime,.05);}catch{}}
+ stop(){try{this.rollOut?.gain.setTargetAtTime(0,this.c.currentTime,.05);}catch{}}
 }
