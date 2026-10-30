@@ -32,7 +32,7 @@ async function phoneHarness(){
  const timers=new Map(),intervals=[];let timerId=0;const setTimeout=(fn,ms)=>{const id=++timerId;timers.set(id,{fn,due:clock+ms});return id;};
  class FakeDate extends Date{constructor(...args){super(...(args.length?args:[clock]));}static now(){return clock;}}
  const injected={CLUBS,Connection,chineseLog,chineseCsv,INPUT_DEFAULTS,inputSettings,MotionRecorder,TrialSegmenter,sampleId,ML_LABEL_TIPS,encodeRecording,deserializeModel,predictWindow,motionCalibration,LiveArc,arcCurve,arcToPose,traceToPose,recordingKinematics,resample,findAnchor,windowAt,prepareInput,CLASS_NAMES,CLASSES,SWING_CLASSES,LEVELS,LEVEL_NAMES,levelText,deviceLabel,StreamDetector,streamPower,streamDecision,heuristicDecision,STREAM,motionSVG,gripSVG,GRIP_TIPS,GRIPS,MOTION_TIPS,document,window,navigator:{vibrate(){}},DeviceMotionEvent:{},localStorage,sessionStorage:localStorage,performance:{now:()=>clock},Date:FakeDate,setTimeout,clearTimeout:id=>timers.delete(id),setInterval:fn=>intervals.push(fn)};
- const source=(await readFile(new URL('../phone-web/app.js',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,'');new Function(...Object.keys(injected),source)(...Object.values(injected));
+ const source=(await readFile(new URL('../phone-web/app.js',import.meta.url),'utf8')).replace(/^(?:import|export) .*;\r?\n/gm,'');new Function(...Object.keys(injected),source)(...Object.values(injected));
  const sample=(beta,step=40)=>{clock+=step;for(const [id,t] of timers)if(t.due<=clock){timers.delete(id);t.fn();}handlers.get('devicemotion')?.({rotationRate:{alpha:0,beta,gamma:0},accelerationIncludingGravity:{y:0,z:9.8}});};
  const motion=(g,a,step)=>{clock+=step;for(const [id,t] of timers)if(t.due<=clock){timers.delete(id);t.fn();}handlers.get('devicemotion')?.({rotationRate:{alpha:g[0],beta:g[1],gamma:g[2]},accelerationIncludingGravity:{x:a[0],y:a[1],z:a[2]}});};
  // 注入一次完整动作：静止 → 录音 → 静止（姿势与录音起点一致）。
@@ -152,4 +152,11 @@ test('动作采样：停在肩高的动作按“停住”检查并上传；停�
  h.play(synthRecording({label:'other',pose:'shoulder',seed:5}),{before:50,after:80});assert.equal(uploads().length,1,'停住动作上传');assert.equal(uploads()[0].pose,'shoulder');assert.equal(uploads()[0].label,'other');
  h.conn.receive({type:'ml_collect',active:true,session:trial(1)});h.play(synthRecording({label:'swing',level:4,seed:6}),{before:50,after:80});
  assert.equal(uploads().length,1);assert.equal(h.elements.get('ml-review').classList.contains('hidden'),false,'挥下去了需要确认');assert.match(h.elements.get('ml-review-text').textContent,/挥下去|停住/);
+});
+
+
+test('滚球手柄激活时，高尔夫体感与模型不接收动作；退出后恢复原通道',async()=>{
+ const h=await phoneHarness();await h.elements.get('enable').click();h.conn.receive({type:'practice_subscription',active:true,selected:true,stream:true,busyUntil:0});
+ h.conn.receive({type:'maze_subscription',active:true});h.conn.sent.length=0;for(let i=0;i<80;i++)h.sample(i<40?650:-750);assert.equal(h.conn.sent.filter(m=>['sensor_sample','test_swing','swing','ml_sample'].includes(m.type)).length,0);
+ h.conn.receive({type:'maze_subscription',active:false});for(let i=0;i<10;i++)h.sample(0);assert.ok(h.conn.sent.some(m=>m.type==='sensor_sample'));
 });
