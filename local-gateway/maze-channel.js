@@ -1,6 +1,6 @@
 // A separate continuous-input channel. Golf never consumes maze packets.
 export class MazeChannel {
-  constructor(clients,send,{now=()=>Date.now()}={}){this.clients=clients;this.send=send;this.now=now;this.host=null;this.selectedId=null;this.usingPhone=false;this.lastInput=0;this.stale=false;this.info={phase:'ready',level:1,elapsed:0,falls:0};}
+  constructor(clients,send,{now=()=>Date.now()}={}){this.clients=clients;this.send=send;this.now=now;this.host=null;this.selectedId=null;this.usingPhone=false;this.lastInput=0;this.stale=false;this.info={phase:'ready',level:1,elapsed:0,falls:0,checkpoint:-1,checkpointCount:0};}
   phones(){return [...this.clients].filter(c=>c.role==='phone');}
   phone(){return this.phones().find(c=>c.clientId===this.selectedId)||null;}
   active(){return !!this.host&&this.clients.has(this.host)&&this.host.mazeView;}
@@ -21,13 +21,13 @@ export class MazeChannel {
     if(!m.type?.startsWith?.('maze_'))return false;
     if(m.type==='maze_view'&&ws.role==='screen'){
       if(m.active===true){
-        if(this.active()&&this.host!==ws){this.send(ws,{type:'maze_host',host:false});return true;}
+        if(this.active()&&this.host!==ws){if(m.takeover!==true){this.send(ws,{type:'maze_host',host:false});return true;}const previous=this.host;previous.mazeView=false;this.send(previous,{type:'maze_host',host:false});const phone=this.phone();if(phone){phone.mazeReady=false;this.send(phone,{type:'maze_rezero'});}}
         this.host=ws;ws.mazeView=true;if(!this.selectedId)this.selectedId=this.phones()[0]?.clientId||null;this.usingPhone=false;this.send(ws,{type:'maze_host',host:true});
       }else if(ws===this.host){ws.mazeView=false;this.host=null;this.usingPhone=false;}
       this.publish();return true;
     }
     if(ws.role==='screen'){
-      if(!this.active()||ws!==this.host)throw Error('请先在当前窗口打开八卦滚球。');
+      if(!this.active()||ws!==this.host)throw Error('请先在当前窗口打开云端滚球。');
       if(m.type==='maze_select'){
         if(!this.phones().some(p=>p.clientId===m.phoneId))throw Error('这台手机尚未连接。');
         if(m.phoneId!==this.selectedId){const old=this.phone();if(old)old.mazeReady=false;this.selectedId=m.phoneId;this.lastInput=0;this.pause('controller_change');}this.publish();return true;
@@ -37,7 +37,8 @@ export class MazeChannel {
       if(m.type==='maze_state'){
         const valid=['ready','playing','paused','countdown','falling','won','complete'].includes(m.phase);
         if(!valid||!Number.isInteger(m.level)||m.level<1||m.level>3||!Number.isFinite(m.elapsed)||m.elapsed<0||!Number.isInteger(m.falls)||m.falls<0)throw Error('滚球状态无效。');
-        this.info={phase:m.phase,level:m.level,elapsed:Math.min(m.elapsed,86400),falls:Math.min(m.falls,99999)};
+        const checkpoint=m.checkpoint??-1,checkpointCount=m.checkpointCount??0;if(!Number.isInteger(checkpointCount)||checkpointCount<0||checkpointCount>8||!Number.isInteger(checkpoint)||checkpoint< -1||checkpoint>=checkpointCount)throw Error('检查点状态无效。');
+        this.info={checkpoint,checkpointCount,phase:m.phase,level:m.level,elapsed:Math.min(m.elapsed,86400),falls:Math.min(m.falls,99999)};
         const p=this.phone();if(p)this.send(p,{type:'maze_game_state',...this.info});return true;
       }
     }

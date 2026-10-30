@@ -5,7 +5,7 @@ const stamp=s=>`${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60
 export class MazeController {
  constructor(conn){
   this.conn=conn;this.active=false;this.online=false;this.mode=null;this.ready=false;this.mapper=new TiltMapper();this.value={x:0,y:0};this.seq=0;this.lastSensor=0;this.lastOrientation=-Infinity;this.game={phase:'ready',level:1,elapsed:0,falls:0};
-  const root=document.createElement('section');root.id='maze-controller';root.className='hidden';root.innerHTML=`<div class="mc-heading"><span>八卦重力滚球 · 手机手柄</span><b id="mc-state">等待选择控制方式</b></div><div class="mc-layout"><div class="mc-pad-side"><div class="mc-pad" id="mc-pad" role="application" aria-label="拖动虚拟摇杆，控制滚球加速度"><i class="mc-axis mc-axis-x"></i><i class="mc-axis mc-axis-y"></i><div class="mc-knob" id="mc-knob">☯</div><span id="mc-pad-label">横向端住，轻轻倾斜</span></div><p id="mc-notice" role="status">像端着一个小圆盘。先选倾斜控制，也可以使用虚拟摇杆。</p></div><div class="mc-panel"><div class="mc-stats"><span>第 <b id="mc-level">1</b> 关</span><span id="mc-time">00:00</span><span>落洞 <b id="mc-falls">0</b> 次</span></div><div class="mc-mode"><button id="mc-tilt">启用倾斜控制</button><button id="mc-stick">虚拟摇杆</button></div><button id="mc-zero" class="mc-zero">↺ 重新校准握姿</button><div class="mc-actions"><button id="mc-pause">暂停</button><button id="mc-retry">重新挑战</button><button id="mc-next" class="hidden">下一关 →</button></div><p class="mc-footnote">轻倾精调 · 反向刹车<br>看电脑上的球，手机只作手柄。<br>横屏体验更好，竖屏也可使用。</p></div></div>`;
+  const root=document.createElement('section');root.id='maze-controller';root.className='hidden';root.innerHTML=`<div class="mc-heading"><span>云端滚球 · 手机手柄</span><b id="mc-state">等待选择控制方式</b></div><div class="mc-layout"><div class="mc-pad-side"><div class="mc-pad" id="mc-pad" role="application" aria-label="拖动虚拟摇杆，控制滚球加速度"><i class="mc-axis mc-axis-x"></i><i class="mc-axis mc-axis-y"></i><div class="mc-knob" id="mc-knob">◉</div><em class="mc-forward">↑ 前进</em><span id="mc-pad-label">横向端住 · 向下刹车</span></div><p id="mc-notice" role="status">横屏端住手机。向前轻倾加速，反向倾斜刹车。</p></div><div class="mc-panel"><div class="mc-stats"><span>第 <b id="mc-level">1</b> 关</span><span id="mc-time">00:00</span><span>坠落 <b id="mc-falls">0</b> 次</span><span id="mc-checkpoint">起点</span></div><div class="mc-mode"><button id="mc-tilt">启用倾斜控制</button><button id="mc-stick">虚拟摇杆</button></div><button id="mc-zero" class="mc-zero">↺ 重新校准握姿</button><div class="mc-actions"><button id="mc-pause">暂停</button><button id="mc-retry">重新挑战</button><button id="mc-next" class="hidden">下一关 →</button></div><p class="mc-footnote">轻倾精调 · 反向刹车<br>看电脑上的球，手机只作手柄。<br>横屏体验更好，竖屏也可使用。</p></div></div>`;
   document.getElementById('phone-main').append(root);this.root=root;this.$=id=>root.querySelector('#'+id);
   this.$('mc-tilt').onclick=()=>this.enableTilt();this.$('mc-stick').onclick=()=>this.useJoystick();this.$('mc-zero').onclick=()=>this.rezero();
   this.$('mc-pause').onclick=()=>this.command(this.game.phase==='paused'?'resume':this.game.phase==='ready'?'retry':'pause');this.$('mc-retry').onclick=()=>this.command('retry');this.$('mc-next').onclick=()=>this.command('next');
@@ -21,7 +21,7 @@ export class MazeController {
  message(m){
   if(m.type==='ready'){this.online=true;this.render();}
   if(m.type==='maze_subscription'){
-   if(m.game)this.game=m.game;const changed=this.active!==m.active;this.active=m.active===true;document.title=this.active?'八卦重力滚球 · 手机手柄':'挥杆之间 · 手机球杆';this.root.classList.toggle('hidden',!this.active);document.body.classList.toggle('maze-phone-active',this.active);
+   if(m.game)this.game=m.game;const changed=this.active!==m.active;this.active=m.active===true;document.title=this.active?'云端滚球 · 手机手柄':'挥杆之间 · 手机球杆';this.root.classList.toggle('hidden',!this.active);document.body.classList.toggle('maze-phone-active',this.active);
    if(changed||this.active&&this.reconnectPending){this.reconnectPending=false;if(this.active){this.rezero();this.keepAwake();}else{this.ready=false;this.value={x:0,y:0};this.pointer=undefined;this.wake?.release();this.wake=null;}}this.render();
   }
   if(m.type==='maze_rezero')this.rezero();
@@ -31,7 +31,7 @@ export class MazeController {
  async keepAwake(){if(this.wake||document.hidden||!this.active)return;try{this.wake=await navigator.wakeLock?.request('screen');this.wake?.addEventListener('release',()=>{this.wake=null;});}catch{}}
  notice(text){this.$('mc-notice').textContent=text;}
  sendReady(ready){const changed=this.ready!==ready;this.ready=ready;if(this.active&&this.online)this.conn.send({type:'maze_ready',ready,source:this.mode||'joystick'});if(changed)this.render();}
- rezero(){this.mapper.reset();this.value={x:0,y:0};this.pointer=undefined;this.lastSensor=performance.now();this.lastOrientation=-Infinity;this.drawValue();if(this.mode==='joystick'){this.sendReady(!document.hidden);this.notice('拖动圆盘内的摇杆控制力度，松手回正。反向拖动可以刹车。');}else if(this.mode==='tilt'){this.sendReady(false);this.notice('保持自然握姿静止约 0.6 秒，正在归零…');}else this.ready=false;this.render();}
+ rezero(){this.mapper.reset();this.value={x:0,y:0};this.pointer=undefined;this.lastSensor=performance.now();this.lastOrientation=-Infinity;this.drawValue();if(this.mode==='joystick'){this.sendReady(!document.hidden);this.notice('向上推前进，向下推刹车或后退。拖得越远，加速越强；松手回正。');}else if(this.mode==='tilt'){this.sendReady(false);this.notice('保持自然握姿静止约 0.6 秒，正在归零…');}else this.ready=false;this.render();}
  suspend(){this.value={x:0,y:0};this.pointer=undefined;this.sendReady(false);this.conn.send({type:'maze_pause'});this.wake?.release();this.wake=null;this.drawValue();}
  useJoystick(){this.mode='joystick';this.rezero();this.keepAwake();}
  async enableTilt(){
@@ -60,9 +60,9 @@ export class MazeController {
   if(this.ready)this.conn.send({type:'maze_input',...this.value,seq:++this.seq});
  }
  render(){
-  const g=this.game,phase=g.phase;this.$('mc-level').textContent=g.level;this.$('mc-time').textContent=stamp(g.elapsed);this.$('mc-falls').textContent=g.falls;
-  this.$('mc-state').textContent=!this.online?'正在恢复连接…':!this.mode?'选择控制方式':!this.ready?'手柄准备中':({ready:'先观察，准备开始',playing:'轻轻倾斜 · 提前刹车',paused:'已暂停 · 握稳后继续',countdown:'准备中 · 握稳手机',falling:'落洞 · 正在复位',won:'本关完成！',complete:'查看挑战记录'})[phase]||'手柄已就绪';
-  this.$('mc-tilt').classList.toggle('selected',this.mode==='tilt');this.$('mc-stick').classList.toggle('selected',this.mode==='joystick');this.$('mc-pad').classList.toggle('joystick',this.mode==='joystick');this.$('mc-pad-label').textContent=this.mode==='joystick'?'拖动摇杆 · 松手回正':'横向端住，轻轻倾斜';this.$('mc-zero').disabled=this.mode!=='tilt';
+  const g=this.game,phase=g.phase;this.$('mc-level').textContent=g.level;this.$('mc-time').textContent=stamp(g.elapsed);this.$('mc-falls').textContent=g.falls;this.$('mc-checkpoint').textContent=(g.checkpoint??-1)<0?'起点':`复活点 C${g.checkpoint+1}`;
+  this.$('mc-state').textContent=!this.online?'正在恢复连接…':!this.mode?'选择控制方式':!this.ready?'手柄准备中':({ready:'先观察，准备开始',playing:'轻轻倾斜 · 提前刹车',paused:'已暂停 · 握稳后继续',countdown:'准备中 · 握稳手机',falling:'坠落 · 返回检查点',won:'本关完成！',complete:'查看挑战记录'})[phase]||'手柄已就绪';
+  this.$('mc-tilt').classList.toggle('selected',this.mode==='tilt');this.$('mc-stick').classList.toggle('selected',this.mode==='joystick');this.$('mc-pad').classList.toggle('joystick',this.mode==='joystick');this.$('mc-pad-label').textContent=this.mode==='joystick'?'拖动摇杆 · 松手回正':'横向端住 · 向下刹车';this.$('mc-zero').disabled=this.mode!=='tilt';
   this.$('mc-pause').textContent=phase==='paused'?'准备好了，继续 →':phase==='ready'?'开始游戏 →':'暂停 / 观察';this.$('mc-pause').disabled=!this.ready||['won','complete','falling','countdown'].includes(phase);this.$('mc-next').classList.toggle('hidden',phase!=='won');this.$('mc-next').textContent=g.level===3?'查看全部结果 →':'下一关 →';
  }
 }
