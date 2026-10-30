@@ -1,0 +1,121 @@
+{
+ "version": 1,
+ "cues": {
+  "hub": {
+   "id": "hub",
+   "title": "云上序曲",
+   "detail": "主题 · 管弦全编制",
+   "key": "F 大调",
+   "bpm": 116,
+   "src": "/screen-web/assets/music/hub.mp3",
+   "duration": 50.656,
+   "loudness": -18.0,
+   "loopStart": 0.5,
+   "loopEnd": 50.1559
+  },
+  "golf-lobby": {
+   "id": "golf-lobby",
+   "title": "草坪漫步",
+   "detail": "主题 · 摇摆田园变奏",
+   "key": "G 大调",
+   "bpm": 92,
+   "src": "/screen-web/assets/music/golf-lobby.mp3",
+   "duration": 53.174,
+   "loudness": -18.0,
+   "loopStart": 0.5,
+   "loopEnd": 52.6738
+  },
+  "golf-practice": {
+   "id": "golf-practice",
+   "title": "练习场节拍",
+   "detail": "主题 · 极简律动变奏",
+   "key": "C 大调",
+   "bpm": 100,
+   "src": "/screen-web/assets/music/golf-practice.mp3",
+   "duration": 49.0,
+   "loudness": -18.0,
+   "loopStart": 0.5,
+   "loopEnd": 48.5
+  },
+  "golf-round": {
+   "id": "golf-round",
+   "title": "果岭圆舞曲",
+   "detail": "主题 · 3/4 圆舞曲变奏",
+   "key": "D 大调",
+   "bpm": 144,
+   "src": "/screen-web/assets/music/golf-round.mp3",
+   "duration": 46.0,
+   "loudness": -18.0,
+   "loopStart": 0.5,
+   "loopEnd": 45.5003
+  },
+  "sky-map": {
+   "id": "sky-map",
+   "title": "云端地图",
+   "detail": "主题 · 梦幻竖琴变奏",
+   "key": "降 E 大调",
+   "bpm": 96,
+   "src": "/screen-web/assets/music/sky-map.mp3",
+   "duration": 51.0,
+   "loudness": -18.0,
+   "loopStart": 0.5,
+   "loopEnd": 50.4998
+  },
+  "sky-isles": {
+   "id": "sky-isles",
+   "title": "启程群岛",
+   "detail": "主题 · 进行曲变奏",
+   "key": "F 大调",
+   "bpm": 126,
+   "src": "/screen-web/assets/music/sky-isles.mp3",
+   "duration": 54.333,
+   "loudness": -18.0,
+   "loopStart": 0.5,
+   "loopEnd": 53.8333
+  },
+  "sky-harbor": {
+   "id": "sky-harbor",
+   "title": "机关云港",
+   "detail": "主题 · 发条机关变奏",
+   "key": "D 多利亚",
+   "bpm": 136,
+   "src": "/screen-web/assets/music/sky-harbor.mp3",
+   "duration": 50.412,
+   "loudness": -18.0,
+   "loopStart": 0.5,
+   "loopEnd": 49.9121
+  },
+  "sky-aurora": {
+   "id": "sky-aurora",
+   "title": "极光高空",
+   "detail": "主题 · 史诗管弦变奏",
+   "key": "降 A 大调",
+   "bpm": 140,
+   "src": "/screen-web/assets/music/sky-aurora.mp3",
+   "duration": 49.0,
+   "loudness": -18.0,
+   "loopStart": 0.5,
+   "loopEnd": 48.5
+  },
+  "sting-win": {
+   "id": "sting-win",
+   "title": "过关",
+   "detail": "胜利短曲",
+   "key": "降 B 大调",
+   "bpm": 120,
+   "src": "/screen-web/assets/music/sting-win.mp3",
+   "duration": 9.0,
+   "loudness": -16.0
+  },
+  "sting-hole": {
+   "id": "sting-hole",
+   "title": "进洞",
+   "detail": "进洞短曲",
+   "key": "G 大调",
+   "bpm": 132,
+   "src": "/screen-web/assets/music/sting-hole.mp3",
+   "duration": 7.181,
+   "loudness": -16.0
+  }
+ }
+}

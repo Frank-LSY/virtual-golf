@@ -154,6 +154,8 @@ $('export-json').onclick=()=>download('json');$('export-csv').onclick=()=>downlo
 document.addEventListener('visibilitychange',()=>{det.reset();if(document.hidden){if(mlTrial&&!mlTrial.paused)conn.send({type:'ml_session',action:'pause'});if(practiceActive&&practiceArmed)conn.send({type:'practice_arm',armed:false});if(roundActive&&roundArmed)conn.send({type:'round_arm',armed:false});wakeLock?.release();warn('页面进入后台后，体感已暂停。回到此页面后即可继续。');}else if(enabled){keepAwake();lastSample=performance.now();$('sensor-warning').dataset.stalled='true';}});
 setInterval(()=>{if(enabled&&!document.hidden&&performance.now()-lastSample>1800){$('sensor-status').textContent='○ 尚未收到传感器数据';warn('传感器数据已中断。请保持 Safari 在前台，检查体感权限，或刷新页面重新连接。');$('sensor-warning').dataset.stalled='true';det.reset();}},1000);
 conn.addEventListener('message',({detail:m})=>{
+ // 电脑当前所在的游戏：顶部标签与配色跟着变；在大厅时提示“选好游戏后手机会自动切换”。
+ if(m.type==='screen_view'){const names={hub:'游戏大厅',golf:'高尔夫 · 球杆',skyroll:'云端滚球 · 手柄'};document.body.dataset.game=m.game;$('game-strip').dataset.game=m.game;$('game-strip').textContent=names[m.game]||'游戏大厅';$('hub-note').classList.toggle('show',m.game==='hub');}
  if(m.type==='maze_subscription'){mazeActive=m.active===true;det.reset();arcLive.reset();if(mazeActive){wakeLock?.release();wakeLock=null;}}
  if(m.type==='player_identity'){identity=m.player;$('player-name').value=identity.name;$('player-style').value=identity.style;if(!$('ml-record-person').value)$('ml-record-person').value=identity.name||'';renderOwner();renderRecord();renderAdapt();}
  if(m.type==='calibration_request'){$('shot-status').textContent='现在不需要校准：启用体感后直接挥杆；想让识别更贴合你，可以做一次快速适应。';}

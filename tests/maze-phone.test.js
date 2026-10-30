@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {TiltMapper,orientationGravity} from '../shared/maze/tilt.js';
 import {vector} from '../shared/maze/physics.js';
+import {LEVELS} from '../shared/maze/levels.js';
 
 async function harness({permission='granted',secure=true}={}){
  const elements=new Map(),handlers=new Map(),visibility=new Map();let clock=0,interval;
@@ -12,7 +13,7 @@ async function harness({permission='granted',secure=true}={}){
  const window={isSecureContext:secure,DeviceOrientationEvent:{requestPermission:async()=>permission},DeviceMotionEvent:{requestPermission:async()=>permission},addEventListener:(k,fn)=>handlers.set(k,fn)};
  const screen={orientation:{angle:90}},conn=new EventTarget();conn.sent=[];conn.send=m=>conn.sent.push(m);const receive=m=>conn.dispatchEvent(new CustomEvent('message',{detail:m}));
  const source=(await readFile(new URL('../phone-web/maze-controller.js',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,'').replace('export class MazeController','class MazeController');
- const Controller=new Function('TiltMapper','orientationGravity','vector','document','window','screen','navigator','performance','setInterval',source+'\nreturn MazeController;')(TiltMapper,orientationGravity,vector,document,window,screen,{}, {now:()=>clock},fn=>{interval=fn;});
+ const Controller=new Function('TiltMapper','orientationGravity','vector','LEVELS','document','window','screen','navigator','performance','setInterval',source+'\nreturn MazeController;')(TiltMapper,orientationGravity,vector,LEVELS,document,window,screen,{}, {now:()=>clock},fn=>{interval=fn;});
  const controller=new Controller(conn);receive({type:'ready'});receive({type:'maze_subscription',active:true,game:{phase:'playing',level:1,elapsed:0,falls:0}});
  return {controller,conn,receive,elements,screen,window,step(ms=33){clock+=ms;interval();},sample(beta,gamma,ms=16){clock+=ms;handlers.get('deviceorientation')({beta,gamma});},hidden(value){document.hidden=value;visibility.get('visibilitychange')();}};
 }

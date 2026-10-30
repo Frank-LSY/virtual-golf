@@ -1,2 +1,116 @@
-#maze{--roll-ink:#25475d;--roll-muted:#718b99;--roll-teal:#138f9a;max-width:1800px;padding:20px 26px 16px;margin:auto;color:var(--roll-ink);font-family:"PingFang SC","Microsoft YaHei",sans-serif}#maze button{font:inherit;cursor:pointer}#maze button:disabled{opacity:.45;cursor:default}#maze button:focus-visible,#maze select:focus-visible{outline:3px solid #f2bc59;outline-offset:3px}.roll-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:17px}.roll-brand{display:flex;gap:12px;align-items:center}.roll-brand>div>span{font-size:9px;letter-spacing:2px;color:#8aa6b5}.roll-brand h1{font-size:24px;letter-spacing:2px;margin:5px 0 0;font-weight:700;color:#315768}.roll-orb{width:42px;height:42px;border-radius:50%;background:conic-gradient(from 20deg,#ffcc62 0 60deg,#fff7df 60deg 120deg,#3fb7cd 120deg 180deg,#fff7df 180deg 240deg,#f47d68 240deg 300deg,#fff7df 300deg);box-shadow:inset -4px -6px 8px #355a6e20,0 5px 14px #43717d20;transform:rotate(-16deg)}.roll-heading-note{font-size:10px;color:#8ba3ae}.maze-levels{display:flex;gap:8px}.maze-levels button{display:flex;gap:10px;align-items:center;background:#fffdf7;border:1px solid #dde8e9;border-radius:12px;color:#8aa1a9;padding:9px 14px;min-width:152px;text-align:left;position:relative}.maze-levels button.selected{background:#e6f5f3;border-color:#81c3c6;color:#297e87;box-shadow:0 4px 12px #479da510}.maze-levels b{font-size:21px;font-weight:500;color:#77adb6}.maze-levels span{font-size:12px;letter-spacing:1px}.maze-levels small{display:block;font-size:8px;margin-top:4px;letter-spacing:0;color:#8fa5ac;max-width:105px;white-space:normal}.maze-levels i{font-size:8px;align-self:flex-start;font-style:normal;margin-left:auto;white-space:nowrap;color:#9bafb3}.roll-stage{height:calc(100dvh - 211px);min-height:510px;max-height:1100px;position:relative;border-radius:20px;overflow:hidden;isolation:isolate;box-shadow:0 13px 40px #52879c18;background:#bce4f7}.roll-stage>canvas{width:100%;height:100%;display:block;touch-action:none;outline:none}.roll-top-hud{position:absolute;left:24px;right:24px;top:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;pointer-events:none}.roll-level-badge{background:#fffffff0;border:1px solid #ffffffb0;padding:13px 18px;border-radius:13px;box-shadow:0 4px 18px #5585a114}.roll-level-badge small{display:block;letter-spacing:2px;font-size:9px;color:#73a2b0}.roll-level-badge strong{display:block;font-size:13px;color:#3d7082;letter-spacing:1px;margin-top:6px}.roll-stat-row{display:flex;gap:0;background:#fffffff0;padding:12px 5px;border-radius:13px;border:1px solid #ffffffb0;box-shadow:0 4px 18px #5585a114}.roll-stat-row>div{padding:0 18px;border-right:1px solid #dce9ea;text-align:center;min-width:72px}.roll-stat-row>div:last-child{border:0}.roll-stat-row small{display:block;font-size:9px;color:#87a3ad;letter-spacing:1px}.roll-stat-row strong{display:block;font:22px/1.2 ui-rounded,"SF Pro Rounded",sans-serif;color:#326c7e;margin-top:6px;font-variant-numeric:tabular-nums}.roll-bottom-hud{position:absolute;bottom:19px;left:22px;right:22px;display:flex;align-items:end;justify-content:space-between;gap:16px;pointer-events:none}.roll-input-status{display:grid;grid-template-columns:1fr auto;gap:5px 14px;background:#fffffff0;border-radius:12px;padding:12px 15px;pointer-events:auto;min-width:240px}.roll-input-status>span{font-size:11px;color:#3f7686}.roll-input-status>small{font-size:9px;color:#8ba5ad;grid-row:2}.roll-input-status>button{grid-column:2;grid-row:1/3;background:none;border:0;color:#7798a6;font-size:10px!important;text-decoration:underline;text-underline-offset:4px}.roll-speed{background:#ffffffe8;border-radius:11px;padding:11px 15px;min-width:145px;color:#7695a2}.roll-speed>small{font-size:9px}.roll-speed b{font:20px ui-rounded,sans-serif;color:#358f9b;margin-left:9px}.roll-speed>div{height:3px;background:#d9e8eb;border-radius:3px;margin-top:7px;overflow:hidden}.roll-speed i{height:100%;display:block;width:0;background:#39b7bc;border-radius:3px}.maze-actions{display:flex;gap:7px;pointer-events:auto}.maze-primary,.maze-secondary{border:1px solid #228c98;background:#228c98;color:#fffdf1;border-radius:9px;padding:12px 19px;font-size:11px!important;box-shadow:0 3px 10px #478e9b13}.maze-secondary{background:#fffdf4ed;border-color:#ffffff9c;color:#6d929f}.maze-link{display:block;border:0;background:none;color:#90a7ae;font-size:10px!important;text-decoration:underline;text-underline-offset:4px;padding:10px;margin:4px auto}.maze-overlay{display:none;position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);width:min(370px,85%);background:#fffef5f2;border:1px solid #ffffff;border-radius:21px;padding:30px;text-align:center;box-shadow:0 15px 65px #35698525;backdrop-filter:blur(14px);z-index:3}.maze-overlay.visible{display:block}.maze-overlay-kicker{font-size:9px;letter-spacing:2.5px;color:#9eb2b6}.maze-overlay h2{font-size:25px;letter-spacing:1px;font-weight:600;line-height:1.5;color:#2c6679;margin:17px 0 13px}.maze-overlay p{font-size:12px;line-height:1.9;color:#83a1aa;margin:0 0 20px}.maze-overlay>.maze-primary{width:100%;font-size:12px!important;padding:14px}.maze-overlay>small{display:block;margin-top:15px;font-size:9px;color:#a4b6b9}.maze-win-stats,.maze-results{display:flex;justify-content:space-around;margin:18px 0 25px;color:#7c9ca7;font-size:11px}.maze-win-stats b,.maze-results b{display:block;font:24px ui-rounded,sans-serif;color:#398fa0;margin-top:8px}.maze-results b{font-size:17px}.maze-results small{display:block;margin-top:8px;color:#a1b3ba;font-size:9px}.roll-countdown{font-size:60px!important;font-weight:400!important}.roll-toast{opacity:0;position:absolute;top:110px;left:50%;transform:translateX(-50%);max-width:70%;background:#fffffff0;border:1px solid #fff;padding:11px 20px;border-radius:999px;box-shadow:0 5px 20px #508b9e18;color:#6a919e;font-size:11px;text-align:center;transition:opacity .25s;pointer-events:none}.roll-toast.visible{opacity:1}.roll-caption{display:flex;justify-content:space-between;gap:20px;font-size:10px;color:#8ca2ac;line-height:1.7;margin:10px 3px 0}.roll-caption>span{max-width:75%}.roll-caption>small{white-space:nowrap;font-size:9px}.maze-control-card{display:none;position:absolute;left:22px;bottom:91px;z-index:5;width:275px;max-height:calc(100% - 110px);overflow:auto;background:#fffef5f5;border:1px solid #fff;border-radius:16px;padding:18px;box-shadow:0 12px 40px #41718c22;backdrop-filter:blur(12px)}.maze-control-card.open{display:block}.roll-settings-head{display:flex;justify-content:space-between;align-items:center;font-size:12px}.roll-settings-head button{border:0;background:none;color:#8da4ac;font-size:20px!important}.maze-input-switch{display:flex;gap:5px;background:#e2eeee;border-radius:8px;padding:3px;margin-top:14px}.maze-input-switch button{flex:1;background:none;border:0;color:#88a5ac;padding:9px 3px;border-radius:5px;font-size:11px!important}.maze-input-switch button.selected{background:#fffef6;color:#438996}.maze-control-card p{font-size:10px;line-height:1.8;text-align:center;color:#8ca6ad}.maze-control-card label{font-size:10px;color:#779aa6;display:block}.maze-control-card select{font:11px sans-serif;display:block;background:#fff;border:1px solid #d6e5e7;border-radius:7px;width:100%;padding:10px;margin-top:7px;color:#5a8794}.maze-control-card>.maze-primary,.maze-control-card>.maze-secondary{width:100%;margin-top:7px}.maze-tilt-view{width:78px;height:78px;border:1px solid #cce1e5;border-radius:50%;margin:24px auto;background:radial-gradient(#fffef3,#e8f3f0);position:relative}.maze-tilt-view>i{position:absolute;width:12px;height:12px;left:32px;top:32px;border-radius:50%;background:#3dabb4;border:2px solid white;will-change:transform}.maze-tilt-view>span,.maze-tilt-view>small{position:absolute;left:-20px;right:-20px;text-align:center;font-size:8px;color:#9bb0b6}.maze-tilt-view>span{top:-17px}.maze-tilt-view>small{bottom:-17px}
-@media(min-width:1500px){#maze{padding:22px 40px 16px}.roll-stage{height:calc(100dvh - 215px)}}@media(max-width:1000px){#maze{padding:16px}.roll-heading-note{display:none}.maze-levels button{min-width:135px;padding:8px 10px}.roll-input-status{min-width:215px}.roll-bottom-hud{left:15px;right:15px;gap:8px}.maze-actions button{padding:12px}.roll-speed{min-width:115px}.roll-caption{font-size:9px}.roll-top-hud{left:16px;right:16px}}@media(max-width:650px){#maze{padding:12px 8px}.roll-heading{gap:9px;align-items:stretch;flex-direction:column;margin-bottom:10px}.roll-brand{gap:8px}.roll-orb{width:30px;height:30px}.roll-brand h1{font-size:20px;margin-top:3px}.roll-brand>div>span{font-size:8px}.maze-levels{width:100%;gap:5px}.maze-levels button{flex:1;min-width:0;gap:6px;padding:8px}.maze-levels b{font-size:17px}.maze-levels span{font-size:11px}.maze-levels small{display:none}.maze-levels i{font-size:7px}.roll-stage{min-height:520px;height:calc(100dvh - 245px);border-radius:14px}.roll-top-hud{left:10px;right:10px;top:12px;gap:7px}.roll-level-badge{padding:10px}.roll-level-badge small{font-size:8px;letter-spacing:1px}.roll-level-badge strong{font-size:10px}.roll-stat-row{padding:10px 1px}.roll-stat-row>div{padding:0 9px;min-width:40px}.roll-stat-row small{font-size:8px}.roll-stat-row strong{font-size:16px}.roll-bottom-hud{left:10px;right:10px;bottom:12px;flex-wrap:wrap;align-items:center}.roll-input-status{min-width:0;padding:10px;flex:1;gap:4px 9px}.roll-input-status>span{font-size:10px}.roll-input-status>small{font-size:8px}.roll-input-status>button{font-size:9px!important}.roll-speed{min-width:90px;padding:10px}.maze-actions{width:100%;justify-content:stretch}.maze-actions button{flex:1;font-size:10px!important;padding:11px}.roll-toast{top:90px;max-width:90%;width:max-content;font-size:10px;line-height:1.5;border-radius:10px;padding:8px 12px}.maze-overlay{padding:23px;width:min(330px,88%);top:46%}.maze-overlay h2{font-size:22px}.maze-overlay p{font-size:11px}.roll-caption{display:block}.roll-caption>span{max-width:none}.roll-caption>small{display:block;margin-top:5px}.maze-control-card{left:10px;bottom:125px;width:min(275px,calc(100% - 20px));max-height:calc(100% - 145px)}}
+/* 云端滚球（SKYROLL）· 0.21 卡通风格：地图页（三章九张）+ 关卡页（3D 舞台、HUD、浮层）+ 手柄设置卡。 */
+#maze{max-width:1700px;margin:0 auto;padding:6px 28px 20px;color:var(--ink);font-family:var(--toon-font)}
+/* ---------- 地图页 ---------- */
+.sky-hero{display:grid;grid-template-columns:1.1fr .9fr;gap:24px;align-items:center;margin:6px 0 26px}
+.sky-hero-copy p{font:600 16px/1.7 var(--toon-font);color:var(--ink-2);max-width:560px;margin:18px 0 20px}
+.sky-hero-copy .toon-title{margin-top:14px}
+.sky-progress{display:flex;align-items:center;gap:14px;max-width:560px;background:#fff;border:var(--ol) solid var(--ol-c);border-radius:18px;box-shadow:var(--pop-s);padding:10px 16px;margin-bottom:20px}
+.sky-progress-num b{font:900 30px var(--toon-font);color:var(--ink)}
+.sky-progress-num small{font-weight:800;color:var(--muted);margin-left:4px}
+.sky-progress-bar{flex:1;height:16px;border:2.5px solid var(--ol-c);border-radius:999px;background:#eef0fb;overflow:hidden}
+.sky-progress-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--sun-c),#ffb43b);border-right:2.5px solid var(--ol-c);transition:width .6s}
+#sky-done{font:800 13px var(--toon-font);color:var(--muted);white-space:nowrap}
+.sky-hero-actions{display:flex;gap:12px;flex-wrap:wrap}
+.sky-hero-art{position:relative;height:250px;border:4px solid var(--ol-c);border-radius:30px;box-shadow:var(--pop-l);background:linear-gradient(180deg,#6a8cff,#a9d2ff 60%,#ffe2f1);overflow:hidden}
+.sky-hero-art .c1{left:8%;top:30px;width:150px;animation:drift 8s ease-in-out infinite}
+.sky-hero-art .c2{right:8%;top:70px;width:110px;animation:drift 10s ease-in-out infinite reverse}
+.sky-hero-art .c3{left:40%;top:150px;width:90px;opacity:.9;animation:drift 6s ease-in-out infinite}
+.sky-hero-art .isle{position:absolute;left:14%;right:12%;bottom:24px;height:54px;border:var(--ol) solid var(--ol-c);border-radius:24px 24px 80px 80px;background:linear-gradient(#ffe1b8,#ffc58f)}
+.sky-hero-art .ball{position:absolute;left:24%;bottom:74px;width:52px;height:52px;border-radius:50%;border:var(--ol) solid var(--ol-c);background:conic-gradient(var(--coral) 0 25%,#fff 0 50%,var(--sky-c) 0 75%,var(--sun-c) 0);animation:roll 3.4s ease-in-out infinite}
+.sky-hero-art .sparkle{position:absolute;font-size:30px;color:var(--sun-c);-webkit-text-stroke:2px var(--ol-c);animation:twinkle 1.5s ease-in-out infinite}
+.sky-hero-art .s1{right:18%;top:24px}.sky-hero-art .s2{left:58%;top:110px;animation-delay:.6s;font-size:22px}
+.sky-chapters{display:grid;gap:22px}
+.sky-chapter{background:rgba(255,255,255,.72);border:var(--ol) solid var(--ol-c);border-radius:28px;box-shadow:var(--pop);padding:18px 20px 22px;position:relative;overflow:hidden}
+.sky-chapter::before{content:"";position:absolute;inset:0 0 auto 0;height:8px;background:var(--ch)}
+.sky-chapter header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.sky-chapter header .toon-chip{background:var(--ch);color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.5)}
+.sky-chapter h2{margin:0;font:900 24px var(--toon-font)}
+.sky-chapter header p{margin:0;font-weight:700;color:var(--muted);font-size:14px}
+.sky-chapter-stars{margin-left:auto;font:900 14px var(--toon-font);padding:4px 12px;border:2.5px solid var(--ol-c);border-radius:999px;background:var(--sun-l)}
+.sky-levels{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.level-card{position:relative;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto auto;gap:6px 12px;text-align:left;padding:16px 16px 14px;background:#fff;border:var(--ol) solid var(--ol-c);border-radius:22px;box-shadow:var(--pop);cursor:pointer;transition:transform .14s,box-shadow .14s;font-family:var(--toon-font);color:var(--ink)}
+.level-card:hover{transform:translateY(-4px) rotate(-.4deg);box-shadow:0 9px 0 var(--ol-c)}
+.level-card:active{transform:translateY(3px);box-shadow:0 2px 0 var(--ol-c)}
+.level-card.next{outline:4px solid var(--sun-c);outline-offset:3px;animation:nudge 1.8s ease-in-out infinite}
+@keyframes nudge{50%{transform:translateY(-3px)}}
+.level-card.next::after{content:"下一张";position:absolute;right:14px;top:-14px;font:900 11px var(--toon-font);padding:3px 9px;border:2.5px solid var(--ol-c);border-radius:999px;background:var(--sun-c)}
+.level-no{grid-row:1/3;width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font:900 22px var(--toon-font);color:#fff;background:var(--lv);border:var(--ol) solid var(--ol-c);text-shadow:0 2px 0 rgba(34,38,74,.5);box-shadow:var(--pop-s)}
+.level-card.cleared .level-no{box-shadow:0 3px 0 var(--ol-c),0 0 0 4px var(--sun-l)}
+.level-name{font:900 19px/1.2 var(--toon-font)}
+.level-name small{display:block;font:700 12.5px var(--toon-font);color:var(--muted);margin-top:3px}
+.level-feat{display:flex;flex-wrap:wrap;gap:5px}
+.feat{display:inline-flex;align-items:center;gap:4px;font-style:normal;font:800 11.5px var(--toon-font);padding:3px 8px 3px 6px;border-radius:999px;border:2px solid #d9d6ee;background:#f6f4ff;color:var(--ink-2)}
+.feat em{font-style:normal}
+.feat-boost{background:#fff1d6;border-color:#ffb85c}.feat-bumper{background:#ffe3f0;border-color:#ff8fbe}.feat-sweeper{background:#ece8ff;border-color:#a99cff}.feat-mover{background:#fff6c7;border-color:#ffd43b}.feat-ice{background:#dff6ff;border-color:#7fd6f7}.feat-fluff{background:#fff0f8;border-color:#ffc4e1}
+.level-foot{grid-column:1/3;display:flex;align-items:center;justify-content:space-between;border-top:2.5px dashed #e3e1f2;padding-top:8px;margin-top:2px}
+.level-best{font:800 12.5px var(--toon-font);color:var(--muted)}.level-best.done{color:var(--golf-d)}
+/* ---------- 关卡页 ---------- */
+.sky-play{display:flex;flex-direction:column;gap:8px}
+.roll-stage{position:relative;height:calc(100dvh - 150px);min-height:460px;border:4px solid var(--ol-c);border-radius:30px;box-shadow:var(--pop-l);overflow:hidden;background:#9cd3ff}
+#maze-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none}
+.roll-top-hud{z-index:3;position:absolute;left:18px;right:18px;top:16px;display:flex;align-items:flex-start;gap:12px;pointer-events:none}
+.roll-top-hud>*{pointer-events:auto}
+.roll-level-badge{display:flex;flex-direction:column;background:#fff;border:var(--ol) solid var(--ol-c);border-radius:18px;box-shadow:var(--pop-s);padding:8px 16px 9px;border-left:12px solid var(--lv)}
+.roll-level-badge small{font:800 11px var(--toon-font);color:var(--muted);letter-spacing:.04em}
+.roll-level-badge strong{font:900 22px/1.2 var(--toon-font)}
+.roll-level-badge em{font:800 12px var(--toon-font);font-style:normal;color:var(--ink-2)}
+.roll-stat-row{margin-left:auto;display:flex;background:#fff;border:var(--ol) solid var(--ol-c);border-radius:18px;box-shadow:var(--pop-s);overflow:hidden}
+.roll-stat-row>div{display:flex;flex-direction:column;align-items:center;padding:7px 16px;min-width:84px}
+.roll-stat-row>div+div{border-left:2.5px dashed #e1def0}
+.roll-stat-row small{font:800 11px var(--toon-font);color:var(--muted)}
+.roll-stat-row strong{font:900 24px/1.15 var(--font-num,var(--toon-font));font-variant-numeric:tabular-nums}
+.roll-stat-row strong.over{color:var(--coral)}
+.roll-stat-row em{font:800 10.5px var(--toon-font);font-style:normal;color:var(--muted)}
+.roll-bottom-hud{z-index:3;position:absolute;left:18px;right:18px;bottom:16px;display:flex;align-items:flex-end;gap:12px;pointer-events:none}
+.roll-bottom-hud>*{pointer-events:auto}
+.roll-input-status{display:flex;flex-direction:column;gap:4px;background:#fff;border:var(--ol) solid var(--ol-c);border-radius:18px;box-shadow:var(--pop-s);padding:10px 14px}
+.roll-input-status span{font:900 14px var(--toon-font)}
+.roll-input-status small{font:700 12px var(--toon-font);color:var(--muted)}
+.roll-input-status .btn{align-self:flex-start;margin-top:4px}
+.roll-speed{margin:0 auto;background:#fff;border:var(--ol) solid var(--ol-c);border-radius:18px;box-shadow:var(--pop-s);padding:8px 14px;min-width:200px}
+.roll-speed small{font:800 12px var(--toon-font);color:var(--muted)}
+.roll-speed b{font:900 22px var(--toon-font);color:var(--ink)}
+.roll-speed>div{height:12px;border:2.5px solid var(--ol-c);border-radius:999px;background:#eef0fb;overflow:hidden;margin-top:4px}
+.roll-speed i{display:block;height:100%;width:0;background:var(--sky-c);transition:width .1s}
+.roll-speed i.boost{background:linear-gradient(90deg,#ff9f1c,var(--sun-c))}
+.roll-speed em{display:block;min-height:16px;font:800 12px var(--toon-font);font-style:normal;color:var(--sky-d);margin-top:3px}
+.maze-actions{display:flex;gap:10px}
+.roll-toast{z-index:4;position:absolute;left:50%;top:96px;transform:translate(-50%,-10px);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;background:#fff;border:var(--ol) solid var(--ol-c);border-radius:999px;box-shadow:var(--pop-s);padding:9px 18px;font:800 14px var(--toon-font);max-width:min(560px,80%);text-align:center}
+.roll-toast.visible{opacity:1;transform:translate(-50%,0)}
+.maze-overlay{z-index:2;position:absolute;inset:0;display:none;place-items:center;align-content:center;justify-items:center;gap:10px;text-align:center;padding:24px;background:rgba(34,38,74,.28)}
+.maze-overlay.visible{display:grid}
+.maze-overlay>*{max-width:520px}
+.maze-overlay::before{content:"";position:absolute;width:min(520px,90%);height:auto;inset:auto}
+.maze-overlay{--card:#fff}
+.maze-overlay.visible{background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.0) 0,rgba(34,38,74,.32) 70%)}
+.maze-overlay h2{margin:0;font:900 clamp(26px,3vw,40px)/1.2 var(--toon-font);color:#fff;text-shadow:3px 0 var(--ol-c),-3px 0 var(--ol-c),0 3px var(--ol-c),0 -3px var(--ol-c),2px 2px var(--ol-c),-2px 2px var(--ol-c),2px -2px var(--ol-c),-2px -2px var(--ol-c),0 6px 0 var(--ol-c)}
+.maze-overlay p{margin:0;font:700 15px/1.6 var(--toon-font);color:var(--ink);background:#fff;border:2.5px solid var(--ol-c);border-radius:14px;padding:8px 14px;box-shadow:var(--pop-s)}
+.maze-overlay-kicker{font:900 12px var(--toon-font);letter-spacing:.08em;padding:5px 12px;border:2.5px solid var(--ol-c);border-radius:999px;background:var(--sun-c);box-shadow:var(--pop-s)}
+.maze-overlay .btn-big{margin-top:6px}
+.overlay-links{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.roll-countdown{font-size:96px!important}
+.maze-win-stats{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.maze-win-stats span{display:flex;flex-direction:column;align-items:center;min-width:110px;background:#fff;border:var(--ol) solid var(--ol-c);border-radius:16px;box-shadow:var(--pop-s);padding:8px 12px;font:800 12px var(--toon-font);color:var(--muted)}
+.maze-win-stats b{font:900 22px var(--toon-font);color:var(--ink)}
+.maze-win-stats small{font:700 11px var(--toon-font)}
+.roll-caption{display:flex;justify-content:space-between;gap:16px;margin:4px 6px 0;font:700 13px/1.5 var(--toon-font);color:var(--ink-2)}
+.roll-caption small{color:var(--muted);white-space:nowrap}
+/* ---------- 手柄设置卡（地图页与关卡页共用，浮在右侧） ---------- */
+.maze-control-card{position:fixed;right:28px;top:110px;z-index:60;width:min(340px,calc(100vw - 32px));display:none;flex-direction:column;gap:10px;background:#fff;border:4px solid var(--ol-c);border-radius:24px;box-shadow:var(--pop-l);padding:16px 18px;font:600 13px/1.6 var(--toon-font)}
+.maze-control-card.open{display:flex}
+.roll-settings-head{display:flex;justify-content:space-between;align-items:center}
+.roll-settings-head b{font:900 17px var(--toon-font)}
+.roll-settings-head button{width:32px;height:32px;border:2.5px solid var(--ol-c);border-radius:10px;font:900 18px var(--toon-font);background:#fff;box-shadow:0 2px 0 var(--ol-c)}
+.maze-control-card p{margin:0;color:var(--ink-2)}
+.maze-input-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.maze-input-switch button{font:900 14px var(--toon-font);padding:10px;border:2.5px solid var(--ol-c);border-radius:14px;background:#fff;box-shadow:0 3px 0 var(--ol-c)}
+.maze-input-switch button.selected{background:var(--sky-c);color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.5)}
+.maze-tilt-view{position:relative;height:110px;border:2.5px solid var(--ol-c);border-radius:16px;background:radial-gradient(circle,#fff 0 30%,var(--sky-l) 31%);display:grid;place-items:center}
+.maze-tilt-view span,.maze-tilt-view small{position:absolute;font:800 11px var(--toon-font);color:var(--muted)}
+.maze-tilt-view span{top:6px}.maze-tilt-view small{bottom:6px}
+#maze-tilt-dot{width:22px;height:22px;border-radius:50%;background:var(--coral);border:2.5px solid var(--ol-c);transition:transform .08s}
+.maze-control-card label{display:flex;flex-direction:column;gap:4px;font:800 12px var(--toon-font);color:var(--muted)}
+.maze-control-card select{font:700 14px var(--toon-font);padding:8px;border:2.5px solid var(--ol-c);border-radius:12px;background:#fff}
+.maze-control-card .btn{width:100%}
+@media (max-width:1100px){.sky-levels{grid-template-columns:1fr 1fr}.sky-hero{grid-template-columns:1fr}.sky-hero-art{display:none}}
+@media (max-width:760px){#maze{padding:4px 14px 16px}.sky-levels{grid-template-columns:1fr}.roll-stage{height:calc(100dvh - 190px)}.roll-stat-row>div{min-width:62px;padding:6px 8px}.roll-stat-row strong{font-size:18px}.roll-level-badge strong{font-size:17px}.roll-input-status small,.roll-caption small{display:none}.roll-speed{min-width:120px}.roll-top-hud{flex-wrap:wrap}.maze-actions .btn{padding:9px 12px;font-size:13px}}

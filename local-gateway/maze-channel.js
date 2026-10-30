@@ -1,3 +1,4 @@
+import {LEVELS} from '../shared/maze/levels.js';
 // A separate continuous-input channel. Golf never consumes maze packets.
 export class MazeChannel {
   constructor(clients,send,{now=()=>Date.now()}={}){this.clients=clients;this.send=send;this.now=now;this.host=null;this.selectedId=null;this.usingPhone=false;this.lastInput=0;this.stale=false;this.info={phase:'ready',level:1,elapsed:0,falls:0,checkpoint:-1,checkpointCount:0};}
@@ -36,7 +37,7 @@ export class MazeChannel {
       if(m.type==='maze_rezero'){const p=this.phone();if(p){p.mazeReady=false;this.send(p,{type:'maze_rezero'});}this.pause('recenter');this.publish();return true;}
       if(m.type==='maze_state'){
         const valid=['ready','playing','paused','countdown','falling','won','complete'].includes(m.phase);
-        if(!valid||!Number.isInteger(m.level)||m.level<1||m.level>3||!Number.isFinite(m.elapsed)||m.elapsed<0||!Number.isInteger(m.falls)||m.falls<0)throw Error('滚球状态无效。');
+        if(!valid||!Number.isInteger(m.level)||m.level<1||m.level>LEVELS.length||!Number.isFinite(m.elapsed)||m.elapsed<0||!Number.isInteger(m.falls)||m.falls<0)throw Error('滚球状态无效。');
         const checkpoint=m.checkpoint??-1,checkpointCount=m.checkpointCount??0;if(!Number.isInteger(checkpointCount)||checkpointCount<0||checkpointCount>8||!Number.isInteger(checkpoint)||checkpoint< -1||checkpoint>=checkpointCount)throw Error('检查点状态无效。');
         this.info={checkpoint,checkpointCount,phase:m.phase,level:m.level,elapsed:Math.min(m.elapsed,86400),falls:Math.min(m.falls,99999)};
         const p=this.phone();if(p)this.send(p,{type:'maze_game_state',...this.info});return true;

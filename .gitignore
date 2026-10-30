@@ -4,3 +4,4 @@ certs/
 *.log
 test-results/
 releases/
+__pycache__/

@@ -75,3 +75,13 @@
 ### 0.13.0 九洞地图
 
 新增地图、路线图、远景和接驳道路均由项目代码生成。外部球场图只供设计研究，不随应用分发；资料链接及抽象方式见 COURSE-DESIGN.md。本版无新增外部媒体下载依赖。
+
+## 0.21.0 原创管弦配乐：一首主题，十种变奏
+
+- 全部曲目为本项目原创：主题旋律、和声与十个场景的编曲（大厅、高尔夫球场 / 练习室 / 正式球局、滚球地图与三章、两段短曲）由 `scripts/soundtrack/` 中的作曲程序写出（音级 + 和弦进行，再按场景改调式、拍号、律动与配器）。
+- 渲染：用系统自带的 FluidSynth 库（libfluidsynth，经 ctypes 调用）和通用 MIDI 音色库 **TimGM6mb**（Tim Brechbill，2004；David Bolton，2010；GPL-2.0，随 MuseScore 1.x 发布）逐个声部渲染，再用 numpy / scipy 做声像、均衡、程序生成的大厅混响、压缩和限幅，最后用 ffmpeg 编码为 128 kbps MP3。
+- 这个环境无法访问外网，下载不到更专业的管弦乐采样库，所以音色偏“温暖的玩具管弦乐”。如果以后要商业发行，建议确认 TimGM6mb 的 GPL 许可对渲染音频的影响，或者换一套许可更宽松的音色库重新渲染：`SWINGLINK_SF2=/路径/音色库.sf2 python3 scripts/soundtrack/build.py`。
+- 文件：`screen-web/assets/music/` 下 `hub.mp3`、`golf-lobby.mp3`、`golf-practice.mp3`、`golf-round.mp3`、`sky-map.mp3`、`sky-isles.mp3`、`sky-harbor.mp3`、`sky-aurora.mp3`、`sting-win.mp3`、`sting-hole.mp3`，共约 6.7 MB；`soundtrack.json` 记录曲名、调性、速度、时长、响度与循环点。
+- 循环：每段渲染两遍，保留第二遍（开头已含上一遍结尾的混响尾音），前后各留 0.5 秒；循环长度取 64 个采样的整数倍，使两遍的音符量化完全一致，接缝处再做 12 毫秒交叉。浏览器按 `loopStart` / `loopEnd` 无缝循环。
+- 响度按 EBU R128 校准：循环曲 -18 LUFS，短曲 -16 LUFS，峰值不超过 -1 dBFS。
+- 0.19 的实时生成 Lo-Fi（`screen-web/lofi-music.js`）已不再使用，可以删除；Butterfly Waltz 文件保留，可在“音乐与音效”面板里为任意场景选回。

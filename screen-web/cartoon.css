@@ -1,0 +1,198 @@
+/* 挥杆之间 · 0.21 卡通游戏风格（两个游戏共用的设计系统）
+   粗描边、立体按钮、饱和配色；高尔夫用草绿，云端滚球用天蓝，游戏大厅用阳光黄。
+   这一层最后加载：先定义组件，再覆盖高尔夫原有页面，让两个游戏看起来属于同一套界面。 */
+:root{
+ --ol-c:#22264a;--ol:3px;--pop:0 5px 0 var(--ol-c);--pop-s:0 3px 0 var(--ol-c);--pop-l:0 8px 0 var(--ol-c);
+ --ink:#22264a;--ink-2:#3c4170;--muted:#6b6f93;--faint:#a3a6c4;
+ --cream:#fff6e3;--card:#ffffff;
+ --golf:#36c26b;--golf-d:#1f9c4f;--golf-l:#dcf8cf;
+ --sky-c:#3fb6ff;--sky-d:#1c86d9;--sky-l:#d8f1ff;
+ --sun-c:#ffd23f;--sun-d:#f0a800;--sun-l:#fff1b8;
+ --coral:#ff6b6b;--grape:#7b6cf6;--pink:#ff5fa2;
+ --accent:var(--sun-c);--accent-d:var(--sun-d);--accent-l:var(--sun-l);
+ --toon-font:"HarmonyOS Sans SC","MiSans","PingFang SC","Microsoft YaHei UI","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+}
+body[data-game="golf"]{--accent:var(--golf);--accent-d:var(--golf-d);--accent-l:var(--golf-l)}
+body[data-game="skyroll"]{--accent:var(--sky-c);--accent-d:var(--sky-d);--accent-l:var(--sky-l)}
+body{color:var(--ink);background:
+ radial-gradient(circle at 12% 18%,rgba(255,255,255,.65) 0 70px,transparent 71px),
+ radial-gradient(circle at 88% 8%,rgba(255,255,255,.5) 0 110px,transparent 111px),
+ radial-gradient(rgba(34,38,74,.06) 1.6px,transparent 1.7px) 0 0/22px 22px,
+ linear-gradient(180deg,#ffe9a8 0,#ffd9b0 45%,#fff6e3 100%) fixed;font-weight:500}
+body[data-game="golf"]{background:radial-gradient(circle at 10% 14%,rgba(255,255,255,.6) 0 80px,transparent 81px),radial-gradient(rgba(34,38,74,.06) 1.6px,transparent 1.7px) 0 0/22px 22px,linear-gradient(180deg,#c9f2ff 0,#dff7d2 40%,#f4fbe9 100%) fixed}
+body[data-game="skyroll"]{background:radial-gradient(circle at 85% 12%,rgba(255,255,255,.55) 0 90px,transparent 91px),radial-gradient(rgba(34,38,74,.07) 1.6px,transparent 1.7px) 0 0/22px 22px,linear-gradient(180deg,#8fd3ff 0,#c5e6ff 38%,#efe6ff 100%) fixed}
+
+/* ---------- 组件 ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:900 15px/1.1 var(--toon-font);letter-spacing:.02em;padding:12px 20px;border:var(--ol) solid var(--ol-c);border-radius:16px;box-shadow:var(--pop);background:#fff;color:var(--ink);cursor:pointer;transition:transform .12s,box-shadow .12s,filter .12s;white-space:nowrap;text-decoration:none}
+.btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 7px 0 var(--ol-c);filter:brightness(1.04)}
+.btn:active:not(:disabled){transform:translateY(4px);box-shadow:0 1px 0 var(--ol-c)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-sun{background:var(--sun-c)}
+.btn-golf{background:var(--golf);color:#fff;text-shadow:0 2px 0 rgba(34,38,74,.45)}
+.btn-sky{background:var(--sky-c);color:#fff;text-shadow:0 2px 0 rgba(34,38,74,.45)}
+.btn-ghost{background:#fff}
+.btn-big{font-size:18px;padding:15px 26px;border-radius:18px}
+.btn-small{font-size:13px;padding:7px 12px;border-radius:12px;box-shadow:var(--pop-s)}
+.btn-small:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 var(--ol-c)}
+.card{background:#fff;border:var(--ol) solid var(--ol-c);border-radius:22px;box-shadow:var(--pop)}
+.toon-title{margin:0;font:900 clamp(38px,4.6vw,70px)/1.08 var(--toon-font);letter-spacing:.02em;color:#fff;text-shadow:3px 0 var(--ol-c),-3px 0 var(--ol-c),0 3px var(--ol-c),0 -3px var(--ol-c),2.2px 2.2px var(--ol-c),-2.2px 2.2px var(--ol-c),2.2px -2.2px var(--ol-c),-2.2px -2.2px var(--ol-c),0 8px 0 var(--ol-c)}
+.toon-title em{font-style:normal;color:var(--accent);background:none!important;padding:0!important}
+.toon-badge{display:inline-flex;align-items:center;gap:6px;font:900 12px var(--toon-font);letter-spacing:.08em;padding:6px 12px;border:2.5px solid var(--ol-c);border-radius:999px;background:#fff;box-shadow:var(--pop-s);color:var(--ink)}
+.toon-badge.sky{background:var(--sky-l)}.toon-badge.gold{background:var(--sun-c)}
+.toon-chip{display:inline-flex;align-items:center;font:900 11px var(--toon-font);letter-spacing:.08em;padding:4px 10px;border:2px solid var(--ol-c);border-radius:999px;background:var(--accent);color:var(--ink)}
+.stars{display:inline-flex;gap:1px;font-size:16px;line-height:1}
+.stars i{font-style:normal;color:#e4e1f2;-webkit-text-stroke:1.2px var(--ol-c)}
+.stars i.on{color:var(--sun-c)}
+.stars.big{font-size:44px;gap:6px;margin:4px 0 2px}
+.stars.big i{-webkit-text-stroke:2.5px var(--ol-c);animation:star-pop .5s cubic-bezier(.2,1.6,.4,1) both}
+.stars.big i:nth-child(2){animation-delay:.12s}.stars.big i:nth-child(3){animation-delay:.24s}
+@keyframes star-pop{from{transform:scale(0) rotate(-40deg)}to{transform:none}}
+
+/* ---------- 顶栏：游戏大厅 · 游戏 · 二级导航 ---------- */
+.header{height:84px;max-width:1640px;padding:0 28px;gap:16px}
+.brand{gap:10px;font:900 20px var(--toon-font);color:var(--ink)}
+.brand img{width:44px;height:44px;border-radius:14px;border:var(--ol) solid var(--ol-c);box-shadow:var(--pop-s);background:#fff}
+.brand-name{display:flex;flex-direction:column;line-height:1.05}
+.brand-name small{font:900 10px var(--toon-font);letter-spacing:.18em;color:var(--muted);margin-top:3px}
+.header nav.app-nav{display:flex;align-items:center;gap:4px;padding:5px;background:#fff;border:var(--ol) solid var(--ol-c);border-radius:999px;box-shadow:var(--pop-s);backdrop-filter:none;min-width:0}
+.nav-games{display:flex;gap:4px}
+.nav-game{display:flex;align-items:center;gap:6px;font:900 14px var(--toon-font);padding:8px 14px;border-radius:999px;border:2.5px solid transparent;color:var(--ink-2);white-space:nowrap}
+.nav-game .nav-ico{font-size:15px}
+.nav-game:hover{background:#f3f1fb}
+.nav-game.active{border-color:var(--ol-c);background:var(--accent);color:var(--ink);box-shadow:0 2px 0 var(--ol-c)}
+.nav-game.nav-golf.active{background:var(--golf);color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.5)}
+.nav-game.nav-sky.active{background:var(--sky-c);color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.5)}
+.sub-nav{display:flex;align-items:center;gap:2px;padding-left:8px;margin-left:4px;border-left:2.5px dashed #d8d6ea}
+body[data-game="hub"] .sub-nav{display:none}
+body[data-game="golf"] .sub-nav [data-game="skyroll"],body[data-game="skyroll"] .sub-nav [data-game="golf"]{display:none}
+.header .nav-link{font:800 14px var(--toon-font);padding:8px 14px;border-radius:999px;color:var(--ink-2)}
+.header .nav-link:hover{background:var(--accent-l)}
+.header .nav-link.active{background:var(--ink);color:#fff}
+.connect-button{height:44px;border:var(--ol) solid var(--ol-c);background:var(--ink);box-shadow:var(--pop-s);font:900 13px var(--toon-font)}
+.sound-button{border:var(--ol) solid var(--ol-c)!important;box-shadow:var(--pop-s)!important;background:#fff!important;color:var(--ink)!important}
+.sound-button[aria-expanded="true"]{background:var(--sun-c)!important}
+.sound-button[aria-expanded="true"] *{color:var(--ink)!important}
+.local-label{font:800 12px var(--toon-font)}
+
+/* ---------- 游戏大厅 ---------- */
+.hub{max-width:1640px;margin:0 auto;padding:10px 28px 40px}
+.hub-hero{display:grid;grid-template-columns:minmax(300px,.8fr) 1.6fr;gap:32px;align-items:center;min-height:calc(100dvh - 220px)}
+.hub-hello p{font:600 17px/1.7 var(--toon-font);color:var(--ink-2);max-width:440px;margin:22px 0 26px}
+.hub-hello .toon-title{margin-top:16px}
+.hub-phone{display:flex;align-items:center;gap:14px;padding:16px 18px;max-width:460px}
+.hub-phone>div{flex:1;min-width:0}
+.hub-phone b{display:block;font:900 16px var(--toon-font)}
+.hub-phone small{display:block;color:var(--muted);font-weight:600;font-size:13px;line-height:1.5;margin-top:2px}
+.hub-phone-ico{width:48px;height:48px;border-radius:14px;border:var(--ol) solid var(--ol-c);background:var(--sun-l);display:grid;place-items:center;flex:none}
+.hub-phone.connected .hub-phone-ico{background:var(--golf-l)}
+.hub-phone-ico svg{width:24px;height:24px}
+.hub-games{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+.game-card{display:flex;flex-direction:column;text-align:left;background:#fff;border:4px solid var(--ol-c);border-radius:30px;box-shadow:var(--pop-l);overflow:hidden;cursor:pointer;transition:transform .16s,box-shadow .16s}
+.game-card:hover{transform:translateY(-6px) rotate(-.6deg);box-shadow:0 14px 0 var(--ol-c)}
+.game-card.sky:hover{transform:translateY(-6px) rotate(.6deg)}
+.game-card:active{transform:translateY(3px);box-shadow:0 3px 0 var(--ol-c)}
+.game-art{position:relative;display:block;height:220px;border-bottom:4px solid var(--ol-c);overflow:hidden}
+.golf-art{background:linear-gradient(180deg,#7fd3ff 0,#bfeaff 55%,#e5f9ff 100%)}
+.golf-art .sun{position:absolute;right:30px;top:24px;width:58px;height:58px;border-radius:50%;background:var(--sun-c);border:var(--ol) solid var(--ol-c);box-shadow:0 0 0 10px rgba(255,210,63,.35)}
+.golf-art .hill{position:absolute;border:var(--ol) solid var(--ol-c);border-radius:50% 50% 0 0}
+.golf-art .h1{left:-12%;right:30%;bottom:-60px;height:170px;background:#57d17f}
+.golf-art .h2{left:28%;right:-15%;bottom:-75px;height:190px;background:#36c26b}
+.golf-art .flag{position:absolute;left:60%;bottom:72px;width:5px;height:96px;background:var(--ol-c);border-radius:3px}
+.golf-art .flag b{position:absolute;left:5px;top:2px;width:48px;height:32px;background:var(--coral);border:var(--ol) solid var(--ol-c);clip-path:polygon(0 0,100% 50%,0 100%);transform-origin:left;animation:flag-wave 1.6s ease-in-out infinite}
+@keyframes flag-wave{50%{transform:scaleX(.82) skewY(4deg)}}
+.golf-art .hole{position:absolute;left:calc(60% - 16px);bottom:62px;width:36px;height:14px;border-radius:50%;background:var(--ol-c)}
+.golf-art .gball{position:absolute;left:22%;bottom:52px;width:34px;height:34px;border-radius:50%;background:#fff;border:var(--ol) solid var(--ol-c);box-shadow:inset -5px -5px 0 #e3e6f2;animation:ball-hop 2.4s ease-in-out infinite}
+@keyframes ball-hop{0%,100%{transform:translate(0,0)}40%{transform:translate(70px,-60px)}70%{transform:translate(120px,-10px)}}
+.sky-art{background:linear-gradient(180deg,#6a8cff 0,#9cc8ff 50%,#e5d9ff 100%)}
+.sky-art .cloud,.sky-hero-art .cloud{position:absolute;height:38px;border-radius:999px;background:#fff;border:var(--ol) solid var(--ol-c)}
+.sky-art .cloud::before,.sky-hero-art .cloud::before{content:"";position:absolute;left:22%;top:-24px;width:46px;height:46px;border-radius:50%;background:#fff;border:var(--ol) solid var(--ol-c);border-bottom-color:transparent;border-left-color:transparent;transform:rotate(-45deg)}
+.sky-art .c1{left:8%;top:34px;width:120px;animation:drift 7s ease-in-out infinite}
+.sky-art .c2{right:6%;top:78px;width:96px;animation:drift 9s ease-in-out infinite reverse}
+@keyframes drift{50%{transform:translateX(24px)}}
+.sky-art .isle{position:absolute;left:18%;right:14%;bottom:26px;height:40px;background:#ffd2a8;border:var(--ol) solid var(--ol-c);border-radius:20px 20px 60px 60px}
+.sky-art .road{position:absolute;left:24%;right:20%;bottom:58px;height:18px;background:#fff1cf;border:var(--ol) solid var(--ol-c);border-radius:6px;transform:skewX(-20deg)}
+.sky-art .ball{position:absolute;left:30%;bottom:72px;width:38px;height:38px;border-radius:50%;border:var(--ol) solid var(--ol-c);background:conic-gradient(var(--coral) 0 25%,#fff 0 50%,var(--sky-c) 0 75%,var(--sun-c) 0);animation:roll 3s ease-in-out infinite}
+@keyframes roll{50%{transform:translateX(150px) rotate(360deg)}}
+.sky-art .sparkle{position:absolute;right:22%;top:26px;font-size:28px;color:var(--sun-c);-webkit-text-stroke:2px var(--ol-c);animation:twinkle 1.4s ease-in-out infinite}
+@keyframes twinkle{50%{transform:scale(.6) rotate(30deg)}}
+.game-info{display:flex;flex-direction:column;gap:8px;padding:20px 24px 24px}
+.game-card.golf .toon-chip{background:var(--golf-l)}.game-card.sky .toon-chip{background:var(--sky-l)}
+.game-title{font:900 34px/1.1 var(--toon-font);margin-top:4px}
+.game-desc{font:600 15px/1.6 var(--toon-font);color:var(--ink-2)}
+.game-feats{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.game-feats i{font:800 12px var(--toon-font);font-style:normal;padding:4px 10px;border-radius:999px;background:#f3f1fb;border:2px solid #dcd9ee}
+.game-status{font:800 13px var(--toon-font);color:var(--muted)}
+.game-status.live{color:var(--golf-d)}
+.game-info .btn{align-self:flex-start;margin-top:8px}
+.hub-how{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:34px}
+.how-step{display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.75);border:2.5px solid var(--ol-c);border-radius:18px;padding:14px 16px;font:600 14px/1.6 var(--toon-font);color:var(--ink-2)}
+.how-step b{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--sun-c);border:2.5px solid var(--ol-c);font:900 14px var(--toon-font);color:var(--ink)}
+
+/* ---------- 高尔夫：大厅与选场 ---------- */
+.lobby .hero h1{font:900 clamp(40px,4.4vw,66px)/1.12 var(--toon-font);color:#fff;text-shadow:3px 0 var(--ol-c),-3px 0 var(--ol-c),0 3px var(--ol-c),0 -3px var(--ol-c),2.2px 2.2px var(--ol-c),-2.2px 2.2px var(--ol-c),2.2px -2.2px var(--ol-c),-2.2px -2.2px var(--ol-c),0 8px 0 var(--ol-c)}
+.lobby .hero h1 em{color:var(--sun-c);background:none!important}
+.lobby .hero .eyebrow{display:inline-flex;padding:6px 14px;border:2.5px solid var(--ol-c);border-radius:999px;background:#fff;box-shadow:var(--pop-s);font-weight:900;color:var(--ink)}
+.lobby .hero-description{font-weight:600;color:var(--ink-2)}
+.primary{border:var(--ol) solid var(--ol-c)!important;box-shadow:var(--pop)!important;background:var(--sun-c);color:var(--ink);font-family:var(--toon-font);font-weight:900;border-radius:18px}
+.primary:hover:not(:disabled){box-shadow:0 7px 0 var(--ol-c)!important}
+.primary:active:not(:disabled){transform:translateY(4px);box-shadow:0 1px 0 var(--ol-c)!important}
+.secondary{border:var(--ol) solid var(--ol-c)!important;box-shadow:var(--pop-s)!important;background:#fff;color:var(--ink);font-weight:900;border-radius:14px}
+.secondary:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 var(--ol-c)!important}
+.round-options button,.match-mode button,.player-count button{border:var(--ol) solid var(--ol-c)!important;box-shadow:var(--pop-s)!important;border-radius:18px!important;background:#fff}
+.round-options button.selected,.match-mode button.selected,.player-count button.selected{background:var(--golf-l)!important;box-shadow:0 3px 0 var(--golf-d)!important;border-color:var(--golf-d)!important}
+.match-mode{border:var(--ol) solid var(--ol-c);border-radius:18px;box-shadow:var(--pop-s);background:#fff}
+.match-mode button{box-shadow:none!important;border-width:0!important}
+.match-mode button.selected{background:var(--golf)!important;color:#fff}
+.preview{border:4px solid var(--ol-c)!important;border-radius:30px!important;box-shadow:var(--pop-l)!important}
+.preview-label,.weather,.round-badge,.orbit-hint{border:2.5px solid var(--ol-c);box-shadow:var(--pop-s)}
+.preview-bottom>div{border:var(--ol) solid var(--ol-c);box-shadow:var(--pop-s)}
+.section-heading h2{font:900 30px var(--toon-font)}
+.course-card{border:var(--ol) solid var(--ol-c)!important;border-radius:24px!important;box-shadow:var(--pop)!important;overflow:hidden}
+.course-card:hover{transform:translateY(-4px)}
+.course-card.selected{border-color:var(--golf-d)!important;box-shadow:0 6px 0 var(--golf-d)!important;outline:4px solid var(--golf-l)}
+.card-check{border:2.5px solid var(--ol-c)}
+.atlas-open{border:var(--ol) solid var(--ol-c);box-shadow:var(--pop-s);border-radius:14px;background:#fff;font-weight:900}
+.lobby-footer{font-weight:700}
+
+/* ---------- 高尔夫：球局 HUD ---------- */
+.hud-panel,.intro-card,.guide-label{border:var(--ol) solid var(--ol-c)!important;box-shadow:var(--pop-s)!important}
+.hud-hole-badge{border:2.5px solid var(--ol-c);background:var(--golf)!important;color:#fff}
+.hud-back{border:2.5px solid var(--ol-c);box-shadow:0 2px 0 var(--ol-c)}
+.hud-score{border:2.5px solid var(--ol-c);box-shadow:0 2px 0 var(--ol-c)}
+.tool-button{border:2.5px solid var(--ol-c)!important;box-shadow:0 2px 0 var(--ol-c)!important;background:#fff!important;color:var(--ink)!important;font-weight:900;padding-top:6px!important;padding-bottom:6px!important}
+.hud-tools{gap:7px!important}
+.tool-button.active{background:var(--sun-c)!important}
+.tool-select{border:2.5px solid var(--ol-c)!important;box-shadow:0 2px 0 var(--ol-c)!important;background:#fff!important;color:var(--ink)!important;padding-top:6px!important;padding-bottom:6px!important}
+.shot-dock{border-radius:24px!important}
+.power-track{border:2.5px solid var(--ol-c)}
+
+/* ---------- 高尔夫：练习室与挥杆识别 ---------- */
+.training-head h1,.training .training-head h1{font:900 34px var(--toon-font)}
+.training-owner,.ml-card,.ml-tile,.ml-adapt,.target-hud,.swing-hud,.feedback-metrics,.training-history{border:var(--ol) solid var(--ol-c)!important;box-shadow:var(--pop-s)!important;border-radius:22px!important}
+.lab-tabs{border:var(--ol) solid var(--ol-c)!important;box-shadow:var(--pop-s)!important;border-radius:999px!important;background:#fff!important}
+.lab-tabs [aria-selected="true"]{background:var(--ink)!important;color:#fff!important}
+/* 练习室只显示击球练习；挥杆识别只显示数据采集 / 数据集 / 模型训练三页 */
+#lab[data-lab-tab="practice"] .lab-tabs{display:none!important}
+.lab-tabs [data-lab-tab="practice"]{display:none!important}
+.training .range-stage,.training .training-stage,#training-canvas{border-radius:26px}
+.detector-seg{border:2.5px solid var(--ol-c)!important;border-radius:999px!important}
+
+/* ---------- 对话框与声音面板 ---------- */
+dialog{border:4px solid var(--ol-c)!important;border-radius:30px!important;box-shadow:var(--pop-l)!important}
+dialog h2{font-family:var(--toon-font);font-weight:900}
+.help-step b{border:2.5px solid var(--ol-c);background:var(--accent)!important;color:var(--ink)!important;border-radius:12px}
+.dialog-close{border:2.5px solid var(--ol-c)!important;box-shadow:0 2px 0 var(--ol-c);background:#fff!important;border-radius:12px!important}
+.sky-help .help-step b{background:var(--sky-l)!important}
+.sky-help .btn{margin-top:14px}
+.sound-panel{border:var(--ol) solid var(--ol-c)!important;box-shadow:var(--pop)!important;border-radius:24px!important}
+.sp-scene select{border:2px solid var(--ol-c)!important;border-radius:10px!important}
+.sp-scene.current{background:var(--accent-l)!important}
+#toast{border:var(--ol) solid var(--ol-c)!important;box-shadow:var(--pop-s)!important;font-weight:800}
+
+/* ---------- 窄屏 ---------- */
+@media (max-width:1180px){.nav-game .nav-txt{display:none}.nav-game{padding:8px 11px}.hub-hero{grid-template-columns:1fr}.hub-hello{max-width:640px}}
+@media (max-width:900px){.nav-game .nav-txt{display:inline}.header{flex-wrap:wrap;height:auto;padding:12px 18px;row-gap:10px}.header nav.app-nav{order:3;width:100%;overflow-x:auto;scrollbar-width:none;justify-content:flex-start}.sub-nav{flex:none}.hub-games{grid-template-columns:1fr}.hub-how{grid-template-columns:1fr}.game-art{height:170px}}
+@media (max-width:640px){.hub{padding:6px 16px 30px}.brand-name small{display:none}.game-title{font-size:28px}.toon-title{font-size:38px}.header .nav-link{padding:7px 10px;font-size:13px}.nav-help{display:none}}
+/* 正式球局：顶栏只保留声音与手机按钮（保持原布局），其余隐藏 */
+body.in-round .header nav.app-nav,body.in-round .brand{display:none}
+body.in-round .header{height:auto;padding:0}

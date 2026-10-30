@@ -1,0 +1,43 @@
+/* 挥杆之间 · 手机端 0.21 卡通风格：与电脑同一套粗描边、立体按钮；顶部标签显示电脑当前所在的游戏。
+   高尔夫（球杆）用草绿，云端滚球（手柄）用天蓝，游戏大厅用阳光黄。 */
+:root{--ol-c:#22264a;--pop:0 4px 0 #22264a;--pop-s:0 3px 0 #22264a;--ink:#22264a;--ink-2:#3c4170;--muted:#6b6f93;--golf:#36c26b;--golf-d:#1f9c4f;--golf-l:#dcf8cf;--sky-c:#3fb6ff;--sky-d:#1c86d9;--sky-l:#d8f1ff;--sun-c:#ffd23f;--sun-l:#fff1b8;--coral:#ff6b6b;
+ --toon-font:"HarmonyOS Sans SC","MiSans","PingFang SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif}
+html{background:#fff6e3}
+body{color:var(--ink);background:radial-gradient(rgba(34,38,74,.06) 1.4px,transparent 1.5px) 0 0/20px 20px,linear-gradient(180deg,#ffe9a8 0,#fff6e3 420px) no-repeat,#fff6e3}
+body[data-game="golf"]{background:radial-gradient(rgba(34,38,74,.06) 1.4px,transparent 1.5px) 0 0/20px 20px,linear-gradient(180deg,#c9f2ff 0,#e3f8d6 300px,#f4fbe9 600px) no-repeat,#f4fbe9}
+body[data-game="skyroll"],body.maze-phone-active{background:radial-gradient(rgba(34,38,74,.07) 1.4px,transparent 1.5px) 0 0/20px 20px,linear-gradient(180deg,#8fd3ff 0,#d6ecff 300px,#efe6ff 100%) no-repeat,#efe6ff!important;color:var(--ink)!important}
+header .brand{font:900 18px var(--toon-font);color:var(--ink)}
+header .brand img{border:3px solid var(--ol-c);border-radius:12px;box-shadow:var(--pop-s);background:#fff}
+.game-strip{margin-left:auto;margin-right:8px;font:900 12px var(--toon-font);padding:5px 11px;border:2.5px solid var(--ol-c);border-radius:999px;background:var(--sun-c);box-shadow:var(--pop-s);white-space:nowrap}
+.game-strip[data-game="golf"]{background:var(--golf);color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.5)}
+.game-strip[data-game="skyroll"]{background:var(--sky-c);color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.5)}
+.status{border:2.5px solid var(--ol-c)!important;box-shadow:var(--pop-s);font-weight:900!important}
+.hub-note{display:none;margin:0 16px 10px;padding:10px 14px;border:2.5px solid var(--ol-c);border-radius:16px;background:#fff;box-shadow:var(--pop-s);font:700 13px/1.6 var(--toon-font);color:var(--ink-2)}
+.hub-note.show{display:block}
+body.maze-phone-active .hub-note{display:none}
+/* 卡片与按钮 */
+.identity-card,.posture-card,.posture-help,.ml-record,.last-swing,.phone-club-picker,.adapt-card,.phone-training-result,.guided-calibration,.ml-prompt-card,.sensor-status{border:3px solid var(--ol-c)!important;box-shadow:var(--pop)!important;border-radius:22px!important;background:#fff!important}
+.primary{border:3px solid var(--ol-c)!important;box-shadow:var(--pop)!important;background:var(--sun-c)!important;color:var(--ink)!important;font:900 17px var(--toon-font)!important;border-radius:18px!important}
+.primary:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 var(--ol-c)!important}
+.secondary-button,.text-button{font-family:var(--toon-font);font-weight:900}
+.secondary-button{border:3px solid var(--ol-c)!important;box-shadow:var(--pop-s)!important;border-radius:14px!important;background:#fff!important}
+.mode-select,.detector-seg{border:2.5px solid var(--ol-c)!important;box-shadow:var(--pop-s);border-radius:999px!important;background:#fff!important}
+.mode-select button.selected,.detector-seg button.selected,.detector-seg button.active{background:var(--golf)!important;color:#fff!important}
+.phone-eyebrow{font:900 12px var(--toon-font)!important;border:2.5px solid var(--ol-c);border-radius:999px;box-shadow:var(--pop-s);background:#fff!important;color:var(--ink)!important}
+h1,h2{font-family:var(--toon-font);font-weight:900}
+.swing-orb{border:4px solid var(--ol-c)!important;box-shadow:0 6px 0 var(--ol-c)!important}
+.meter,.dir-gauge{border:2px solid var(--ol-c)}
+/* 云端滚球手柄 */
+#maze-controller{font-family:var(--toon-font)!important;color:var(--ink)}
+.mc-heading span{font:900 13px var(--toon-font)!important;color:var(--ink)!important;padding:5px 12px;border:2.5px solid var(--ol-c);border-radius:999px;background:var(--sky-c);color:#fff!important;text-shadow:0 1px 0 rgba(34,38,74,.5);box-shadow:var(--pop-s)}
+.mc-heading b{font:800 13px var(--toon-font)!important;color:var(--ink-2)!important}
+#maze-controller button{font:900 14px var(--toon-font)!important;border:3px solid var(--ol-c)!important;border-radius:14px!important;background:#fff!important;color:var(--ink)!important;box-shadow:var(--pop-s)}
+#maze-controller button:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 var(--ol-c)}
+#maze-controller button.selected,#maze-controller button.mc-primary,#maze-controller #mc-pause{background:var(--sky-c)!important;color:#fff!important;text-shadow:0 1px 0 rgba(34,38,74,.5)}
+.mc-pad{border:4px solid var(--ol-c)!important;box-shadow:0 6px 0 var(--ol-c)!important;background:radial-gradient(circle,#fff 0,#d8f1ff 72%)!important}
+.mc-pad:after{border:2px dashed #9fc9ef!important}
+.mc-knob{background:conic-gradient(var(--coral) 0 25%,#fff 0 50%,var(--sky-c) 0 75%,var(--sun-c) 0)!important;border:3px solid var(--ol-c);box-shadow:0 4px 0 var(--ol-c)!important;color:transparent!important}
+.mc-stats{border-bottom:2.5px dashed #c9c6e6!important;color:var(--muted)!important}
+.mc-stats b{font:900 18px var(--toon-font)!important;color:var(--ink)!important}
+#mc-notice{font:700 13px/1.7 var(--toon-font)!important;color:var(--ink-2)!important}
+#title{color:#fff;font-family:var(--toon-font);text-shadow:2.5px 0 var(--ol-c),-2.5px 0 var(--ol-c),0 2.5px var(--ol-c),0 -2.5px var(--ol-c),1.8px 1.8px var(--ol-c),-1.8px 1.8px var(--ol-c),1.8px -1.8px var(--ol-c),-1.8px -1.8px var(--ol-c),0 6px 0 var(--ol-c)}
