@@ -1,3 +1,4 @@
+import {MazeChannel} from './maze-channel.js';
 import {sendAudio} from './audio-response.js';
 import {roundAnimationMs} from '../shared/travel.js';
 import {MAX_PLAYERS} from '../shared/players.js';
@@ -35,6 +36,8 @@ function persistExtra(name,value){const data=JSON.stringify(value);writing=writi
 function send(ws,data){if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data));}
 function broadcast(data){for(const c of clients)send(c,data);}
 function controller(){const phones=[...clients].filter(c=>c.role==='phone');return {connected:phones.length>0,calibrated:phones.some(c=>c.calibrated),count:phones.length,phones:players.snapshot(clients)};}
+const maze=new MazeChannel(clients,send);
+const mazeTimer=setInterval(()=>maze.tick(),100);
 const training=new TrainingChannel(clients,send,{players,saved:practiceData,persist:()=>persistExtra('practice',training.saved())});
 const ml=await new MLChannel(clients,send,{dir:path.join(dataDir,'ml'),training,players}).load();
 const round=new RoundChannel(game,clients,send,training,{state,shot:(shot,source)=>{broadcast({type:'shot_result',shot,source});clearTimeout(timer);timer=setTimeout(()=>{game.settle();state();},roundAnimationMs(shot,source));}});
@@ -81,11 +84,13 @@ function attach(server){
      if(ws.role)throw Error('已经连接。');
      if(!['screen','phone'].includes(m.role)||typeof m.clientId!=='string'||m.clientId.length>100||m.protocolVersion!==1)throw Error('请刷新页面后重新连接。');
      for(const old of clients)if(old!==ws&&old.role===m.role&&old.clientId===m.clientId){clients.delete(old);old.close(4001,'同一手柄已重新接入');}
-     ws.role=m.role;ws.clientId=m.clientId;if(ws.role==='phone'){send(ws,{type:'player_identity',player:players.ensure(ws.clientId)});persistExtra('players',players.saved());}send(ws,{type:'ready',protocolVersion:1});send(ws,{type:'room_state',state:game.snapshot()});send(ws,{type:'input_lock',locked:game.state.phase!=='playing'});ml.connected(ws);status();return;
+     ws.role=m.role;ws.clientId=m.clientId;if(ws.role==='phone'){send(ws,{type:'player_identity',player:players.ensure(ws.clientId)});persistExtra('players',players.saved());}send(ws,{type:'ready',protocolVersion:1});send(ws,{type:'room_state',state:game.snapshot()});send(ws,{type:'input_lock',locked:game.state.phase!=='playing'});ml.connected(ws);maze.connected(ws);status();return;
     }
     if(!ws.role)throw Error('请先连接。');
     if(m.type==='player_profile'&&ws.role==='phone'){const profile=players.update(ws.clientId,m);game.updateProfile(profile);send(ws,{type:'player_identity',player:profile});ml.pushProfile(ws.clientId);persistExtra('players',players.saved());status();state();return;}
     if(m.type==='calibration_progress'&&ws.role==='phone'){const now=Date.now();if(now-(ws.lastCalProgress||0)<150)return;ws.lastCalProgress=now;ws.calibrationProgress={step:String(m.step||'').slice(0,40),hint:String(m.hint||'').slice(0,180),progress:Math.max(0,Math.min(1,Number(m.progress)||0))};status();return;}
+    if(maze.handle(ws,m))return;
+    if(ws.role==='phone'&&maze.active()&&ws===maze.phone()&&['swing','test_swing','round_arm','practice_arm'].includes(m.type))return;
     if(ml.handle(ws,m))return;
     if(training.handle(ws,m)){if(round.sync())state();return;}
     if(round.handle(ws,m))return;
@@ -103,7 +108,7 @@ function attach(server){
     else throw Error('无法识别此操作。');
    }catch(e){send(ws,{type:'error',message:e instanceof SyntaxError?'消息格式无效，请刷新页面后重试。':e.message});}
   });
-  ws.on('close',()=>{clients.delete(ws);ml.disconnected(ws);status();});ws.on('error',()=>{});
+  ws.on('close',()=>{clients.delete(ws);ml.disconnected(ws);maze.disconnected(ws);status();});ws.on('error',()=>{});
  });
  return wss;
 }
@@ -112,5 +117,5 @@ const server=http.createServer(handler);server.on('error',listenError);attach(se
 let tlsServer;
 if(secure){tlsServer=https.createServer({key:await readFile(path.join(certDir,'server-key.pem')),cert:await readFile(path.join(certDir,'server.pem'))},handler);tlsServer.on('error',listenError);attach(tlsServer);tlsServer.listen(tlsPort,'0.0.0.0',()=>console.log(`手机手柄 · https://${addresses[0]||'localhost'}:${tlsPort}/phone`));}
 heartbeat=setInterval(()=>{for(const c of clients){if(!c.alive){c.terminate();clients.delete(c);continue;}c.alive=false;c.ping();}},15000);
-function shutdown(code=0){clearInterval(heartbeat);clearTimeout(timer);ml.cancel();for(const c of clients)c.close();server.close();tlsServer?.close();Promise.all([writing,ml.store.flush()]).finally(()=>process.exit(code));}
+function shutdown(code=0){clearInterval(heartbeat);clearInterval(mazeTimer);clearTimeout(timer);ml.cancel();for(const c of clients)c.close();server.close();tlsServer?.close();Promise.all([writing,ml.store.flush()]).finally(()=>process.exit(code));}
 process.on('SIGINT',()=>shutdown());process.on('SIGTERM',()=>shutdown());

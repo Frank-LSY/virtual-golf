@@ -14,7 +14,8 @@
     "package:mac": "python scripts/package-mac.py",
     "test:courses": "node tests/course-gateway.integration.js",
     "test:multiplayer": "node tests/multiplayer.integration.js",
-    "test:ml": "node tests/ml.integration.js"
+    "test:ml": "node tests/ml.integration.js",
+    "test:maze": "node tests/maze.integration.js"
   },
   "engines": {
     "node": ">=20"

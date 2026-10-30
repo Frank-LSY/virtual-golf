@@ -16,6 +16,7 @@ import {motionSVG,gripSVG,GRIP_TIPS,GRIPS,MOTION_TIPS} from '../shared/ml/illust
 // 0.20：手机同时实时估计“挥杆弧度”，按个人动作校准换算成小人的姿势发给电脑，小人实时跟随并按真实轨迹回放。
 const $=id=>document.getElementById(id),conn=new Connection('phone');
 let stage='intro',playMode='play',lastSample=0,lastUI=0,latestRaw={alpha:0,beta:0,gamma:0},enabled=false,online=false,locked=true,wakeLock=null,seq=Number(localStorage.getItem('swinglink-phone-seq')||sessionStorage.getItem('swinglink-phone-seq')||0),stateVersion=-1,gamePhase='lobby',logs=[],sampleCount=0,sampleStart=0;
+let mazeActive=false;
 let identity=null,practiceSelected=true,roundCanControl=true,activeOwner='';
 let settings={...INPUT_DEFAULTS},practiceActive=false,practiceArmed=false,stream=false,roundStream=false,roundActive=false,roundArmed=false,previousMode='play',practiceBusyUntil=0,practiceTimer,lastTelemetry=0,hz=0;
 try{settings=inputSettings(JSON.parse(localStorage.getItem('swinglink-input-settings')));}catch{}
@@ -74,6 +75,7 @@ $('phone-practice-arm').onclick=()=>{if(practiceActive&&!practiceSelected||round
 
 // ---------- 传感器 ----------
 function onMotion(e){
+ if(mazeActive)return;
  const time=performance.now(),rr=e.rotationRate;if(!rr||!['alpha','beta','gamma'].some(k=>Number.isFinite(rr[k])))return;
  latestRaw={alpha:rr.alpha||0,beta:rr.beta||0,gamma:rr.gamma||0};lastSample=time;sampleCount++;sampleStart||=time;
  const acc=e.accelerationIncludingGravity||{},ax=Number.isFinite(acc.x)?acc.x:0,ay=Number.isFinite(acc.y)?acc.y:0,az=Number.isFinite(acc.z)?acc.z:0,g=[latestRaw.alpha,latestRaw.beta,latestRaw.gamma];recorder.push(time,g,[ax,ay,az]);mlLastW=Math.hypot(...g);mlLastA=Math.hypot(ax,ay,az);arcState=arcLive.push(time,g,[ax,ay,az]);
@@ -152,6 +154,7 @@ $('export-json').onclick=()=>download('json');$('export-csv').onclick=()=>downlo
 document.addEventListener('visibilitychange',()=>{det.reset();if(document.hidden){if(mlTrial&&!mlTrial.paused)conn.send({type:'ml_session',action:'pause'});if(practiceActive&&practiceArmed)conn.send({type:'practice_arm',armed:false});if(roundActive&&roundArmed)conn.send({type:'round_arm',armed:false});wakeLock?.release();warn('页面进入后台后，体感已暂停。回到此页面后即可继续。');}else if(enabled){keepAwake();lastSample=performance.now();$('sensor-warning').dataset.stalled='true';}});
 setInterval(()=>{if(enabled&&!document.hidden&&performance.now()-lastSample>1800){$('sensor-status').textContent='○ 尚未收到传感器数据';warn('传感器数据已中断。请保持 Safari 在前台，检查体感权限，或刷新页面重新连接。');$('sensor-warning').dataset.stalled='true';det.reset();}},1000);
 conn.addEventListener('message',({detail:m})=>{
+ if(m.type==='maze_subscription'){mazeActive=m.active===true;det.reset();arcLive.reset();if(mazeActive){wakeLock?.release();wakeLock=null;}}
  if(m.type==='player_identity'){identity=m.player;$('player-name').value=identity.name;$('player-style').value=identity.style;if(!$('ml-record-person').value)$('ml-record-person').value=identity.name||'';renderOwner();renderRecord();renderAdapt();}
  if(m.type==='calibration_request'){$('shot-status').textContent='现在不需要校准：启用体感后直接挥杆；想让识别更贴合你，可以做一次快速适应。';}
  if(m.type==='ready'){online=true;$('connection').textContent='● 已连接';$('connection').classList.add('online');conn.send({type:'input_settings',settings});if(stage==='ready')conn.send({type:'calibrated',...readyInfo()});statusSent='';refreshDetector();renderReady();}
@@ -289,3 +292,5 @@ function startRecording(mode){if(!enabled)return warn('请先点击“启用体�
 $('ml-record-start').onclick=()=>startRecording('collect');$('ml-record-adapt').onclick=()=>startRecording('adapt');$('ml-record-motion').onclick=()=>startRecording('motion');
 $('device-name').value=deviceName;$('device-name').placeholder=autoDevice();
 renderPosture();renderRecord();setStage();refreshDetector();
+
+export {conn};
