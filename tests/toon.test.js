@@ -38,12 +38,13 @@ test('渲染钩子：每帧更新描边的屏幕尺寸，按时间间隔扫描�
  scene.add(new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshStandardMaterial()));t=100;renderer.render(scene,{});assert.equal(scene.children[1].children.length,0,'间隔未到不扫描');t=400;renderer.render(scene,{});assert.equal(scene.children[1].children.length,1);
  const c=cartoonColor('#b1db71'),h={},o={};c.getHSL(h);new THREE.Color('#b1db71').getHSL(o);assert.ok(h.s>=o.s);
 });
-test('滚球声：静止无声；速度越快越响、音高越高、颗粒越密；转动节奏 = 速度 ÷ 球周长；冰面更亮、云絮更闷',()=>{
+test('滚球声：静止无声；越快越响、音高越高、金属振铃越密越亮；转动节奏 = 速度 ÷ 球周长；冰面更亮、云絮几乎没有金属声；整体压在音乐之下',()=>{
  assert.equal(SkyrollSfx.rollParams(.1).level,0);
  const a=SkyrollSfx.rollParams(2),b=SkyrollSfx.rollParams(6);
- assert.ok(b.rumbleHz>a.rumbleHz&&b.rumbleGain>a.rumbleGain&&b.gritRate>a.gritRate&&b.gritGain>a.gritGain);
- assert.ok(Math.abs(b.spinHz-6/(2*Math.PI*.48))<1e-9);assert.equal(b.level,1);
+ assert.ok(b.rumbleHz>a.rumbleHz&&b.rumbleGain>a.rumbleGain&&b.gritRate>a.gritRate&&b.metalGain>a.metalGain&&b.ringHz>a.ringHz);
+ assert.ok(Math.abs(b.spinHz-6/(2*Math.PI*.48))<1e-9);assert.equal(b.level,SkyrollSfx.ROLL_MIX);assert.ok(SkyrollSfx.ROLL_MIX<=.4,'滚动声总音量明显低于其他音效');
+ const ratios=SkyrollSfx.METAL_MODES.map(m=>m[0]);assert.ok(ratios.every((r,i)=>i===0||r>ratios[i-1]));assert.ok(ratios.slice(1).some(r=>Math.abs(r-Math.round(r))>.2),'非谐波共振（金属感）');
  const ice=SkyrollSfx.rollParams(5,'ice'),fluff=SkyrollSfx.rollParams(5,'fluff'),normal=SkyrollSfx.rollParams(5);
- assert.ok(ice.gritHz>normal.gritHz&&ice.rumbleHz>normal.rumbleHz&&ice.rumbleGain<normal.rumbleGain);
- assert.ok(fluff.gritHz<normal.gritHz&&fluff.gritGain<normal.gritGain&&fluff.rumbleHz<normal.rumbleHz);
+ assert.ok(ice.ringHz>normal.ringHz&&ice.rumbleHz>normal.rumbleHz&&ice.rumbleGain<normal.rumbleGain);
+ assert.ok(fluff.ringHz<normal.ringHz&&fluff.metalGain<normal.metalGain*.2&&fluff.rumbleHz<normal.rumbleHz);
 });

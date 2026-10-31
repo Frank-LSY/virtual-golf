@@ -23,36 +23,40 @@ export class SkyrollSfx{
    else if(kind==='countdown'&&this.ok('countdown',.5)){this.tone('sine',660,660,.09,.12);}
   }catch{}
  }
- // 滚动声（0.21.1 重做）：真实滚球的声音不是一片“沙沙”的噪声，而是三层叠在一起——
- //  · 低频滚动隆隆声：窄带共振（约 90–220 赫兹），音高随速度升高；
- //  · 细碎颗粒声：球面与跑道上的细小凹凸逐个碰撞，形成随速度变密的“咯咯”声；
+ // 滚动声（0.21.2）：金属滚珠在金属轨道上滚动——
+ //  · 低频滚动嗡声：窄带共振（约 70–190 赫兹），音高随速度升高；
+ //  · 金属振铃：球与轨道的细小碰撞激发一组高 Q 的非谐波共振（像钢珠、钢轨的“铮铮”声），速度越快越密、越亮；
  //  · 转动节奏：球每转一圈轻微起伏一次（频率 = 速度 / 球周长）。
- // 冰面更亮、更轻滑，云絮更闷、更软；速度越快越响。
+ // 整体放在背景音乐之下（约低 12 dB），冰面更清亮，云絮几乎只剩闷闷的滚动。
+ static METAL_MODES=[[1,1],[1.62,.62],[2.37,.42],[3.48,.26]];
  ensureRoll(){
   if(this.rollOut)return;const c=this.c,sr=c.sampleRate,len=Math.floor(sr*4);
   // 低频底噪：多生成一小段，再与开头交叉，循环接缝处没有跳变（否则每圈会“咚”一下）。
   const fadeN=Math.floor(sr*.08),raw=new Float32Array(len+fadeN);let v=0;for(let i=0;i<raw.length;i++){v=(v+(Math.random()*2-1)*.02)*.998;raw[i]=v;}
   const brown=c.createBuffer(1,len,sr),b=brown.getChannelData(0);let peak=0;for(let i=0;i<len;i++){b[i]=i<fadeN?raw[i]*(i/fadeN)+raw[len+i]*(1-i/fadeN):raw[i];peak=Math.max(peak,Math.abs(b[i]));}for(let i=0;i<len;i++)b[i]/=peak||1;
-  // 颗粒：泊松分布的短促碰撞，每个约 1–2 毫秒，振幅随机；首尾无缝衔接。
-  const grit=c.createBuffer(1,len,sr),g=grit.getChannelData(0);let t=0;while(t<len){t+=Math.floor(-Math.log(1-Math.random())*sr/220);if(t>=len)break;const a=(.25+Math.random()*.75)*(Math.random()<.12?1.8:1),decay=sr*(.0008+Math.random()*.0012);for(let k=0;k<decay*5&&t+k<len;k++)g[(t+k)%len]+=a*Math.exp(-k/decay)*(Math.random()*2-1);}
+  // 激励：泊松分布的极短碰撞（每秒约 140 次，0.3–0.8 毫秒），用来敲响金属共振；首尾无缝衔接。
+  const grit=c.createBuffer(1,len,sr),g=grit.getChannelData(0);let t=0;while(t<len){t+=Math.floor(-Math.log(1-Math.random())*sr/140);if(t>=len)break;const a=(.3+Math.random()*.7)*(Math.random()<.1?1.6:1),decay=sr*(.0003+Math.random()*.0005);for(let k=0;k<decay*6;k++)g[(t+k)%len]+=a*Math.exp(-k/decay)*(Math.random()*2-1);}
   let gp=0;for(let i=0;i<len;i++)gp=Math.max(gp,Math.abs(g[i]));for(let i=0;i<len;i++)g[i]/=gp||1;
-  const out=this.rollOut=c.createGain();out.gain.value=0;out.connect(this.output());
-  const rumble=c.createBufferSource();rumble.buffer=brown;rumble.loop=true;this.rumbleBP=c.createBiquadFilter();this.rumbleBP.type='bandpass';this.rumbleBP.Q.value=2.4;const rumbleLP=c.createBiquadFilter();rumbleLP.type='lowpass';rumbleLP.frequency.value=420;
-  this.rumbleAM=c.createGain();this.rumbleAM.gain.value=1;this.rumbleGain=c.createGain();this.rumbleGain.gain.value=0;rumble.connect(this.rumbleBP);this.rumbleBP.connect(rumbleLP);rumbleLP.connect(this.rumbleAM);this.rumbleAM.connect(this.rumbleGain);this.rumbleGain.connect(out);
-  this.spin=c.createOscillator();this.spin.frequency.value=1;const depth=c.createGain();depth.gain.value=.3;this.spin.connect(depth);depth.connect(this.rumbleAM.gain);
-  this.gritSrc=c.createBufferSource();this.gritSrc.buffer=grit;this.gritSrc.loop=true;this.gritBP=c.createBiquadFilter();this.gritBP.type='bandpass';this.gritBP.Q.value=1.3;this.gritGain=c.createGain();this.gritGain.gain.value=0;this.gritSrc.connect(this.gritBP);this.gritBP.connect(this.gritGain);this.gritGain.connect(out);
+  const out=this.rollOut=c.createGain();out.gain.value=0;const soft=c.createBiquadFilter();soft.type='lowpass';soft.frequency.value=6500;out.connect(soft);soft.connect(this.output());
+  const rumble=c.createBufferSource();rumble.buffer=brown;rumble.loop=true;this.rumbleBP=c.createBiquadFilter();this.rumbleBP.type='bandpass';this.rumbleBP.Q.value=5;const rumbleLP=c.createBiquadFilter();rumbleLP.type='lowpass';rumbleLP.frequency.value=320;
+  this.rumbleGain=c.createGain();this.rumbleGain.gain.value=0;const spinAM=c.createGain();spinAM.gain.value=1;rumble.connect(this.rumbleBP);this.rumbleBP.connect(rumbleLP);rumbleLP.connect(this.rumbleGain);this.rumbleGain.connect(spinAM);spinAM.connect(out);
+  this.spin=c.createOscillator();this.spin.frequency.value=1;const depth=c.createGain();depth.gain.value=.25;this.spin.connect(depth);depth.connect(spinAM.gain);
+  this.gritSrc=c.createBufferSource();this.gritSrc.buffer=grit;this.gritSrc.loop=true;this.metalGain=c.createGain();this.metalGain.gain.value=0;this.metalGain.connect(spinAM);
+  this.modes=SkyrollSfx.METAL_MODES.map(([ratio,gain])=>{const f=c.createBiquadFilter();f.type='bandpass';f.Q.value=42;const g=c.createGain();g.gain.value=gain;this.gritSrc.connect(f);f.connect(g);g.connect(this.metalGain);return {f,ratio};});
   rumble.start();this.spin.start();this.gritSrc.start();
  }
+ // ROLL_MIX：滚动声相对于其他音效的总音量（0.21.2 起降低，让它在背景音乐之下）。
+ static ROLL_MIX=.35;
  static rollParams(speed,surface='normal'){
-  const v=Math.max(0,Math.min(1,speed/8)),k={normal:{pitch:1,rumble:1,grit:1,gritHz:1300,density:1},ice:{pitch:1.5,rumble:.45,grit:.55,gritHz:3200,density:1.7},fluff:{pitch:.7,rumble:.4,grit:.18,gritHz:650,density:.6}}[surface]||{pitch:1,rumble:1,grit:1,gritHz:1300,density:1};
-  return {level:speed<.15?0:Math.min(1,(speed-.15)/.6),rumbleHz:(85+130*v)*k.pitch,rumbleGain:.42*Math.pow(v,.8)*k.rumble,spinHz:Math.max(.2,speed/(2*Math.PI*.48)),gritRate:(.35+1.9*v)*k.density,gritHz:k.gritHz*(.8+.5*v),gritGain:.34*Math.pow(v,.9)*k.grit};
+  const v=Math.max(0,Math.min(1,speed/8)),k={normal:{pitch:1,rumble:1,metal:1,ring:1150,density:1},ice:{pitch:1.35,rumble:.5,metal:1.1,ring:1650,density:1.4},fluff:{pitch:.75,rumble:.55,metal:.08,ring:520,density:.6}}[surface]||{pitch:1,rumble:1,metal:1,ring:1150,density:1};
+  return {level:speed<.15?0:Math.min(1,(speed-.15)/.6)*SkyrollSfx.ROLL_MIX,rumbleHz:(70+120*v)*k.pitch,rumbleGain:.4*Math.pow(v,.8)*k.rumble,spinHz:Math.max(.2,speed/(2*Math.PI*.48)),gritRate:(.4+1.6*v)*k.density,ringHz:k.ring*(1+.28*v),metalGain:3.1*Math.pow(v,1.1)*k.metal};
  }
  roll(speed,surface='normal',active=true){
   try{
    if(!this.enabled()||!active||document.hidden||speed<.15){if(this.rollOut)this.rollOut.gain.setTargetAtTime(0,this.c.currentTime,.06);return;}
    this.ensureRoll();const c=this.c,t=c.currentTime,p=SkyrollSfx.rollParams(speed,surface);
    this.rollOut.gain.setTargetAtTime(p.level,t,.05);this.rumbleBP.frequency.setTargetAtTime(p.rumbleHz,t,.08);this.rumbleGain.gain.setTargetAtTime(p.rumbleGain,t,.08);this.spin.frequency.setTargetAtTime(p.spinHz,t,.1);
-   this.gritSrc.playbackRate.setTargetAtTime(p.gritRate,t,.08);this.gritBP.frequency.setTargetAtTime(p.gritHz,t,.08);this.gritGain.gain.setTargetAtTime(p.gritGain,t,.08);
+   this.gritSrc.playbackRate.setTargetAtTime(p.gritRate,t,.08);for(const m of this.modes)m.f.frequency.setTargetAtTime(p.ringHz*m.ratio,t,.08);this.metalGain.gain.setTargetAtTime(p.metalGain,t,.08);
   }catch{}
  }
  stop(){try{this.rollOut?.gain.setTargetAtTime(0,this.c.currentTime,.05);}catch{}}
