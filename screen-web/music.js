@@ -41,11 +41,13 @@ export class LoopTrack{
   try{buffer=await this.bank.get(this.cue.src);}catch{this.failed=true;this.playing=false;this.onError();return false;}
   if(!this.playing)return false;const c=this.system.context;
   this.gain=c.createGain();this.gain.gain.value=0;this.duckNode=c.createGain();this.duckNode.gain.value=1;this.gain.connect(this.duckNode);this.duckNode.connect(this.system.output('music'));
-  const src=c.createBufferSource();src.buffer=buffer;src.loop=true;src.loopStart=this.cue.loopStart??0;src.loopEnd=this.cue.loopEnd??buffer.duration;src.connect(this.gain);
+  const src=c.createBufferSource();src.buffer=buffer;src.loop=true;if(src.playbackRate)src.playbackRate.value=this.speed??1;src.loopStart=this.cue.loopStart??0;src.loopEnd=this.cue.loopEnd??buffer.duration;src.connect(this.gain);
   const t=c.currentTime+.03;src.start(t,this.wrap(this.position));this.src=src;this.startedAt=t;this.startOffset=this.wrap(this.position);
   this.gain.gain.setValueAtTime(0,t);this.gain.gain.linearRampToValueAtTime(1,t+fade);this.failed=false;return true;
  }
- now(){if(!this.src)return this.position;return this.wrap(this.startOffset+Math.max(0,this.system.context.currentTime-this.startedAt));}
+ now(){if(!this.src)return this.position;return this.wrap(this.startOffset+Math.max(0,this.system.context.currentTime-this.startedAt)*(this.speed??1));}
+ // 0.24 多人对战加时：整体加快一点（音高随之略升），像街机的“快点！”。
+ rate(r){const c=this.system.context,t=this.src?c.currentTime:0;if(this.src){this.startOffset=this.now();this.startedAt=t;this.src.playbackRate?.setTargetAtTime(r,t,.5);}this.speed=r;}
  stop(fade=1){
   if(!this.playing&&!this.src)return;this.playing=false;if(!this.src)return;
   const c=this.system.context,t=c.currentTime,g=this.gain.gain;this.position=this.wrap(this.now()+fade*.5);
@@ -108,6 +110,8 @@ export class MusicDirector{
  }
  setScene(scene,chapter=this.chapter){if(this.scene===scene&&this.chapter===chapter)return;this.scene=scene;this.chapter=chapter;this.sync();}
  setChapter(chapter){this.setScene(this.scene,chapter);}
+ // 循环音乐的速度（1 = 原速）。只影响 LoopTrack；切换曲目后沿用。
+ setTempo(rate=1){const r=Math.max(.8,Math.min(1.25,Number(rate)||1));if(Math.abs(r-(this.tempo??1))<.002)return;this.tempo=r;this.current?.player.rate?.(r);}
  unlock(){if(this.unlocked)return;this.unlocked=true;this.system.resume();this.sync();}
  setVisible(visible){if(this.visible===!!visible)return;this.visible=!!visible;this.sync();}
  player(id){if(!this.players.has(id)){const p=this.createPlayer(id);if(!p)return null;p.onError=()=>{if(p.failed)this.failed.add(id);this.emit();};this.players.set(id,p);}return this.players.get(id);}
@@ -115,7 +119,7 @@ export class MusicDirector{
   const want=this.cues===null&&this.desired()!=='waltz'&&this.desired()!=='off'?'pending':this.desired();
   if(want!=='pending'&&want!==(this.current?.id??'off')){
    this.current?.player.stop(want==='off'?.8:1.4);this.current=null;
-   if(want!=='off'){const player=this.player(want);if(player){this.current={id:want,player};this.failed.delete(want);const started=player.start(want==='waltz'?1.5:1.4);if(started?.then)started.then(()=>this.emit());}else this.failed.add(want);}
+   if(want!=='off'){const player=this.player(want);if(player){player.rate?.(this.tempo??1);this.current={id:want,player};this.failed.delete(want);const started=player.start(want==='waltz'?1.5:1.4);if(started?.then)started.then(()=>this.emit());}else this.failed.add(want);}
   }
   this.emit();
  }

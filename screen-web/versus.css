@@ -1,0 +1,109 @@
+/* 云端滚球 · 多人对战（0.24）：地图页入口横幅、对战大厅（4 个位置）、分屏赛场与每格 HUD、结算。 */
+.sky-versus-banner{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:18px;width:100%;margin:0 0 22px;padding:16px 22px;text-align:left;cursor:pointer;font-family:var(--toon-font);color:var(--ink);border:var(--ol) solid var(--ol-c);border-radius:26px;box-shadow:var(--pop);background:linear-gradient(100deg,#5b4bd6 0,#8b7bff 38%,#ffd6f0 100%);transition:transform .14s,box-shadow .14s}
+.sky-versus-banner:hover{transform:translateY(-3px);box-shadow:0 8px 0 var(--ol-c)}
+.sky-versus-banner:active{transform:translateY(3px);box-shadow:0 2px 0 var(--ol-c)}
+.vs-banner-balls{display:flex;gap:6px}
+.vs-banner-balls i{width:34px;height:34px;border-radius:50%;border:3px solid var(--ol-c);box-shadow:0 3px 0 var(--ol-c);animation:vs-hop 1.6s ease-in-out infinite}
+.vs-banner-balls i:nth-child(1){background:conic-gradient(#ff5d5d 0 50%,#fff 0)}
+.vs-banner-balls i:nth-child(2){background:conic-gradient(#3fa9ff 0 50%,#fff 0);animation-delay:.15s}
+.vs-banner-balls i:nth-child(3){background:conic-gradient(#ffc93c 0 50%,#fff 0);animation-delay:.3s}
+.vs-banner-balls i:nth-child(4){background:conic-gradient(#3ddc97 0 50%,#fff 0);animation-delay:.45s}
+@keyframes vs-hop{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-7px) rotate(160deg)}}
+.vs-banner-copy{display:grid;gap:4px}
+.vs-banner-copy .toon-chip{justify-self:start;background:var(--sun-c);color:var(--ink)}
+.vs-banner-copy b{font:900 24px var(--toon-font);color:#fff;text-shadow:2px 0 var(--ol-c),-2px 0 var(--ol-c),0 2px var(--ol-c),0 -2px var(--ol-c),0 4px 0 var(--ol-c)}
+.vs-banner-copy small{font:700 14px/1.5 var(--toon-font);color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.6)}
+.vs-banner-go{font:900 15px var(--toon-font);padding:10px 16px;border:var(--ol) solid var(--ol-c);border-radius:16px;background:var(--sun-c);box-shadow:var(--pop-s);white-space:nowrap}
+/* ---------- 大厅 ---------- */
+.vs-hero{display:grid;grid-template-columns:1.25fr .75fr;gap:22px;align-items:end;margin:6px 0 20px}
+.vs-hero-copy p{font:600 16px/1.7 var(--toon-font);color:var(--ink-2);max-width:680px;margin:14px 0 14px}
+.vs-hero-copy p b{color:var(--ink)}
+.vs-hero-copy .toon-title{margin-top:12px}
+.vs-rules{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:10px}
+.vs-rules li{display:flex;align-items:center;gap:10px;background:#fff;border:2.5px solid var(--ol-c);border-radius:16px;box-shadow:var(--pop-s);padding:8px 14px 8px 8px}
+.vs-rules i{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;border:2.5px solid var(--ol-c);background:var(--sun-l);font:900 18px var(--toon-font);font-style:normal}
+.vs-rules span{display:grid;font:900 14px var(--toon-font)}
+.vs-rules small{font:700 12px var(--toon-font);color:var(--muted)}
+.vs-record{display:grid;gap:2px;justify-items:start;background:#fff;border:var(--ol) solid var(--ol-c);border-radius:22px;box-shadow:var(--pop);padding:16px 20px}
+.vs-record small{font:800 12px var(--toon-font);color:var(--muted);letter-spacing:.06em}
+.vs-record b{font:900 36px var(--toon-font)}
+.vs-record span{font:800 13px var(--toon-font);color:var(--ink-2)}
+.vs-record em{font:800 12px var(--toon-font);font-style:normal;color:var(--muted);margin-top:4px}
+.vs-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:18px}
+.vs-slot{position:relative;display:grid;justify-items:center;align-content:start;gap:6px;min-height:200px;padding:18px 14px 16px;text-align:center;background:#fff;border:var(--ol) solid var(--ol-c);border-radius:24px;box-shadow:var(--pop);font-family:var(--toon-font)}
+.vs-slot::before{content:"";position:absolute;inset:0 0 auto;height:10px;border-radius:20px 20px 0 0;background:var(--pc)}
+.vs-slot-no{margin-top:6px;font:900 13px var(--toon-font);letter-spacing:.06em;padding:4px 12px;border:2.5px solid var(--ol-c);border-radius:999px;background:var(--pc);color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.55)}
+.vs-slot-ball{width:66px;height:66px;margin:6px 0 2px;border-radius:50%;border:var(--ol) solid var(--ol-c);box-shadow:0 4px 0 var(--ol-c);background:repeating-conic-gradient(var(--pc) 0 60deg,#fffaf0 0 120deg);animation:vs-spin 5s linear infinite}
+@keyframes vs-spin{to{transform:rotate(360deg)}}
+.vs-slot b{font:900 19px var(--toon-font);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vs-slot small{font:800 13px/1.4 var(--toon-font);color:var(--muted)}
+.vs-slot.empty{background:rgba(255,255,255,.55);border-style:dashed;box-shadow:none;justify-content:center;align-content:center}
+.vs-slot.empty b{color:var(--muted)}
+.vs-slot.ready{background:linear-gradient(#fff,#f0fff7)}
+.vs-slot.ready small{color:#1d8a59}
+.vs-slot.offline{opacity:.7}
+.vs-kick{position:absolute;right:10px;top:16px;width:28px;height:28px;border-radius:50%;border:2.5px solid var(--ol-c);background:#fff;font:900 15px var(--toon-font);cursor:pointer;line-height:1}
+.vs-kick:hover{background:var(--coral);color:#fff}
+.vs-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.vs-note{font:700 14px/1.6 var(--toon-font);color:var(--ink-2);margin:12px 0 0}
+/* ---------- 赛场 ---------- */
+.vs-stage{--vs-theme:#3fb6ff;position:relative;height:calc(100dvh - 120px);min-height:480px;border:4px solid var(--ol-c);outline:4px solid var(--vs-theme);outline-offset:-10px;transition:outline-color 1.2s;border-radius:30px;box-shadow:var(--pop-l);overflow:hidden;background:#b9a6ff}
+#vs-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none}
+.vs-views{position:absolute;inset:0;display:grid;pointer-events:none;z-index:1}
+.vs-views.n1{grid-template:1fr/1fr}
+.vs-views.n2{grid-template:1fr 1fr/1fr}
+.vs-views.n3,.vs-views.n4{grid-template:1fr 1fr/1fr 1fr}
+.vs-view{position:relative;box-shadow:inset 0 0 0 2px var(--ol-c);transition:background .3s}
+.vs-views.n1 .vs-view{box-shadow:none}
+.vs-view::after{content:"";position:absolute;inset:0;border:4px solid var(--pc);opacity:.0;transition:opacity .3s;pointer-events:none}
+.vs-view.danger::after{opacity:1;border-color:#ff3b3b;animation:vs-danger .5s ease-in-out infinite alternate}
+@keyframes vs-danger{to{opacity:.35}}
+.vs-view.out{background:rgba(34,38,74,.25)}
+.vs-view.winner::after{opacity:1;border-color:var(--sun-c)}
+.vs-tag{position:absolute;left:12px;top:12px;display:flex;align-items:center;gap:8px;background:#fff;border:2.5px solid var(--ol-c);border-radius:999px;box-shadow:var(--pop-s);padding:4px 14px 4px 4px;font:900 15px var(--toon-font);max-width:calc(100% - 24px)}
+.vs-tag b{padding:3px 10px;border-radius:999px;background:var(--pc,#fff);border:2px solid var(--ol-c);color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.55)}
+.vs-overview .vs-tag b{background:var(--grape)}
+/* 四宫格右列镜像：名字和距离放在外侧，不挡中间的计时条 */
+.vs-views.n3 .vs-view:nth-child(2n) .vs-tag,.vs-views.n4 .vs-view:nth-child(2n) .vs-tag{left:auto;right:12px}
+.vs-views.n3 .vs-view:nth-child(2n) .vs-meter,.vs-views.n4 .vs-view:nth-child(2n) .vs-meter{left:auto;right:12px}
+.vs-stage.overlay .vs-top{opacity:0;pointer-events:none}
+.vs-top{transition:opacity .2s}
+.vs-tag span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vs-meter{position:absolute;left:12px;bottom:12px;display:grid;gap:4px;background:#fff;border:2.5px solid var(--ol-c);border-radius:16px;box-shadow:var(--pop-s);padding:6px 12px;min-width:150px;font-family:var(--toon-font)}
+.vs-dist{font:900 22px var(--toon-font)}
+.vs-gap{display:grid;gap:3px}
+.vs-gap::before{content:"";display:block;height:8px;border:2px solid var(--ol-c);border-radius:999px;background:#ffe1e1;grid-area:1/1}
+.vs-gap i{grid-area:1/1;display:block;height:8px;margin:2px;border-radius:999px;background:linear-gradient(90deg,#ff5d5d,#ffc93c 40%,#3ddc97);transition:width .2s;max-width:calc(100% - 4px)}
+.vs-gap em{font:800 12px var(--toon-font);font-style:normal;color:var(--ink-2)}
+.vs-view.danger .vs-gap em{color:#d62828}
+.vs-state{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:6px;text-align:center}
+.vs-state b{font:900 clamp(24px,3.2vw,44px)/1.1 var(--toon-font);color:#fff;text-shadow:3px 0 var(--ol-c),-3px 0 var(--ol-c),0 3px var(--ol-c),0 -3px var(--ol-c),2px 2px var(--ol-c),-2px 2px var(--ol-c),0 5px 0 var(--ol-c)}
+.vs-view.winner .vs-state b{color:var(--sun-c)}
+.vs-state small{font:800 13px var(--toon-font);background:#fff;border:2px solid var(--ol-c);border-radius:999px;padding:4px 12px}
+.vs-top{position:absolute;z-index:3;left:50%;top:10px;transform:translateX(-50%);display:flex;gap:8px;align-items:center}
+.vs-views.n2~.vs-top,.vs-views.n3~.vs-top,.vs-views.n4~.vs-top{top:50%;transform:translate(-50%,-50%)}
+.vs-chip{display:grid;justify-items:center;background:#fff;border:2.5px solid var(--ol-c);border-radius:14px;box-shadow:var(--pop-s);padding:4px 12px;font-family:var(--toon-font);min-width:74px}
+.vs-chip small{font:800 11px var(--toon-font);color:var(--muted)}
+.vs-chip b{font:900 18px var(--toon-font)}
+.vs-chip.hot{background:#ffe1e1}
+.vs-stage-chip{border-color:var(--ol-c);background:var(--vs-theme);transition:background 1.2s}
+.vs-stage-chip small{color:rgba(255,255,255,.85)}
+.vs-stage-chip b{color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.55);font-size:15px}
+.vs-chip.hot b{color:#d62828}
+.vs-toast{top:auto;bottom:18%}
+.vs-overlay{z-index:4}
+.vs-overlay.results>*{max-width:640px}
+.vs-results{list-style:none;margin:4px 0;padding:0;display:grid;gap:8px;width:min(560px,90vw)}
+.vs-results li{display:grid;grid-template-columns:86px 1fr auto auto;align-items:center;gap:10px;background:#fff;border:2.5px solid var(--ol-c);border-left:12px solid var(--pc);border-radius:16px;box-shadow:var(--pop-s);padding:8px 14px;font-family:var(--toon-font);text-align:left}
+.vs-results li.win{background:var(--sun-l);transform:scale(1.03)}
+.vs-results li b{font:900 15px var(--toon-font)}
+.vs-results li span{font:900 16px var(--toon-font);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vs-results li em{font:900 18px var(--toon-font);font-style:normal}
+.vs-results li small{font:800 12px var(--toon-font);color:var(--muted)}
+.maze-overlay p.vs-record-line{font-size:13px;padding:5px 12px}
+@media (max-width:1100px){.vs-slots{grid-template-columns:1fr 1fr}.vs-hero{grid-template-columns:1fr}}
+@media (max-width:760px){.sky-versus-banner{grid-template-columns:1fr}.vs-banner-balls{display:none}.vs-slots{grid-template-columns:1fr}.vs-slot{min-height:0}.vs-meter{min-width:0}.vs-results li{grid-template-columns:70px 1fr auto}.vs-results li small{display:none}.vs-stage{height:calc(100dvh - 160px)}}
+/* 浮层（倒计时 / 暂停 / 结算）出现时，收起每格中间的状态大字，结算背景再压暗一些 */
+.vs-stage.overlay .vs-state{opacity:0}
+.vs-state{transition:opacity .2s}
+.vs-overlay.results.visible{background:rgba(34,38,74,.55)}

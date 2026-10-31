@@ -98,8 +98,9 @@ export function inside(p,polygon,epsilon=1e-7){return polygon.every((a,i)=>{cons
 // Clip a rail against neighbouring floor footprints: interior rails disappear at turns.
 function clip(a,b,polygon){let lo=0,hi=1;for(let i=0;i<polygon.length;i++){const p=polygon[i],q=polygon[(i+1)%polygon.length],ex=q.x-p.x,ez=q.z-p.z,c=ex*(a.z-p.z)-ez*(a.x-p.x),d=ex*(b.z-a.z)-ez*(b.x-a.x);if(Math.abs(d)<1e-9){if(c>1e-6)return null;}else if(d>0)hi=Math.min(hi,(1e-6-c)/d);else lo=Math.max(lo,(1e-6-c)/d);if(hi<lo)return null;}return [Math.max(0,lo),Math.min(1,hi)];}
 // 护栏：沿每块地面的边缘生成，但与相邻地面（含往返浮台的两个停靠位置）重叠的部分留出开口。
-export function walls(level,floors=surfaces(level)){
- const out=[],clips=[...floors,...dockFloors(level)];for(const s of floors){if(!(s.road?.rails??s.platform?.rails))continue;const edges=s.road?[[s.polygon[0],s.polygon[1]],[s.polygon[2],s.polygon[3]]]:s.polygon.map((p,i)=>[p,s.polygon[(i+1)%4]]);
+// own：只为这些地面生成护栏（默认全部）；floors 为用来裁剪开口的相邻地面（无尽赛道按块生成时只传邻近的几块）。
+export function walls(level,floors=surfaces(level),own=floors){
+ const out=[],clips=[...floors,...dockFloors(level)];for(const s of own){if(!(s.road?.rails??s.platform?.rails))continue;const edges=s.road?[[s.polygon[0],s.polygon[1]],[s.polygon[2],s.polygon[3]]]:s.polygon.map((p,i)=>[p,s.polygon[(i+1)%4]]);
   for(const [a,b] of edges){let spans=[[0,1]];for(const other of clips){if(other===s)continue;const range=clip(a,b,other.polygon);if(!range||range[1]-range[0]<1e-5)continue;const mid=(range[0]+range[1])/2,x=a.x+(b.x-a.x)*mid,z=a.z+(b.z-a.z)*mid;if(Math.abs(s.height(x,z)-other.height(x,z))>.15)continue;spans=spans.flatMap(([lo,hi])=>range[1]<=lo||range[0]>=hi?[[lo,hi]]:[[lo,Math.max(lo,range[0])],[Math.min(hi,range[1]),hi]].filter(([u,v])=>v-u>1e-5));}
    for(const [lo,hi] of spans){const at=t=>{const x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t;return {x,z,y:s.height(x,z)};};out.push({a:at(lo),b:at(hi),radius:.14,height:.96});}
   }

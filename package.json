@@ -1,6 +1,6 @@
 {
   "name": "swinglink",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "private": true,
   "type": "module",
   "description": "本地三维高尔夫与 iPhone 体感球杆",

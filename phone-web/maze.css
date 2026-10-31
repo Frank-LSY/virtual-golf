@@ -3,3 +3,19 @@ body.maze-phone-active{background:#edf7f9;color:#325e73}body.maze-phone-active #
 @media(orientation:landscape) and (max-height:500px){body.maze-phone-active header{padding:5px max(16px,env(safe-area-inset-left));min-height:30px}body.maze-phone-active #phone-main{padding:4px max(20px,env(safe-area-inset-right)) 8px max(20px,env(safe-area-inset-left))}.mc-heading{margin:0 0 6px}.mc-layout{grid-template-columns:1.1fr 1fr;gap:28px}.mc-pad{width:min(53vh,270px)}#mc-notice{font-size:10px;min-height:30px;margin-top:6px}.mc-stats{padding:5px 0 10px}.mc-mode{margin-top:10px}.mc-footnote{margin:8px 0;font-size:9px}#maze-controller button{min-height:38px;padding:7px 9px}}
 
 .mc-forward{position:absolute;top:11%;left:0;right:0;text-align:center;font-size:10px;color:#81a7b4;font-style:normal}.mc-stats{flex-wrap:wrap;gap:8px}.mc-stats>span:last-child{font-size:10px;color:#74a1ac}
+
+/* 0.24 多人对战 */
+#maze-controller:not(.versus) .mc-versus{display:none}
+#maze-controller.versus .mc-stats,#maze-controller.versus .mc-footnote{display:none}
+#maze-controller.versus:not(.vs-joined) .mc-pad-side,#maze-controller.versus:not(.vs-joined) .mc-mode,#maze-controller.versus:not(.vs-joined) .mc-zero{opacity:.4;pointer-events:none}
+#maze-controller .hidden{display:none!important}
+.mc-versus{display:grid;gap:10px;background:#fff;border:3px solid var(--ol-c,#22264a);border-radius:18px;box-shadow:0 4px 0 var(--ol-c,#22264a);padding:12px 14px;margin-bottom:6px}
+.mc-vs-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mc-vs-badge{font:900 14px var(--toon-font,sans-serif);padding:4px 12px;border:2.5px solid var(--ol-c,#22264a);border-radius:999px;background:#7b6cf6;color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.5)}
+.mc-vs-head b{font:900 16px var(--toon-font,sans-serif);color:var(--ink,#22264a)}
+.mc-vs-text{margin:0;font:800 15px/1.55 var(--toon-font,sans-serif);color:var(--ink-2,#3d4270);min-height:46px}
+.mc-vs-text.danger{color:#d62828}
+.mc-vs-actions{display:flex;flex-wrap:wrap;gap:9px}
+.mc-vs-actions button{flex:1 1 40%}
+#maze-controller #mc-leave{flex:0 1 auto;font-size:12px!important;box-shadow:none}
+@media(orientation:landscape) and (max-height:500px){.mc-versus{padding:8px 10px;gap:6px}.mc-vs-text{font-size:13px;min-height:0}}
