@@ -1,5 +1,6 @@
 import {motionSample,INPUT_DEFAULTS} from '../shared/training.js';
 
+export const CAMERA_ACTIONS=new Set(['left','right','up','down','in','out','reset','view-follow','view-overview','view-cup']);
 // 正式球局只消费一次准备；传感器订阅与准备状态相互独立。
 export class RoundChannel {
  constructor(game,clients,send,training,{state,shot}){Object.assign(this,{game,clients,send,training,onState:state,onShot:shot});}
@@ -15,14 +16,22 @@ export class RoundChannel {
  }
  handle(ws,m){
   if(m.type==='round_view'&&ws.role==='screen'){ws.roundView=m.active===true;this.onState();return true;}
-  if(m.type==='round_arm'||m.type==='swing'||m.type==='round_club'){
+  // 手机遥控大屏镜头（0.22）：只转发给正在显示球局的电脑，不改变球局状态。
+  if(m.type==='round_camera'){
+   if(ws.role!=='phone'||!this.active()||ws!==this.phone())throw Error('还未轮到这台手机控制镜头。');
+   const action=String(m.action||'');if(!CAMERA_ACTIONS.has(action))throw Error('无法识别的镜头操作。');
+   for(const c of this.observers())this.send(c,{type:'round_camera',action,source:'phone'});return true;
+  }
+  if(m.type==='round_arm'||m.type==='swing'||m.type==='round_club'||m.type==='round_aim'){
    if(!this.active()||(ws.role==='screen'&&!ws.roundView))throw Error('请先在电脑上打开正式球局。');
-   if(ws.role==='phone'&&((!ws.calibrated&&m.type!=='round_club')||ws!==this.phone()))throw Error('还未轮到这台手机，或这台手机尚未启用体感。');
+   if(ws.role==='phone'&&((!ws.calibrated&&!['round_club','round_aim'].includes(m.type))||ws!==this.phone()))throw Error('还未轮到这台手机，或这台手机尚未启用体感。');
    if(m.type==='round_club'){this.game.setClub(m.clubId,m.stateVersion);this.onState();return true;}
+   if(m.type==='round_aim'){if(this.game.state.phase!=='playing')throw Error('请等球停稳后再调整方向。');this.game.setAim(Number(m.aim));this.onState();return true;}
    if(this.game.state.multiplayer&&m.type==='swing'&&ws.role!=='phone')throw Error('多人对战请使用当前球手绑定的手机挥杆。');
    if(this.game.state.multiplayer&&!this.phone()?.calibrated)throw Error('请等待当前球手的手机连接并启用体感。');
    if(m.type==='round_arm'){this.game.setArmed(m.armed);this.onState();return true;}
-   const dry=!this.game.state.armed,shot=dry?this.game.rehearse(m,ws.clientId):this.game.stroke(m,ws.clientId,{source:ws.role,calibration:ws.calibration,inputSettings:ws.inputSettings});
+   // 电脑按力度条击球直接计杆（0.22 起取消电脑端试挥）；手机挥杆仍保留“未准备 = 试挥”。
+   const direct=ws.role==='screen',dry=!direct&&!this.game.state.armed,shot=dry?this.game.rehearse(m,ws.clientId):this.game.stroke(m,ws.clientId,{source:ws.role,calibration:ws.calibration,inputSettings:ws.inputSettings,direct,...(direct&&Number.isFinite(m.aim)?{aim:m.aim}:{})});
    if(dry){for(const c of this.observers())this.send(c,{type:'round_rehearsal',shot,source:ws.role});}
    else {this.onShot(shot,ws.role);this.onState();}
    this.send(ws,{type:dry?'rehearsal_ack':'ack',seq:m.seq,travel:shot.travel,club:shot.club,playerId:this.game.player.id,playerName:this.game.player.name});return true;

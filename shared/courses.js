@@ -20,6 +20,7 @@ export function makeHole(courseId='sunny', index=0, seed=1) {
   const hole={courseId:course.id,index,name,par,length,bend,points,pin,tee:{x:0,z:0},hazards,seed:seed+index*7919,wind:{x:Math.sin(angle)*speed,z:Math.cos(angle)*speed,speed},width,greenRadius,slope:course.slope*(.75+challenge*.07)*(index%2===0?1:-1),elevation:course.elevation,challenge,advice:design.advice,pattern:design.pattern,placement,bounds:{minX:-105,maxX:105,minZ:-55,maxZ:length+60}};
   hole.route=Array.from({length:81},(_,i)=>routeAt(hole,i/80));
   hole.trees=makeTrees(hole);
+  hole.rocks=makeRocks(hole);
   return hole;
 }
 export function designedHazards(course,index,width=course.width,r=course.greenRadius){
@@ -77,6 +78,18 @@ export function makeTrees(h){
     const x=(rng()-.5)*184,z=-25+rng()*(h.length+60),lie=surfaceAt(h,x,z);
     if(lie==='rough'&&routeDistance(h,x,z)>h.width+10&&landValue(h,x,z)<.8&&distance({x,z},h.pin)>h.greenRadius+10&&(!h.placement||distance(localToCourse(h.placement,{x,z}),courseLayout(h.courseId).clubhouse)>22))trees.push({x,z,scale:.8+rng()*.8,rotation:rng()*Math.PI*2});
   }return trees;
+}
+// 岩石（0.22）：原先只在画面中随机摆放、没有碰撞；现在与树一样由服务器生成并参与物理。
+// 只放在离球道、果岭与发球台有余量的长草区，并与树干保持距离，避免挡住击球线或镜头。
+export function makeRocks(h){
+ if(h.practice)return [];const rng=random(h.seed+88),rocks=[];
+ for(let i=0;i<34;i++){
+  const x=(rng()-.5)*178,z=rng()*(h.length+35)-15,sx=1+rng()*2,sy=.6+rng(),sz=1+rng(),rx=rng(),ry=rng(),rz=rng();
+  if(surfaceAt(h,x,z)!=='rough'||landValue(h,x,z)>.8||routeDistance(h,x,z)<h.width+5||distance({x,z},h.pin)<h.greenRadius+7||Math.hypot(x,z)<16)continue;
+  if((h.trees||[]).some(t=>Math.hypot(t.x-x,t.z-z)<3.2*t.scale+2)||rocks.some(r=>Math.hypot(r.x-x,r.z-z)<5))continue;
+  rocks.push({x,z,y:heightAt(h,x,z)+.4,sx,sy,sz,rx,ry,rz});
+ }
+ return rocks;
 }
 export function clubFor(h,ball){
  const lie=surfaceAt(h,ball.x,ball.z),d=distance(ball,h.pin);

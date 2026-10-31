@@ -196,3 +196,17 @@ dialog h2{font-family:var(--toon-font);font-weight:900}
 /* 正式球局：顶栏只保留声音与手机按钮（保持原布局），其余隐藏 */
 body.in-round .header nav.app-nav,body.in-round .brand{display:none}
 body.in-round .header{height:auto;padding:0}
+/* 0.22 正式球局：电脑直接击球（主按钮），“手机准备击球”为次要按钮；手机已准备时它亮起。 */
+.game .dock-actions #round-arm[hidden]{display:none}
+.round-armed #hit-button{animation:none}
+.round-armed #round-arm{background:var(--sun-c,#ffd23f)!important;color:var(--ink,#22264a)!important;animation:ready-pulse 1.4s ease-in-out infinite}
+/* 画面外的预测落点：标签钉在屏幕边缘，箭头指向落点。 */
+.guide-label .guide-arrow{display:none}
+.guide-label.edge{transform:translate(-50%,-50%)}
+.guide-label.edge:after{display:none}
+.guide-label.edge .guide-arrow{display:block;position:absolute;left:50%;top:50%;width:0;height:0;border-top:9px solid transparent;border-bottom:9px solid transparent;border-left:14px solid var(--ol-c,#22264a);transform:translate(-50%,-50%) rotate(var(--arrow,0rad)) translateX(64px)}
+.guide-label .guide-drift{color:#1c86d9!important;font-weight:900}
+.guide-label .guide-drift[hidden]{display:none}
+/* 人物视角也显示镜头工具条（▲▼ 俯仰只在这里与俯视中出现）。 */
+.game-canvas .scene-view-tools button[data-action=up],.game-canvas .scene-view-tools button[data-action=down]{min-width:30px}
+.preview .scene-view-tools button[data-action=up],.preview .scene-view-tools button[data-action=down]{display:none}

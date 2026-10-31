@@ -13,6 +13,7 @@ import {Golfer} from './golfer.js';
 import {SwingMotion,SwingReplay,planSwing,swingGoal,FOLLOW_PHASES} from './swing-motion.js';
 import {MotionView} from '../shared/motion-view.js';
 import {clamp,heightAt,distance,clubFor,routeAt} from '../shared/courses.js';
+import {followPose} from '../shared/view.js';
 
 const ease=t=>t*t*(3-2*t);
 const INTRO_MS=5200;
@@ -41,7 +42,9 @@ export class PlayerScene extends GolfScene {
  setHoled(value){this.holed=!!value;if(this.phase==='address'&&this.holed){this.ball.visible=false;this.ballRing.visible=false;this.aimLine.visible=false;}}
  setStyle(id){this.style=id;this.golfer?.setStyle(id);}
  setGuide(forecast,power){this.guideForecast=forecast;this.guidePower=power;this.refreshGuide();}
- guideActive(){return !this.preview&&!!this.guide&&!!this.guideForecast&&this.phase==='address'&&this.view==='follow'&&!this.slopeVisible&&!this.holed&&!this.intro&&!this.movement&&!this.guideHidden;}
+ // 0.22：预判在人物视角、球道俯视、洞杯特写与果岭坡度里都显示（不再只限人物视角）。
+ guideActive(){return !this.preview&&!!this.guide&&!!this.guideForecast&&this.phase==='address'&&!this.holed&&!this.intro&&!this.movement&&!this.guideHidden;}
+ viewToolsVisible(){return super.viewToolsVisible()||(!this.preview&&this.view==='follow'&&this.phase==='address'&&!this.intro&&!this.movement&&!this.journey);}
  refreshGuide(){
   if(!this.guide)return;if(!this.guideActive()){this.guide.visible=false;this.guide.info=null;return;}
   const f=this.guideForecast,ball=this.ballPosition,delta=((this.aim||0)-(f.aim||0))*Math.PI/180,c=Math.cos(delta),s=Math.sin(delta),turn=q=>{const dx=q.x-ball.x,dz=q.z-ball.z;return {x:ball.x+dx*c+dz*s,z:ball.z-dx*s+dz*c};};
@@ -70,7 +73,7 @@ export class PlayerScene extends GolfScene {
   this.golfer?.setClub(this.selectedClubId||clubFor(this.hole,p).id);this.setCamera();this.refreshGuide();
  }
  finish(p,aim=0){if(this.preview)return super.finish(p);if(['swing','flight','settling','splash','cup','holed','landing','moving','boarding','driving','alighting'].includes(this.phase))return;this.setBall(p,aim);}
- resetAddress(){if(['swing','flight','settling','splash','cup','holed','moving','boarding','driving','alighting'].includes(this.phase))return;this.view='follow';this.orbit=0;this.motionView.reset();this.golfer.goal=0;this.setCamera();}
+ resetAddress(){if(['swing','flight','settling','splash','cup','holed','moving','boarding','driving','alighting'].includes(this.phase))return;if(this.slopeVisible)this.toggleSlope();this.view='follow';this.orbit=0;this.followZoom=1;this.followTilt=0;this.viewState.reset();this.motionView.reset();this.golfer.goal=0;this.setCamera();this.onViewChange?.();}
  // 手机实时姿势进入时间线，由 frame() 插值驱动小人；旧版手机（没有 u）只在未启用体感时让小人回到站位。
  sample(t){
   this.motionView.sample(t,performance.now());this.lastMotion=performance.now();if(this.motion.push(t))return;
@@ -96,9 +99,8 @@ export class PlayerScene extends GolfScene {
   else if(this.phase==='flight'&&this.flight&&this.flightMeta)this.flightCamera();
   else if(this.movement){const p=this.movement.current,a=this.movement.heading||0,y=heightAt(h,p.x,p.z),back=this.movement.plan.mode==='cart'?8:6;this.targetPosition.set(-p.x+Math.sin(a)*back+Math.cos(a)*4,y+4.1,p.z-Math.cos(a)*back+Math.sin(a)*4);this.targetLook.set(-p.x,y+1,p.z);}
   else if(this.phase==='landing'&&this.lastResult){const b=this.lastResult.path.at(-1),y=heightAt(h,b.x,b.z);if(!this.flightCam){this.targetPosition.set(-b.x+9,y+9,b.z-14);}this.targetLook.set(-b.x,y+.1,b.z);}
-  else {const a=this.heading(p),angle=a+clamp(this.orbit,-.7,.7)+(this.motionView?.yaw||0),ground=heightAt(h,p.x,p.z),back=6.8,pitch=this.motionView?.pitch||0;
-   const cx=p.x+.3*Math.cos(angle)-back*Math.sin(angle),cz=p.z-.3*Math.sin(angle)-back*Math.cos(angle);
-   this.targetPosition.set(-cx,Math.max(ground+2.3+pitch*6,heightAt(h,cx,cz)+1.1),cz);this.targetLook.set(-p.x-Math.sin(a)*6,ground+.4+pitch*2,p.z+Math.cos(a)*6);
+  else {const pose=followPose(h,p,this.heading(p),{orbit:this.orbit,zoom:this.followZoom,tilt:this.followTilt,yaw:this.motionView?.yaw||0,pitch:this.motionView?.pitch||0});
+   this.targetPosition.set(-pose.position.x,pose.position.y,pose.position.z);this.targetLook.set(-pose.look.x,pose.look.y,pose.look.z);
   }
   if(immediate){this.camera.position.copy(this.targetPosition);this.currentLook.copy(this.targetLook);this.camera.lookAt(this.currentLook);}
  }
@@ -121,6 +123,10 @@ export class PlayerScene extends GolfScene {
   const cut=mode==='landing'&&this.flightCam!=='landing';this.flightCam=mode;
   this.targetPosition.set(-pos.x,pos.y,pos.z);this.targetLook.set(-look.x,look.y,look.z);if(cut){this.camera.position.copy(this.targetPosition);this.currentLook.set(-b.x,b.y,b.z);}
  }
+ // 小地图用：镜头在球洞局部坐标中的位置、朝向与水平视场角。
+ mapCamera(){const c=this.camera.position,look=this.currentLook,dx=-(look.x-c.x),dz=look.z-c.z;return {x:-c.x,z:c.z,y:c.y,heading:Math.atan2(dx,dz),hfov:2*Math.atan(Math.tan(this.camera.fov*Math.PI/360)*this.camera.aspect),view:this.view,focus:this.viewState?.focus};}
+ // 屏幕坐标（含画面外与镜头背后的点），用于把预测落点钉在屏幕边缘。
+ projectNDC(p,lift=0){const v=new THREE.Vector3(-p.x,(p.y??heightAt(this.hole,p.x,p.z))+lift,p.z),cam=v.clone().applyMatrix4(this.camera.matrixWorldInverse);v.project(this.camera);return {x:v.x,y:v.y,behind:cam.z>0};}
  projectLocal(p,lift=0){const v=new THREE.Vector3(-p.x,(p.y??heightAt(this.hole,p.x,p.z))+lift,p.z).project(this.camera),w=this.container.clientWidth,h=this.container.clientHeight;return {x:(v.x+1)/2*w,y:(1-v.y)/2*h,visible:v.z<1&&v.z>-1&&v.x>-1.1&&v.x<1.1&&v.y>-1.1&&v.y<1.1};}
  standingAt(p,aim=0){const a=Math.atan2(this.hole.pin.x-p.x,this.hole.pin.z-p.z)+aim*Math.PI/180,x=p.x-1.42*Math.cos(a),z=p.z+1.42*Math.sin(a);return {x,y:heightAt(this.hole,x,z),z};}
  beginMovement(start){
@@ -166,7 +172,7 @@ export class PlayerScene extends GolfScene {
   if(!this.intro||this.phase!=='address'){if(this.intro)this.skipIntro();const cam=this.flightCam,flying=this.phase==='flight',rate=this.rimming||['cup','splash'].includes(this.phase)?9:flying?(cam==='landing'?1.6:cam==='launch'?3:cam==='putt'?5:4):this.phase==='settling'?3.2:this.phase==='landing'?2:this.movement?12:4,lookRate=flying?(cam==='landing'||cam==='launch'?9:6):rate,f=1-Math.exp(-dt*rate),g=1-Math.exp(-dt*lookRate);this.camera.position.lerp(this.targetPosition,f);this.currentLook.lerp(this.targetLook,g);}
   const floor=heightAt(this.hole,-this.camera.position.x,this.camera.position.z)+(this.view==='overview'?2:.9);if(this.camera.position.y<floor)this.camera.position.y=floor;this.camera.lookAt(this.currentLook);
   this.updateTreeFade(dt,this.intro?this.hole.pin:this.flight||this.phase==='landing'||this.phase==='settling'?this.ball.position:this.movement?this.movement.current:this.ballPosition||this.hole.tee);
-  if(this.guide.visible!==this.guideActive())this.refreshGuide();this.guide.tick(dt);if(this.forecast.visible)this.forecast.scale.setScalar(1+Math.sin(time*4)*.08);
-  if(this.flag){const p=this.flag.geometry.attributes.position;for(let i=0;i<p.count;i++)p.setZ(i,Math.sin(time*2+p.getX(i))*Math.max(0,p.getX(i)+.625)*.12);p.needsUpdate=true;}this.updateObstructions(dt);this.renderer.render(this.scene,this.camera);this.onFrame?.();
+  if(this.guide.visible!==this.guideActive())this.refreshGuide();this.guide.tick(dt,this.camera);if(this.forecast.visible)this.forecast.scale.setScalar(1+Math.sin(time*4)*.08);
+  this.updateFlag(time);this.updateObstructions(dt);this.renderer.render(this.scene,this.camera);this.onFrame?.();
  }
 }

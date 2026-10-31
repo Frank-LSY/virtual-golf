@@ -16,10 +16,11 @@ export class Game {
  savePlayer(){Object.assign(this.player,{ball:{...this.state.ball},strokes:this.state.strokes,scores:[...this.state.scores],aim:this.state.aim,clubId:this.state.clubId||'auto'});}
  selectPlayer(id){this.state.activePlayerId=id;const p=this.player;Object.assign(this.state,{ball:{...p.ball},strokes:p.strokes,scores:[...p.scores],aim:p.aim||0,clubId:p.clubId||'auto',armed:false});}
  snapshot(){const hole=this.hole,club=selectedClub(hole,this.state.ball,this.state.clubId);return {...this.state,hole,selectedClub:club,forecast:this.forecast(hole,club),recommendedClub:selectedClub(hole,this.state.ball),putting:club.id==='putter'?puttingRead(hole,this.state.ball,this.state.aim):null,terrain:terrainAdvice(hole,this.state.ball,club)};}
- // 无风预判：同一球杆、球位与瞄准下若干力度的落点和停球点，只用于大屏显示，不参与裁定。
+ // 预判：同一球杆、球位与瞄准下若干力度的落点和停球点，只用于大屏显示，不参与裁定。
+ // landing / end 为无风结果；windLanding / windEnd 是同一杆在当前风下的落点（0.22 起在画面上以“风偏”箭头提示）。
  forecast(hole,club){
   if(this.state.phase!=='playing')return null;const b=this.state.ball,key=[this.state.courseId,this.state.holeIndex,this.state.seed,b.x,b.z,b.sandDepth||0,club.id,this.state.aim].join('|');
-  if(this.forecastKey!==key){const calm={...hole,wind:{x:0,z:0,speed:0}};this.forecastKey=key;this.forecastCache={clubId:club.id,aim:this.state.aim,marks:FORECAST_POWERS.map(power=>{const s=simulateShot(calm,b,power,0,this.state.aim,{club,capture:false}),end=s.path.at(-1),landing=s.landing||{x:end.x,z:end.z};return {power,landing:{x:+landing.x.toFixed(2),z:+landing.z.toFixed(2)},end:{x:+end.x.toFixed(2),z:+end.z.toFixed(2)},carry:+s.carry.toFixed(1),total:+s.travel.toFixed(1),apex:+s.apex.toFixed(1),penalty:s.penalty||null};})};}
+  if(this.forecastKey!==key){const calm={...hole,wind:{x:0,z:0,speed:0}},round=p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2)});this.forecastKey=key;this.forecastCache={clubId:club.id,aim:this.state.aim,wind:{x:hole.wind.x,z:hole.wind.z,speed:hole.wind.speed},marks:FORECAST_POWERS.map(power=>{const s=simulateShot(calm,b,power,0,this.state.aim,{club,capture:false}),end=s.path.at(-1),landing=s.landing||{x:end.x,z:end.z},w=club.id==='putter'||!hole.wind.speed?null:simulateShot(hole,b,power,0,this.state.aim,{club,capture:false}),wEnd=w?.path.at(-1),wLanding=w?(w.landing||{x:wEnd.x,z:wEnd.z}):landing;return {power,landing:round(landing),end:round(end),windLanding:round(wLanding),windEnd:round(wEnd||end),carry:+s.carry.toFixed(1),total:+s.travel.toFixed(1),apex:+s.apex.toFixed(1),penalty:s.penalty||null};})};}
   return this.forecastCache;
  }
  bump(){this.state.stateVersion++;return this.snapshot();}
@@ -36,8 +37,10 @@ export class Game {
  validateSwing(input,client){const {power,dir,seq,stateVersion}=input;if(!Number.isFinite(power)||power<=0||power>1||!Number.isFinite(dir)||Math.abs(dir)>1||!Number.isSafeInteger(seq)||seq<0)throw Error('挥杆数据无效。');if((this.sequences.get(client)??-1)>=seq)throw Error('这次挥杆已经收到，请勿重复发送。');if(this.state.phase!=='playing')throw Error('请等待球完全停稳。');if(stateVersion!==this.state.stateVersion)throw Error('球局状态已更新，请重试。');}
  remember(input,client){this.sequences.set(client,input.seq);if(this.sequences.size>500)this.sequences.delete(this.sequences.keys().next().value);}
  rehearse(input,client){this.validateSwing(input,client);const shot=simulateShot(this.hole,this.state.ball,input.power,input.dir,this.state.aim,{club:selectedClub(this.hole,this.state.ball,this.state.clubId)});this.remember(input,client);return {...shot,playerId:this.player.id,playerName:this.player.name,kin:swingKin(input.kin)};}
+ // meta.direct：电脑上按力度条直接击球（0.22 起电脑端不再试挥）；meta.aim 随击球一起送达，免去先同步方向再击球。
  stroke(input,client,meta={}){
-  this.validateSwing(input,client);if(!this.state.armed)throw Error('请先点击“准备击球”。');this.remember(input,client);this.savePlayer();const player=this.player,aim=this.state.aim,clubSelection=this.state.clubId||'auto';this.state.armed=false;
+  this.validateSwing(input,client);if(!this.state.armed&&!meta.direct)throw Error('请先点击“准备击球”。');if(meta.aim!==undefined){if(!Number.isFinite(meta.aim))throw Error('瞄准方向无效。');this.state.aim=Math.max(-80,Math.min(80,meta.aim));}
+  this.remember(input,client);this.savePlayer();const player=this.player,aim=this.state.aim,clubSelection=this.state.clubId||'auto';this.state.armed=false;
   const shot=simulateShot(this.hole,this.state.ball,input.power,input.dir,aim,{club:selectedClub(this.hole,this.state.ball,clubSelection)}),added=1+(shot.penalty?1:0);this.state.ball=shot.to;this.state.strokes=Math.min(12,this.state.strokes+added);this.state.aim=0;this.state.clubId='auto';
   if(shot.holed||this.state.strokes>=12){this.state.scores.push({hole:this.state.holeIndex+1,par:this.hole.par,strokes:this.state.strokes,capped:!shot.holed});player.holeDone=true;}this.savePlayer();
   const allDone=this.state.players.every(p=>p.holeDone);this.state.pendingPhase=allDone?(this.state.holeIndex+1===this.state.mode?'finished':'hole_complete'):'playing';

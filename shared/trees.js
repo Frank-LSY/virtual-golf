@@ -39,7 +39,13 @@ function crown(seed){
  for(let i=0;i<=height;i++)for(let j=0;j<(i===0||i===height?1:width);j++){const p=i/height*Math.PI,a=j/width*Math.PI*2,r=1+.085*Math.sin(a*3+phase)*Math.sin(p)**2+.045*Math.cos(p*4+a*2+phase);const x=Math.sin(p)*Math.sin(a)*r,y=Math.cos(p)*r,z=Math.sin(p)*Math.cos(a)*r;vertices.push([x+.14*y,y*.9+.08*z,z*.88]);}
  return convex(vertices);
 }
-export const TREE_MESHES={trunk:frustum(.62,.32,5,12),pine:frustum(3.5,0,8,14),crown:crown(17),crownB:crown(39),crownC:crown(71)};
+// 岩石（0.22 起参与碰撞）：与画面中 Three.js 十二面体（半径 1.6）相同的 20 个顶点，凸包即真实外形。
+export const ROCK_SIZE=1.6;
+function dodecahedron(radius){const t=(1+Math.sqrt(5))/2,r=1/t,raw=[[-1,-1,-1],[-1,-1,1],[-1,1,-1],[-1,1,1],[1,-1,-1],[1,-1,1],[1,1,-1],[1,1,1],[0,-r,-t],[0,-r,t],[0,r,-t],[0,r,t],[-r,-t,0],[-r,t,0],[r,-t,0],[r,t,0],[-t,0,-r],[t,0,-r],[-t,0,r],[t,0,r]];return convex(raw.map(p=>{const l=Math.hypot(...p);return p.map(v=>v/l*radius);}));}
+export const TREE_MESHES={trunk:frustum(.62,.32,5,12),pine:frustum(3.5,0,8,14),crown:crown(17),crownB:crown(39),crownC:crown(71),rock:dodecahedron(ROCK_SIZE)};
+// Three.js 欧拉角 XYZ 顺序的旋转矩阵（R = Rx·Ry·Rz，行主序）。
+export function eulerXYZ(x,y,z){const a=Math.cos(x),b=Math.sin(x),c=Math.cos(y),d=Math.sin(y),e=Math.cos(z),f=Math.sin(z);return [c*e,-c*f,d,a*f+b*e*d,a*e-b*f*d,-b*c,b*f-a*e*d,b*e+a*f*d,a*c];}
+export function rockVertices(rock){const m=TREE_MESHES.rock.positions,R=eulerXYZ(rock.rx,rock.ry,rock.rz),out=[];for(let i=0;i<m.length;i+=3){const x=m[i]*rock.sx,y=m[i+1]*rock.sy,z=m[i+2]*rock.sz;out.push({x:rock.x+R[0]*x+R[1]*y+R[2]*z,y:rock.y+R[3]*x+R[4]*y+R[5]*z,z:rock.z+R[6]*x+R[7]*y+R[8]*z});}return out;}
 export function treeParts(h,tree,index=0){
  const y=heightAt(h,tree.x,tree.z),s=tree.scale,pine=h.courseId==='pine',rotation=tree.rotation||0,rng=random(h.seed+index*1877+Math.round(tree.x*51+tree.z*73)),count=pine?5:7;
  const parts=[{shape:'trunk',kind:'trunk',x:tree.x,y:y+2.5*s,z:tree.z,sx:s,sy:s,sz:s}];
@@ -54,8 +60,10 @@ export function treeParts(h,tree,index=0){
 // 同一棵树数组只构建一次碰撞体；预判与正式击球在同一球位反复模拟时复用。
 const colliderCache=new WeakMap();
 export function treeColliders(h){
- const trees=h.trees||[],cached=colliderCache.get(trees);if(cached&&cached.seed===h.seed&&cached.courseId===h.courseId&&cached.length===trees.length)return cached.list;
- const list=buildColliders(h);indexColliders(list);colliderCache.set(trees,{seed:h.seed,courseId:h.courseId,length:trees.length,list});return list;
+ const trees=h.trees||[],rocks=h.rocks||[],cached=colliderCache.get(trees);if(cached&&cached.seed===h.seed&&cached.courseId===h.courseId&&cached.length===trees.length&&cached.rocks===rocks)return cached.list;
+ const list=[...buildColliders(h),...buildRockColliders(rocks)];indexColliders(list);
+ const byTree=new Map();for(const p of list)if(p.kind==='crown'){if(!byTree.has(p.treeIndex))byTree.set(p.treeIndex,[]);byTree.get(p.treeIndex).push(p);}Object.defineProperty(list,'crowns',{value:byTree,enumerable:false});
+ colliderCache.set(trees,{seed:h.seed,courseId:h.courseId,length:trees.length,rocks,list});return list;
 }
 const CELL=8;
 // XZ 网格只做候选筛选，候选按原顺序检测，结果与逐个遍历一致。
@@ -79,10 +87,26 @@ function buildColliders(h){
   return {...p,bounds,planes,box:[bounds.minx,bounds.maxx,bounds.miny,bounds.maxy,bounds.minz,bounds.maxz]};
  }));
 }
+function buildRockColliders(rocks){
+ const mesh=TREE_MESHES.rock;
+ return rocks.map((rock,index)=>{
+  const vertices=rockVertices(rock),R=eulerXYZ(rock.rx,rock.ry,rock.rz),bounds={};for(const axis of ['x','y','z']){bounds['min'+axis]=Math.min(...vertices.map(v=>v[axis]));bounds['max'+axis]=Math.max(...vertices.map(v=>v[axis]));}
+  // 局部平面 n·x=d 经过 缩放 S 与旋转 R 后：法线 R·S⁻¹·n，再归一化。
+  const planes=mesh.planes.map(({n,d})=>{const u=[n[0]/rock.sx,n[1]/rock.sy,n[2]/rock.sz],w={x:R[0]*u[0]+R[1]*u[1]+R[2]*u[2],y:R[3]*u[0]+R[4]*u[1]+R[5]*u[2],z:R[6]*u[0]+R[7]*u[1]+R[8]*u[2]},l=Math.hypot(w.x,w.y,w.z);return {n:{x:w.x/l,y:w.y/l,z:w.z/l},d:d/l};});
+  return {shape:'rock',kind:'rock',rockIndex:index,treeIndex:-1-index,partIndex:0,x:rock.x,y:rock.y,z:rock.z,bounds,planes,box:[bounds.minx,bounds.maxx,bounds.miny,bounds.maxy,bounds.minz,bounds.maxz]};
+ });
+}
 const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
-export function sweepTrees(colliders,a,b,radius){
+// 球心是否仍在某棵树的任一叶团内（含球半径）；用于判断球何时穿出树冠。
+export function insideCrown(colliders,treeIndex,p,radius=0){
+ for(const part of colliders.crowns?.get(treeIndex)||[]){const q=part.box;if(p.x<q[0]-radius||p.x>q[1]+radius||p.y<q[2]-radius||p.y>q[3]+radius||p.z<q[4]-radius||p.z>q[5]+radius)continue;const o={x:p.x-part.x,y:p.y-part.y,z:p.z-part.z};if(part.planes.every(({n,d})=>dot(n,o)-d-radius<=0))return true;}
+ return false;
+}
+// ignoreCrowns：球正在穿过的树冠（按树编号），这些叶团不再当作硬表面。
+export function sweepTrees(colliders,a,b,radius,ignoreCrowns=null){
  let best=null;
  for(const p of candidates(colliders,a,b,radius)){
+  if(ignoreCrowns&&p.kind==='crown'&&ignoreCrowns.has(p.treeIndex))continue;
   const q=p.box;if((a.x>b.x?a.x:b.x)+radius<q[0]||(a.x<b.x?a.x:b.x)-radius>q[1]||(a.z>b.z?a.z:b.z)+radius<q[4]||(a.z<b.z?a.z:b.z)-radius>q[5]||(a.y>b.y?a.y:b.y)+radius<q[2]||(a.y<b.y?a.y:b.y)-radius>q[3])continue;
   const origin={x:a.x-p.x,y:a.y-p.y,z:a.z-p.z},delta={x:b.x-a.x,y:b.y-a.y,z:b.z-a.z};
   let near=0,far=1,normal=null,inside=true,closest=-Infinity,exitNormal=null,rejected=false;
@@ -100,8 +124,18 @@ export function sweepTrees(colliders,a,b,radius){
  }
  return best;
 }
+// 树干与岩石是硬表面：按接触法线反弹。岩石更硬、更弹。
+export const BOUNCE={trunk:{restitution:.48,tangent:.78},rock:{restitution:.42,tangent:.74},crown:{restitution:.18,tangent:.52}};
 export function treeBounce(velocity,normal,kind){
- const incoming=dot(velocity,normal),restitution=kind==='trunk'?.48:.18,tangent=kind==='trunk'?.78:.52;
+ const incoming=dot(velocity,normal),{restitution,tangent}=BOUNCE[kind]||BOUNCE.trunk;
  if(incoming>=0)return {...velocity};
  return Object.fromEntries(['x','y','z'].map(k=>[k,(velocity[k]-incoming*normal[k])*tangent-incoming*normal[k]*restitution]));
+}
+// 树冠是软的（0.22）：球不再从叶团表面“弹墙”或停在树顶，而是钻进枝叶——
+// 入射瞬间损失约一半速度并略向外、向下偏转，之后在树冠内受强阻力，最终从下方或侧面掉出来。
+export const LEAF_ENTRY=.5;
+export const LEAF_DRAG=2.6;
+export function leafEntry(velocity,normal){
+ const speed=Math.hypot(velocity.x,velocity.y,velocity.z),k=LEAF_ENTRY;
+ return {x:velocity.x*k+normal.x*speed*.08,y:Math.min(velocity.y*k,velocity.y*.3)-speed*.06,z:velocity.z*k+normal.z*speed*.08};
 }

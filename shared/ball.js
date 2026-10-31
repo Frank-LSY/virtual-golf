@@ -2,6 +2,9 @@ import {SPLASH_DURATION} from './water.js';
 export const BALL_RADIUS=.085;
 export const CUP_RADIUS=.215;
 export const CUP_DEPTH=.42;
+// 旗杆（0.22）：与画面中的旗杆同一尺寸；碰撞时再加上球的半径。
+export const PIN_RADIUS=.035;
+export const PIN_HEIGHT=3.1;
 export const DROP_DURATION=.95;
 export const SETTLE_DURATION=1.1;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));

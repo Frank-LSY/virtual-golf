@@ -11,7 +11,7 @@ import {ShotTrail} from '../screen-web/shot-trail.js';
 import {Game} from '../game-service/game.js';
 import {roundExport} from '../shared/players.js';
 
-const treeHole=(courseId='sunny')=>({...makeHole(courseId,0,421),practice:true,putting:false,wind:{x:0,z:0},trees:[{x:0,z:4,scale:1,rotation:.27}]});
+const treeHole=(courseId='sunny')=>({...makeHole(courseId,0,421),practice:true,putting:false,wind:{x:0,z:0},rocks:[],trees:[{x:0,z:4,scale:1,rotation:.27}]});
 test('共享树模型每个面包住所有可见顶点；缩放与旋转保留真实位置',()=>{
  for(const mesh of Object.values(TREE_MESHES))for(const {n,d} of mesh.planes)for(let i=0;i<mesh.positions.length;i+=3)assert.ok(n.reduce((sum,v,k)=>sum+v*mesh.positions[i+k],0)<=d+1e-6);
  const h=treeHole(),tree={x:7,z:12,scale:1.6,rotation:1.23};h.trees=[tree];const parts=treeParts(h,tree),colliders=treeColliders(h);assert.equal(parts.length,8);assert.equal(colliders.length,parts.length);assert.equal(parts[0].y,7);assert.ok(colliders[1].bounds.maxx>tree.x+2);

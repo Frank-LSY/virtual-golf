@@ -30,6 +30,9 @@ export function impactLayers(event){
  const strength=clamp(.32+Math.sqrt(Math.max(0,event.verticalSpeed??event.speed??1))*.16,.25,1),noise=(filter,duration,gain)=>({noise:true,filter,duration,gain:gain*strength}),tap=(frequency,duration,gain)=>({wave:'sine',frequency,end:frequency*.58,duration,gain:gain*strength});
  if(event.type==='cup')return event.phase==='bottom'?[tap(720,.12,.1),{...tap(1250,.09,.04),delay:.055}]:[tap(event.kind==='roll_over'?1150:1650,.055,.045)];
  if(event.type==='tree')return event.kind==='trunk'?[tap(185,.13,.24),noise(950,.085,.19)]:[noise(3600,.3,.13),tap(340,.06,.05)];
+ // 0.22：击中旗杆是清脆的金属“叮”，撞到岩石是硬朗的“咔”。
+ if(event.type==='pin')return [{wave:'triangle',frequency:1980,end:1860,duration:.32,gain:.12*strength},{wave:'sine',frequency:3150,end:3050,duration:.22,gain:.05*strength,delay:.004},tap(520,.05,.05)];
+ if(event.type==='rock')return [tap(260,.09,.22),noise(2600,.06,.2),{...tap(610,.05,.08),delay:.01}];
  if(event.type==='water')return [noise(1800,.6,.22),{...tap(165,.25,.1),delay:.05}, {...noise(650,.4,.08),delay:.14}];
  if(event.type==='sand')return [noise(1600,event.phase==='roll'?.18:.34,.17),tap(130,.055,.055)];
  if(event.type==='rough')return [noise(3200,event.phase==='roll'?.2:.27,.10),tap(185,.05,.04)];

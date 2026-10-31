@@ -49,7 +49,7 @@ async function handler(req,res){
  try{
   const url=new URL(req.url,'http://localhost');
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Cache-Control','no-store');
-  if(url.pathname==='/api/health'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({ok:true,app:'swinglink',version:'0.21.2'}));}
+  if(url.pathname==='/api/health'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({ok:true,app:'swinglink',version:'0.22.0'}));}
   if(url.pathname==='/api/config'){
    const host=addresses[0]||'localhost',phoneUrl=`${secure?'https':'http'}://${host}:${secure?tlsPort:port}/phone?token=${token}`;
    res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({token,secure,caName,phoneUrl,addresses,port,tlsPort,qr:await QRCode.toString(phoneUrl,{type:'svg',margin:1,color:{dark:'#244d3e',light:'#ffffff'}})}));
@@ -93,7 +93,7 @@ function attach(server){
     // 电脑当前所在的游戏（大厅 / 高尔夫 / 云端滚球），转告手机，让手机顶部显示对应的游戏。
     if(m.type==='screen_view'&&ws.role==='screen'){screenView={game:['hub','golf','skyroll'].includes(m.game)?m.game:'hub',view:String(m.view||'').slice(0,12)};for(const c of clients)if(c.role==='phone')send(c,{type:'screen_view',...screenView});return;}
     if(maze.handle(ws,m))return;
-    if(ws.role==='phone'&&maze.active()&&ws===maze.phone()&&['swing','test_swing','round_arm','practice_arm'].includes(m.type))return;
+    if(ws.role==='phone'&&maze.active()&&ws===maze.phone()&&['swing','test_swing','round_arm','practice_arm','round_aim','round_camera'].includes(m.type))return;
     if(ml.handle(ws,m))return;
     if(training.handle(ws,m)){if(round.sync())state();return;}
     if(round.handle(ws,m))return;

@@ -8,7 +8,7 @@ export class ImpactEffects extends THREE.Group {
  reset(shot={}){for(const burst of this.bursts){this.remove(burst.root);release(burst.root);}this.bursts=[];this.events=shot.impacts||[];this.next=0;}
  sample(physicalTime,now){while(this.next<this.events.length&&this.events[this.next].t<=physicalTime){const event=this.events[this.next++];this.emit(event,now);this.onImpact(event,now);}}
  emit(event,now){
-  if(event.type==='ground')return;
+  if(event.type==='ground'||event.type==='pin')return;
   if(event.type==='cup'){
    const root=new THREE.Group();root.position.copy(event.position);this.add(root);
    const ring=new THREE.Mesh(new THREE.RingGeometry(.045,.06,24),new THREE.MeshBasicMaterial({color:event.kind==='drop'?'#fff4bd':'#f5d8a3',transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false}));ring.rotation.x=-Math.PI/2;ring.position.y=.015;root.add(ring);
@@ -19,7 +19,7 @@ export class ImpactEffects extends THREE.Group {
   const material=new THREE.MeshStandardMaterial({color:water?'#d9fcff':'#ffffff',transparent:true,roughness:water?.18:.85,metalness:water?.12:0,side:THREE.DoubleSide,depthWrite:false});
   const particles=new THREE.InstancedMesh(water?new THREE.SphereGeometry(1,6,5):sand?new THREE.DodecahedronGeometry(1,0):new THREE.PlaneGeometry(1,1),material,count),data=[];particles.instanceMatrix.setUsage(THREE.DynamicDrawUsage);particles.frustumCulled=false;root.add(particles);
   const strength=water?Math.min(1.8,.75+event.speed*.035):Math.min(1.2,.45+event.speed*.025);
-  for(let i=0;i<count;i++){const a=rng()*Math.PI*2,speed=(water?.7:.3)+rng()*strength,size=water?.025+rng()*.035:sand?.013+rng()*.025:grass?.025+rng()*.035:.04+rng()*(leaves?.11:.035),forward=event.phase==='launch'?.9:.35;data.push({vx:Math.sin(a)*speed+(event.normal?.x||0)*forward,vy:(water?1.5:sand?.65:.5)+rng()*strength*(grass?1:2),vz:Math.cos(a)*speed+(event.normal?.z||0)*forward,size,spin:rng()*6,phase:a});if(!water)particles.setColorAt(i,new THREE.Color(leaves?['#6c9946','#b2c96a','#476e3f'][i%3]:sand?['#e5d1a0','#f3e1b6','#bc9c65'][i%3]:['#b79465','#d6bb83','#8b6844'][i%3]));}
+  for(let i=0;i<count;i++){const a=rng()*Math.PI*2,speed=(water?.7:.3)+rng()*strength,size=water?.025+rng()*.035:sand?.013+rng()*.025:grass?.025+rng()*.035:.04+rng()*(leaves?.11:.035),forward=event.phase==='launch'?.9:.35;data.push({vx:Math.sin(a)*speed+(event.normal?.x||0)*forward,vy:(water?1.5:sand?.65:.5)+rng()*strength*(grass?1:2),vz:Math.cos(a)*speed+(event.normal?.z||0)*forward,size,spin:rng()*6,phase:a});if(!water)particles.setColorAt(i,new THREE.Color(leaves?['#6c9946','#b2c96a','#476e3f'][i%3]:sand?['#e5d1a0','#f3e1b6','#bc9c65'][i%3]:event.type==='rock'?['#a8ad98','#d4d6c6','#7c8270'][i%3]:['#b79465','#d6bb83','#8b6844'][i%3]));}
   let dust=null;if(sand){dust=new THREE.Group();const geo=new THREE.SphereGeometry(1,12,8),mat=new THREE.MeshBasicMaterial({color:'#dcc69a',transparent:true,opacity:.09,depthWrite:false});for(let i=0;i<4;i++){const puff=new THREE.Mesh(geo,mat);puff.position.set((rng()-.5)*.4,.12+rng()*.12,(rng()-.5)*.4);puff.scale.set(.3,.12,.3);dust.add(puff);}root.add(dust);}
   const rings=[];
   if(water){

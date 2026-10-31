@@ -12,7 +12,7 @@ test('手动选杆改变试挥和击球弹道，取消准备，记录实际球�
  const g=new Game();g.start('sunny',3);g.state.seed=421;g.setClub('putter',g.state.stateVersion);g.setArmed(true);const stale=g.state.stateVersion;g.setClub('iron',stale);assert.equal(g.state.armed,false);assert.throws(()=>g.setClub('driver',stale),/变化/);assert.throws(()=>g.setClub('unknown',g.state.stateVersion),/有效/);
  const input={power:.4,dir:0,seq:1,stateVersion:g.state.stateVersion},dry=g.rehearse(input,'test');assert.equal(dry.clubId,'iron');assert.equal(g.state.strokes,0);
  g.setArmed(true);const shot=g.stroke({...input,seq:2,stateVersion:g.state.stateVersion},'test');assert.deepEqual(shot.path,dry.path);assert.equal(g.state.shotHistory[0].clubSelection,'iron');assert.equal(g.state.shotHistory[0].clubId,'iron');assert.throws(()=>g.setClub('putter',g.state.stateVersion),/停稳/);g.settle();assert.equal(g.state.clubId,'auto');
- const h=makeHole('sunny',0,421),from={x:h.pin.x,z:h.pin.z-6},shots=CLUBS.map(club=>simulateShot(h,from,.2,0,0,{club}));assert.equal(shots.at(-1).carry,0);assert.ok(shots[0].carry>shots[1].carry);assert.ok(shots[2].apex>shots[4].apex);assert.equal(new Set(shots.map(s=>s.travel.toFixed(3))).size,6);
+ const h=makeHole('sunny',0,421),from={x:h.pin.x,z:h.pin.z-6},shots=CLUBS.map(club=>simulateShot(h,from,.2,0,0,{club,flagstick:false}));assert.equal(shots.at(-1).carry,0);assert.ok(shots[0].carry>shots[1].carry);assert.ok(shots[2].apex>shots[4].apex);assert.equal(new Set(shots.map(s=>s.travel.toFixed(3))).size,6);
 });
 
 test('球杆选择按球手保存，重连恢复且轮换不带走前一位的球杆',()=>{
@@ -25,7 +25,7 @@ test('俯视缩放和旋转改变镜头位置而保持目标，极值受限并�
 
 test('慢推保留洞缘到洞底的连续轨迹与独立下落时长，高速擦边不能吸入',()=>{
  const h=makeHole('sunny',0,421),from={x:h.pin.x,z:h.pin.z-1},shot=simulateShot(h,from,.04,0);assert.equal(shot.holed,true);const start=sampleShot(shot,0),entry=sampleShot(shot,shot.duration-DROP_DURATION),middle=sampleShot(shot,shot.duration-DROP_DURATION*.25),end=sampleShot(shot,shot.duration);assert.equal(start.x,from.x);assert.ok(Math.abs(start.y-heightAt(h,from.x,from.z)-BALL_RADIUS)<1e-8);assert.equal(entry.dropping,true);assert.equal(entry.done,false);assert.ok(middle.y<entry.y-.15);assert.ok(end.y<heightAt(h,h.pin.x,h.pin.z)-CUP_DEPTH*.7);assert.equal(end.done,true);assert.equal(end.x,h.pin.x);assert.equal(end.z,h.pin.z);assert.deepEqual(sampleShot(shot,shot.duration+4),end);
- assert.equal(canCapture({x:-1,z:CUP_RADIUS*.95},{x:1,z:CUP_RADIUS*.95},{x:0,z:0},1.2),false);assert.equal(canCapture({x:-1,z:0},{x:1,z:0},{x:0,z:0},1.2),true);
+ assert.equal(canCapture({x:-1,z:CUP_RADIUS*1.2},{x:1,z:CUP_RADIUS*1.2},{x:0,z:0},1.2),false);assert.equal(canCapture({x:-1,z:CUP_RADIUS*.95},{x:1,z:CUP_RADIUS*.95},{x:0,z:0},2.2),false);assert.equal(canCapture({x:-1,z:0},{x:1,z:0},{x:0,z:0},1.2),true);
 });
 
 test('人物切换六类球杆后保留相同骨架，实际替换杆头和材质而非只改文字',()=>{

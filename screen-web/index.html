@@ -33,7 +33,7 @@
  </main>
  <main id="game" class="game hidden">
   <div id="game-canvas" class="game-canvas"></div>
-  <div id="guide-label" class="guide-label" hidden aria-hidden="true"><b id="guide-carry">—</b><small id="guide-total"></small></div>
+  <div id="guide-label" class="guide-label" hidden aria-hidden="true"><i class="guide-arrow"></i><b id="guide-carry">—</b><small id="guide-total"></small><small id="guide-drift" class="guide-drift" hidden></small></div>
   <section class="hud-hole hud-panel" aria-label="当前球洞">
    <button id="clubhouse-button" class="hud-back" aria-label="返回球场大厅" title="返回大厅"><span data-icon="back"></span></button>
    <div class="hud-hole-badge"><small>第</small><b id="hole-number">01</b><small>洞</small></div>
@@ -83,10 +83,10 @@
    <div class="dock-power">
     <small class="dock-label">力量<output id="power-value">65%</output><span class="guide-text" id="guide-text"></span></small>
     <div class="power-track"><i id="round-power-fill" class="phone-fill"></i><b id="round-power-reference" class="power-ref"></b><input id="power" type="range" min="1" max="100" value="65" aria-label="击球力量"></div>
-    <p class="dock-sub"><span id="round-power-value" class="phone-power">手机 —</span><span id="round-preview">先试挥，找到手感</span></p>
+    <p class="dock-sub"><span id="round-power-value" class="phone-power">手机 —</span><span id="round-preview">看着落点预判调好力度</span></p>
    </div>
-   <div class="dock-actions"><button id="hit-button" class="secondary">试挥一次</button><button id="round-arm" class="primary">准备击球 →</button></div>
-   <div class="dock-foot"><span id="round-mode" class="mode-pill">试挥模式 · 不计杆数</span><span id="control-hint">先试挥找手感，再点击准备击球 · 空格可蓄力</span></div>
+   <div class="dock-actions"><button id="hit-button" class="primary">击球 →</button><button id="round-arm" class="secondary" hidden>手机准备击球</button></div>
+   <div class="dock-foot"><span id="round-mode" class="mode-pill">按力度条直接击球</span><span id="control-hint">空格蓄力、松开击球 · 拖动画面转视角，滚轮缩放</span></div>
   </section>
   <div class="round-gyro hud-panel" hidden><span>α <b id="round-alpha">—</b></span><span>β <b id="round-beta">—</b></span><span>γ <b id="round-gamma">—</b></span><small id="round-motion-status">连接手机，轻转观察人物视角</small></div>
   <section id="clubhouse-hud" class="journey-hud hud-panel" hidden><span class="eyebrow">会所 · 本轮成绩已保存</span><h3>这一程，圆满收官。</h3><p id="clubhouse-result"></p><div class="journey-actions"><button id="clubhouse-score" class="secondary">查看本轮成绩</button><button id="clubhouse-select" class="primary">选择下一座球场 →</button></div></section>
@@ -95,7 +95,7 @@
  <main id="maze" class="hidden"></main>
 <main id="lab" class="training hidden"></main>
  <dialog id="pair-dialog"><button class="dialog-close" aria-label="关闭">×</button><p class="eyebrow" id="pair-eyebrow">连接手机，走进球场</p><h2 id="pair-title">拿起手机。<br>准备挥杆。</h2><p>手机与电脑连接同一个无线网络。<br>用 iPhone 相机扫描下方二维码。</p><div id="qr" class="qr"></div><a id="phone-link" href="/phone" target="_blank" rel="noopener">打开手机手柄 ↗</a><div class="pair-state" id="pair-state"><i></i> 等待手机连接</div><details id="https-help"><summary>第一次用 iPhone？</summary><div id="https-instructions"></div></details><p class="safety-note" id="pair-note">请握紧手机，确认周围有足够的挥杆空间。</p></dialog>
- <dialog id="help-dialog"><button class="dialog-close" aria-label="关闭">×</button><p class="eyebrow">几条提示，轻松上手</p><h2>看准方向。<br>挥出这一杆。</h2><div class="help-step"><b>01</b><div><h3>选好球场</h3><p>选择球场，再选择 3 洞快速局或 9 洞完整局。九洞构成一个完整球场，换洞由球车接驳。全场导览可查看每洞难度与打法，当前进度自动保存。</p></div></div><div class="help-step"><b>02</b><div><h3>连接手机</h3><p>扫描二维码并允许体感访问。横握手机，按提示完成握姿归零、自动识别方向、轻挥与舒适挥幅采样，再复现两次中等力度。</p></div></div><div class="help-step"><b>03</b><div><h3>轻重之间，找到手感</h3><p>先试挥找力度，再点击电脑或手机的“准备击球”。下一次挥杆才计入杆数；单人模式也可按住空格蓄力。球场上的黄色落点圈和停球点按无风计算，随力量和瞄准实时变化。多人模式每杆轮换，只接受当前绑定手机的动作。</p></div></div><div class="help-step"><b>04</b><div><h3>读懂球场</h3><p>风向罗盘以出球方向朝上：箭头朝上是顺风，朝下是逆风，偏左偏右就是侧风，需要自己调整瞄准和力量补偿。沙坑和长草会减速；落水或出界加罚一杆。每洞开球前有一段飞越，按任意键可跳过。每洞最多计 12 杆。</p></div></div><button class="primary dialog-dismiss">去球场试试 <span data-icon="arrow"></span></button></dialog>
+ <dialog id="help-dialog"><button class="dialog-close" aria-label="关闭">×</button><p class="eyebrow">几条提示，轻松上手</p><h2>看准方向。<br>挥出这一杆。</h2><div class="help-step"><b>01</b><div><h3>选好球场</h3><p>选择球场，再选择 3 洞快速局或 9 洞完整局。九洞构成一个完整球场，换洞由球车接驳。全场导览可查看每洞难度与打法，当前进度自动保存。</p></div></div><div class="help-step"><b>02</b><div><h3>连接手机</h3><p>扫描二维码并允许体感访问。横握手机，按提示完成握姿归零、自动识别方向、轻挥与舒适挥幅采样，再复现两次中等力度。</p></div></div><div class="help-step"><b>03</b><div><h3>轻重之间，找到手感</h3><p>电脑上调好方向与力度，点“击球”（或按住空格蓄力、松开）直接出球。手机挥杆默认是试挥，点“准备击球”后下一挥才计入杆数；手机还能调方向、换杆、转动与缩放大屏镜头。黄色落点圈与停球点按无风计算，浅蓝圈和箭头是当前风下的落点；落点不在画面里时，边缘的标签会指向它。拖动画面旋转视角，滚轮缩放。多人模式每杆轮换，只接受当前绑定手机的动作。</p></div></div><div class="help-step"><b>04</b><div><h3>读懂球场</h3><p>风向罗盘以出球方向朝上：箭头朝上是顺风，朝下是逆风，偏左偏右就是侧风，需要自己调整瞄准和力量补偿。沙坑和长草会减速；落水或出界加罚一杆。每洞开球前有一段飞越，按任意键可跳过。每洞最多计 12 杆。</p></div></div><button class="primary dialog-dismiss">去球场试试 <span data-icon="arrow"></span></button></dialog>
  <dialog id="sky-help-dialog" class="sky-help"><button class="dialog-close" aria-label="关闭">×</button><p class="eyebrow">云端滚球 · 怎么玩</p><h2>端平手机。<br>轻轻倾斜。</h2>
   <div class="help-step"><b>01</b><div><h3>控制方式</h3><p>手机横着端平，远端压低前进、近端压低刹车，左右轻倾转向；也可以在手机上用虚拟摇杆，或者电脑方向键 / WASD。控制的是加速度：松手会滑行，反方向就是刹车。</p></div></div>
   <div class="help-step"><b>02</b><div><h3>机关</h3><p><b>加速带</b>推你一把；<b>弹射柱</b>一碰就弹开；<b>风车</b>横杆会把球推走，角落是安全区；<b>浮台</b>靠岸时上去，站中间别动；<b>冰面</b>很滑、难转向；<b>云絮</b>会把球拖慢，正好刹车。</p></div></div>

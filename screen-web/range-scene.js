@@ -71,7 +71,7 @@ export class RangeScene extends GolfScene {
   if(this.phase==='landing'&&now-this.landedAt>2200)this.resetAddress();
   if(!this.swing&&this.phase==='address'&&now-(this.lastMotion||0)>1800)this.golfer.goal*=.96;
   this.updateEnvironment(now);this.golfer?.update(dt,time);if(this.golfer)this.golfer.head.rotation.y+=this.motionView.yaw*.5;this.setCamera();const easing=1-Math.exp(-dt*(this.phase==='flight'?2.4:4));this.camera.position.lerp(this.targetPosition,easing);this.currentLook.lerp(this.targetLook,easing);this.camera.lookAt(this.currentLook);
-  if(this.flag){const p=this.flag.geometry.attributes.position;for(let i=0;i<p.count;i++)p.setZ(i,Math.sin(time*2+p.getX(i))*.1);p.needsUpdate=true;}
+  this.updateFlag(time);
   this.renderer.render(this.scene,this.camera);
  }
  clear(){const maps=new Set();this.group.traverse(o=>{if(o.material?.map&&!o.material.map.userData.sharedClubTexture&&!o.material.map.userData.sharedEnvironmentTexture&&!o.material.map.userData.sharedBallTexture)maps.add(o.material.map);});for(const texture of maps)texture.dispose();super.clear();}

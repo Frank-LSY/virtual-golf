@@ -160,3 +160,20 @@ test('滚球手柄激活时，高尔夫体感与模型不接收动作；退出�
  h.conn.receive({type:'maze_subscription',active:true});h.conn.sent.length=0;for(let i=0;i<80;i++)h.sample(i<40?650:-750);assert.equal(h.conn.sent.filter(m=>['sensor_sample','test_swing','swing','ml_sample'].includes(m.type)).length,0);
  h.conn.receive({type:'maze_subscription',active:false});for(let i=0;i<10;i++)h.sample(0);assert.ok(h.conn.sent.some(m=>m.type==='sensor_sample'));
 });
+
+test('手机遥控（0.22）：正式球局显示方向与镜头面板；按钮发送方向与镜头操作，按住连续调整；手机挥杆仍保留试挥',async()=>{
+ const h=await phoneHarness();await h.elements.get('enable').onclick();
+ h.conn.receive({type:'input_lock',locked:false});h.conn.receive({type:'round_subscription',active:true,stream:true,canControl:true,armed:false,playerName:'球手'});
+ h.conn.receive({type:'room_state',state:{stateVersion:5,phase:'playing',aim:3,clubId:'auto',armed:false,selectedClub:{id:'iron',name:'7 号铁杆',range:165}}});
+ assert.equal(h.elements.get('phone-round-pad').classList.contains('hidden'),false);assert.equal(h.elements.get('prp-aim-value').textContent,'3° 右');
+ const sent=type=>h.conn.sent.filter(m=>m.type===type);
+ h.elements.get('prp-aim-right').click();assert.deepEqual(sent('round_aim').at(-1),{type:'round_aim',aim:4});
+ const left=h.elements.get('prp-aim-left');left.onpointerdown({preventDefault(){}});assert.equal(sent('round_aim').at(-1).aim,3);h.sample(0,400);h.sample(0,130);left.onpointerup();const held=sent('round_aim').at(-1).aim;assert.ok(held<=-1,`按住连续左转到 ${held}°`);const count=sent('round_aim').length;h.sample(0,400);assert.equal(sent('round_aim').length,count,'松手后停止');
+ h.elements.get('prp-aim-reset').click();assert.equal(sent('round_aim').at(-1).aim,0);
+ h.elements.get('prp-cam-left').click();assert.equal(sent('round_camera').at(-1).action,'left');h.elements.get('prp-cam-in').click();assert.equal(sent('round_camera').at(-1).action,'in');
+ h.elements.get('prp-view-overview').click();assert.equal(sent('round_camera').at(-1).action,'view-overview');h.elements.get('prp-cam-reset').click();assert.equal(sent('round_camera').at(-1).action,'reset');
+ assert.match(h.elements.get('orb-label').textContent+h.elements.get('orb-label').innerHTML,/试挥/);
+ h.conn.receive({type:'round_subscription',active:true,stream:false,canControl:false,armed:false,playerName:'同伴'});assert.equal(h.elements.get('prp-aim-left').disabled,true);assert.equal(h.elements.get('prp-cam-left').disabled,true);
+ const before=h.conn.sent.length;h.elements.get('prp-cam-up').click();h.elements.get('prp-aim-right').click();assert.equal(h.conn.sent.length,before,'轮到同伴时不发送');
+ h.conn.receive({type:'round_subscription',active:false,stream:false,canControl:false});assert.equal(h.elements.get('phone-round-pad').classList.contains('hidden'),true);
+});
