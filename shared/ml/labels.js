@@ -39,7 +39,7 @@ export const POSES=Object.freeze({
 });
 export const MOTION_PLAN=Object.freeze(['waist','shoulder','top','finish','waist','shoulder','top','finish']);
 
-export const SOURCES=Object.freeze({collect:'引导采集',play:'实战挥杆',missed:'漏识别',adapt:'快速适应',motion:'动作采样',candidate:'待定动作'});
+export const SOURCES=Object.freeze({collect:'引导采集',play:'实战挥杆',missed:'漏识别',adapt:'快速个性化',motion:'动作采样',candidate:'待定动作'});
 export const OTHER_PROMPTS=Object.freeze(['拿起手机','放下手机','随手晃动几下','拿着手机走几步','预备晃杆，不要挥出','转身看一眼屏幕']);
 // 起始阈值（°/s）：推杆动作慢，阈值更低；非挥杆与慢速停住动作允许较轻的动作开始录制。
 export const ONSET=Object.freeze({swing:45,putt:16,other:30,pose:24});
@@ -47,7 +47,11 @@ export const ONSET=Object.freeze({swing:45,putt:16,other:30,pose:24});
 export const TARGETS=Object.freeze({swing:40,putt:20,other:30});
 export const LEVEL_TARGETS=Object.freeze({swing:8,putt:4});
 // 快速适应：挥杆 5 档各 1 次、推杆 1/3/5 档、非挥杆 4 个，约 2 分钟。
-export const ADAPT_PLAN=Object.freeze([...LEVELS.map(level=>({label:'swing',level})),{label:'putt',level:1},{label:'putt',level:3},{label:'putt',level:5},...OTHER_PROMPTS.slice(0,4).map(prompt=>({label:'other',prompt}))]);
+// 快速个性化（0.23）：新手机只录 5 次挥杆（至少 3 次即可结束），力度依次 100% / 60% / 100% / 40% / 80%；
+// 结束后服务器自动做个人迁移训练（见 shared/ml/personal.js）。旧版 12 条（挥杆五档 + 推杆三档 + 4 个日常动作）不再使用。
+export const ADAPT_LEVELS=Object.freeze([5,3,5,2,4]);
+export const ADAPT_MIN=3;
+export const ADAPT_PLAN=Object.freeze(ADAPT_LEVELS.map(level=>Object.freeze({label:'swing',level})));
 // 力度档位模式：ladder = 1→5 循环（每组都覆盖全部力度）；数字 = 固定档位。
 export function levelAt(mode,index){if(mode==='ladder'||mode==='cycle')return LEVELS[index%5];const n=Number(mode);return LEVELS.includes(n)?n:null;}
 export function weakLabelForClub(clubId){return clubId==='putter'?'putt':clubId?'swing':null;}

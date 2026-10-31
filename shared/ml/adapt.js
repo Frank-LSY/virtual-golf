@@ -38,8 +38,10 @@ export function predictWindow(model,profile,x){
 }
 // 单调分段线性：各力度档位的分数中位数 → 档位力度；档位不足两档时，用分数分布的 2% / 97% 分位兜底。
 export function powerCurve(profile,label){
- const p=profile?.power?.[normalizeLabel(label)];if(!p)return null;const points=[];
+ const p=profile?.power?.[normalizeLabel(label)];if(!p)return null;let points=[];
  for(const [key,list] of Object.entries(p.anchors||{}))if(list.length>=2)points.push([median(list),Number(key)]);
+ // 快速个性化只有 3–5 次挥杆、多数档位只有 1 条：不足两档时退一步，单条档位也参与（仍做单调化）。
+ if(points.length<2){const loose=Object.entries(p.anchors||{}).filter(([,list])=>list.length>=1).map(([key,list])=>[median(list),Number(key)]);if(loose.length>=2)points=loose;}
  if(points.length<2){const sorted=[...p.recent].sort((a,b)=>a-b);if(sorted.length>=8){points.push([quantile(sorted,.02),.05]);points.push([quantile(sorted,.97),1]);}}
  points.sort((a,b)=>a[1]-b[1]||a[0]-b[0]);const mono=[];for(const pt of points){if(!mono.length||(pt[0]>mono.at(-1)[0]+1e-6&&pt[1]>mono.at(-1)[1]))mono.push(pt);}
  return mono.length>=2?mono:null;

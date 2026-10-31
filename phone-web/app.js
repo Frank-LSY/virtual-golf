@@ -6,6 +6,7 @@ import {MotionRecorder,TrialSegmenter,sampleId,ML_LABEL_TIPS} from './ml-recorde
 import {encodeRecording} from '../shared/ml/codec.js';
 import {deserializeModel} from '../shared/ml/net.js';
 import {predictWindow,motionCalibration} from '../shared/ml/adapt.js';
+import {withAdapter,deserializeHead} from '../shared/ml/personal.js';
 import {resample,findAnchor,windowAt,prepareInput} from '../shared/ml/signal.js';
 import {CLASS_NAMES,CLASSES,SWING_CLASSES,LEVELS,LEVEL_NAMES,levelText,deviceLabel} from '../shared/ml/labels.js';
 import {LiveArc,arcCurve,arcToPose,traceToPose,recordingKinematics} from '../shared/ml/kinematics.js';
@@ -23,7 +24,7 @@ try{settings=inputSettings(JSON.parse(localStorage.getItem('swinglink-input-sett
 // 传感器缓冲与流式识别器（模型或免校准规则共用同一套候选峰值）。
 const recorder=new MotionRecorder(),det=new StreamDetector({buffer:recorder}),arcLive=new LiveArc();
 let arcState={mode:'idle',arc:0,top:0},arcCurves={swing:null,putt:null},motionCal=null,lastPoseSent=0;
-let mlTrial=null,trialKey='',segmenter=null,review=null,reviewTimer=null,mlModel=null,mlProfile=null,mlFallback=null,mlShadow=true,mlHzSent=0,lastPlaySample=null,mlUploading=false,mlLastW=0,mlLastA=9.81;
+let mlPersonal=null,mlBase=null,mlAdapter=null,mlTraining=false,mlTrial=null,trialKey='',segmenter=null,review=null,reviewTimer=null,mlModel=null,mlProfile=null,mlFallback=null,mlShadow=true,mlHzSent=0,lastPlaySample=null,mlUploading=false,mlLastW=0,mlLastA=9.81;
 let mlSettings={shadow:true,detector:'model',threshold:STREAM.threshold},activeDetector='rule',detectorReason='',statusSent='',ruleHits=[],lastModelHit=0,lastCandidateAt=0,pendingNear=null,lastDecision=null,lastRoll=null;
 let deviceName='',grip='vertical';try{deviceName=localStorage.getItem('swinglink-device-name')||'';grip=localStorage.getItem('swinglink-grip')==='horizontal'?'horizontal':'vertical';}catch{}
 const autoDevice=()=>deviceLabel(navigator.userAgent||''),currentDevice=()=>deviceName||autoDevice();
@@ -77,12 +78,13 @@ function ready(){stage='ready';setStage();warn('');$('enable').classList.add('hi
 function renderReady(){if(stage!=='ready')return;const inactive=practiceActive&&!practiceSelected||roundActive&&!roundCanControl;const practiceBusy=playMode==='practice'&&Date.now()<practiceBusyUntil,waiting=playMode==='play'&&locked,active=practiceActive||roundActive,armed=practiceActive?practiceArmed:roundArmed;
  $('phone-club-picker').classList.toggle('hidden',!roundActive||practiceActive);$('phone-club').disabled=!online||!roundCanControl||gamePhase!=='playing';
  $('phone-round-pad').classList.toggle('hidden',!roundActive||practiceActive);for(const id of ['prp-aim-left','prp-aim-right','prp-aim-reset'])$(id).disabled=!canAim();for(const id of ['prp-cam-up','prp-cam-down','prp-cam-left','prp-cam-right','prp-cam-in','prp-cam-out','prp-cam-reset','prp-view-follow','prp-view-overview','prp-view-cup'])$(id).disabled=!canCamera();$('prp-aim-value').textContent=aimText(roundAim);
- $('title').innerHTML=gamePhase==='transferring'&&!practiceActive?'乘车换洞，<br>欣赏沿途风景。':inactive?'轮到同伴，<br>稍作放松。':!online?'正在恢复连接。':practiceBusy||waiting?(gamePhase==='animating'||practiceBusy?'看一看，<br>这一杆的落点。':'球场已备好，<br>就等你开场。'):active?(armed?'站稳，<br>挥出这一杆。':'先试挥，<br>找到你的节奏。'):'准备好了，<br>随时挥杆。';
- $('instruction').innerHTML=gamePhase==='transferring'&&!practiceActive?'所有球手一起前往下一站。<br>到站后重新选杆，再准备击球。':inactive?'当前由同伴控制角色。<br>你的力度与方向习惯仍独立保存。':practiceBusy?'训练球正在运动。<br>等球停稳，再试下一杆。':waiting?'在电脑上开始或继续本局。<br>人物随球位移动后，再准备下一杆。':active?(armed?'下一次挥动将击球。<br>轻转手机仍可调整人物视角。':'试挥不击球，也不计杆数。<br>准备好后点击下方按钮。'):'轻轻上杆，顺势挥出。<br>剩下的，交给手机。';
+ // 0.23：文字只说“现在该做什么”，其余解释收进“更多设置”。
+ $('title').innerHTML=gamePhase==='transferring'&&!practiceActive?'换洞中':inactive?'轮到同伴':!online?'正在恢复连接':practiceBusy||waiting?(gamePhase==='animating'||practiceBusy?'看球飞行':'等待开局'):active?(armed?'挥杆击球':'准备击球'):'随时挥杆';
+ $('instruction').innerHTML=gamePhase==='transferring'&&!practiceActive?'到站后再准备下一杆。':inactive?'稍作放松，轮到你时会提示。':practiceBusy?'等球停稳。':waiting?'在电脑上开始或继续本局。':active?(armed?'下一次挥动就会击球。':'现在挥杆是试挥，不计杆数。'):'轻轻上杆，顺势挥出。';
  $('orb-label').textContent=gamePhase==='transferring'&&!practiceActive?'球车接驳中 · 暂停击球':inactive?'等待轮到这台手机':!online?'正在重新连接':practiceBusy||waiting?'等待球局就绪':active&&!armed?'试挥模式 · 不击球':'已准备 · 下一挥击球';
  const orbWaiting=(gamePhase==='transferring'&&!practiceActive)||inactive||!online||practiceBusy||waiting;if(!orbWaiting)$('orb-label').innerHTML=$('orb-label').textContent+`<br><small>${activeDetector==='model'?'模式识别':'免校准规则'}</small>`;
  $('orb').classList.toggle('waiting',orbWaiting);$('orb').classList.toggle('armed',!orbWaiting&&active&&armed);$('phone-main').dataset.state=orbWaiting?'waiting':active&&armed?'armed':'ready';
- $('phone-practice-arm').classList.toggle('hidden',!active);$('phone-practice-mode').classList.toggle('hidden',!active);$('phone-practice-arm').textContent=armed?'取消准备':'准备击球 →';$('phone-practice-arm').classList.toggle('cancel',!!armed);$('phone-practice-arm').disabled=!online||practiceBusy||waiting||inactive;$('phone-practice-mode').textContent=armed?'已准备 · 体感视角持续生效':'试挥模式 · 体感视角持续生效，不计杆数';
+ $('phone-practice-arm').classList.toggle('hidden',!active);$('phone-practice-mode').classList.toggle('hidden',true);$('arm-main').textContent=armed?'已准备 · 挥杆！':'准备击球';$('arm-sub').textContent=armed?'点这里取消':'现在挥杆是试挥，不计杆数';$('phone-practice-arm').classList.toggle('cancel',!!armed);$('phone-main').dataset.active=active&&!orbWaiting?'1':'0';renderAdapt();renderPersonal();$('phone-practice-arm').disabled=!online||practiceBusy||waiting||inactive;$('phone-practice-mode').textContent=armed?'已准备 · 体感视角持续生效':'试挥模式 · 体感视角持续生效，不计杆数';
 }
 $('phone-practice-arm').onclick=()=>{if(practiceActive&&!practiceSelected||roundActive&&!roundCanControl)return;conn.send({type:practiceActive?'practice_arm':'round_arm',armed:!(practiceActive?practiceArmed:roundArmed)});};
 
@@ -177,16 +179,18 @@ conn.addEventListener('message',({detail:m})=>{
  if(m.type==='round_subscription'){if(roundCanControl!==(m.canControl!==false))det.reset();roundCanControl=m.canControl!==false;if(!practiceActive)activeOwner=m.active?m.playerName||'':'';roundActive=m.active;renderOwner();roundStream=m.stream;roundArmed=!!m.armed;if(m.active&&!practiceActive)setMode('play');document.querySelector('[data-mode="practice"]').disabled=m.active;renderReady();}
  if(m.type==='input_settings_request'){try{applySettings(m.settings,m.requestId);$('tuning-status').textContent='电脑调整的灵敏度已生效。';}catch(e){$('tuning-status').textContent=e.message;}}
  if(m.type==='practice_ack'||m.type==='practice_rehearsal_ack'){$('delivery').textContent=m.rehearsal?'试挥已识别 · 尚未击球':'训练场已击球';$('phone-training-label').textContent=m.rehearsal?'试挥模拟参考 · 球未击出':'本杆模拟击球反馈';$('phone-training-result').classList.remove('hidden');$('phone-training-distance').textContent=`${m.travel.toFixed(1)} 米`;$('phone-training-detail').textContent=`${m.club} · 距目标 ${m.targetError.toFixed(1)} 米 · ${Math.abs(m.lateral)<.5?'方向居中':(m.lateral<0?'偏左 ':'偏右 ')+Math.abs(m.lateral).toFixed(1)+' 米'}`;$('phone-training-tip').textContent=m.feedback.slice(0,2).join(' ');const entry=logs.find(x=>x.seq===m.seq);if(entry){entry.acknowledged=true;saveLogs();}}
- if(m.type==='room_state'&&m.state.stateVersion>=stateVersion){stateVersion=m.state.stateVersion;gamePhase=m.state.phase;const terrain=m.state.terrain;$('phone-terrain').textContent=terrain?`${terrain.name} · ${terrain.condition}。同杆同力度出球速度为球道的 ${terrain.speedPercent}%。${terrain.roll}。${terrain.tip}`:'';$('phone-club').value=m.state.clubId||'auto';$('phone-club-tip').textContent=`${m.state.selectedClub?.name||'自动推荐'} · ${m.state.selectedClub?.range||'—'} 米参考距离。换杆后重新准备击球。`;if(m.state.putting){const p=m.state.putting;$('phone-club-tip').textContent+=` ${p.pace}，${p.break}。`;}roundArmed=roundCanControl&&!!m.state.armed;if(Date.now()>aimLocalUntil)roundAim=Number.isFinite(m.state.aim)?m.state.aim:0;lastRoundClub=m.state?.selectedClub?.id||lastRoundClub;renderReady();}
+ if(m.type==='room_state'&&m.state.stateVersion>=stateVersion){stateVersion=m.state.stateVersion;gamePhase=m.state.phase;$('phone-club').value=m.state.clubId||'auto';const auto=$('phone-club').options?.[0];if(auto)auto.textContent=`自动 · ${m.state.recommendedClub?.name||m.state.selectedClub?.name||'推荐球杆'}`;roundArmed=roundCanControl&&!!m.state.armed;if(Date.now()>aimLocalUntil)roundAim=Number.isFinite(m.state.aim)?m.state.aim:0;lastRoundClub=m.state?.selectedClub?.id||lastRoundClub;renderReady();}
  if(m.type==='input_lock'){locked=m.locked;renderReady();}
  if(m.type==='ack'||m.type==='rehearsal_ack'){$('delivery').textContent=m.type==='rehearsal_ack'?'试挥已接收 · 不计杆数':'已击球 · 计入本局';if(m.type==='rehearsal_ack')$('shot-status').textContent=`试挥参考 ${m.travel.toFixed(1)} 米，球仍在原位。`;const entry=logs.find(x=>x.seq===m.seq);if(entry){entry.acknowledged=true;saveLogs();}}
  if(m.type==='error'){if(mlTrial){mlResult(m.message,'retry');mlUploading=false;}else{$('shot-status').textContent=m.message;$('delivery').textContent='本次挥杆未被接受';}}
  if(m.type==='ml_collect')setTrial(m.active?m.session:null);
  if(m.type==='ml_sample_ack')mlAck(m);
  if(m.type==='ml_review')decideReview(m.decision==='save');
- if(m.type==='ml_model'){try{mlModel=m.model?deserializeModel(m.model):null;}catch{mlModel=null;}mlProfile=m.profile||null;mlFallback=m.fallback||null;refreshMotionCal();mlSettings={...mlSettings,...(m.settings||{})};mlShadow=mlSettings.shadow!==false;$('ml-model-status').textContent=mlModel?`模型 ${mlModel.id}${mlModel.legacy?' · 旧版标签（电脑重新训练后升级）':''}${mlModel.stream?' · 支持模式识别':' · 旧版模型（需重新训练）'}${(mlModel.features||1)>=2?' · 含手腕转动补偿':''}`:'尚未部署模型';refreshDetector();renderAdapt();}
+ // 共享模型 + 自己的个人输出头（个性化后才有）：只替换头部参数，本机推理开销不变。
+ if(m.type==='ml_model'){try{mlBase=m.model?deserializeModel(m.model):null;}catch{mlBase=null;}mlAdapter=null;if(mlBase&&m.adapter?.modelId===mlBase.id){try{mlAdapter=deserializeHead(m.adapter.head,mlBase);}catch{mlAdapter=null;}}mlModel=mlAdapter?withAdapter(mlBase,mlAdapter,m.adapter.version):mlBase;if(m.personal)setPersonal(m.personal);mlProfile=m.profile||null;mlFallback=m.fallback||null;refreshMotionCal();mlSettings={...mlSettings,...(m.settings||{})};mlShadow=mlSettings.shadow!==false;$('ml-model-status').textContent=mlModel?`模型 ${mlModel.id}${mlModel.legacy?' · 旧版标签（电脑重新训练后升级）':''}${mlModel.stream?' · 支持模式识别':' · 旧版模型（需重新训练）'}${(mlModel.features||1)>=2?' · 含手腕转动补偿':''}`:'尚未部署模型';refreshDetector();renderAdapt();}
  if(m.type==='ml_settings'){mlSettings={...mlSettings,...(m.settings||{})};mlShadow=mlSettings.shadow!==false;refreshDetector();}
- if(m.type==='ml_profile'){mlProfile=m.profile||null;mlFallback=m.fallback||mlFallback;det.profile=mlProfile;refreshMotionCal();refreshDetector();renderAdapt();}
+ if(m.type==='ml_personal')setPersonal(m);
+ if(m.type==='ml_profile'){if(m.personal)setPersonal(m.personal);mlProfile=m.profile||null;mlFallback=m.fallback||mlFallback;det.profile=mlProfile;refreshMotionCal();refreshDetector();renderAdapt();}
 });conn.addEventListener('offline',()=>{online=false;locked=true;$('connection').textContent='正在重新连接…';$('connection').classList.remove('online');det.reset();renderReady();});
 let lastPracticeClub='',lastRoundClub='';conn.connect();
 function renderOwner(){$('phone-identity').textContent=identity?`手机 ${String(identity.number).padStart(2,'0')} · ${identity.name}`:'正在分配手机编号';$('turn-owner').textContent=activeOwner?`当前控制：${activeOwner}`:'每台手机对应一位球手';}
@@ -213,14 +217,25 @@ function refreshDetector(){
 }
 $('detector-model').onclick=()=>{mlSettings.detector='model';refreshDetector();conn.send({type:'ml_detector',detector:'model'});};
 $('detector-rule').onclick=()=>{mlSettings.detector='rule';refreshDetector();conn.send({type:'ml_detector',detector:'rule'});};
-// 首次使用的“校准”就是快速适应：让模型认识这个人、这台手机。
+// 首次使用：问一次要不要录 5 次挥杆做个性化（最少 3 次）；录完服务器自动做个人迁移训练。
 const adaptKey=()=>'swinglink-adapt-later:'+(identity?.name||'');
+function startPersonal(){if(!enabled)return warn('请先点击“启用体感”。');conn.send({type:'ml_session',action:'start',mode:'adapt',person:identity?.name||''});}
 function renderAdapt(){
  let later=false;try{later=localStorage.getItem(adaptKey())==='1';}catch{}
- const personal=(mlProfile?.accepted||0)>=8,show=stage==='ready'&&!mlTrial&&!later&&!personal;$('adapt-card').classList.toggle('hidden',!show);if(!show)return;
- $('adapt-title').textContent=mlModel?'让模型认识你的挥杆':'先录一组数据';$('adapt-text').textContent=mlModel?'第一次在这台手机上挥杆？花 2 分钟做一次快速适应：挥杆按 20%→100% 五档各一次、推杆三次，再做 4 个日常动作。力度和小人的动作幅度会更贴合你。':'还没有训练好的模型，现在用免校准规则识别。录一组快速适应数据，到电脑练习室训练后就会改用模式识别。';
+ // 正在打球或练习时不弹大卡片（不挤占“准备击球”），改成顶部一个小邀请标签。
+ const st=mlPersonal?.status||'none',fresh=['none','no-model'].includes(st)&&!(mlPersonal?.adaptSamples>0),busy=$('phone-main').dataset.active==='1',show=stage==='ready'&&!mlTrial&&!later&&!!mlPersonal&&fresh&&!busy;$('adapt-card').classList.toggle('hidden',!show);if(!show)return;
+ $('adapt-text').textContent=st==='no-model'?'录 5 次挥杆（最少 3 次），约 1 分钟。电脑完成第一次训练后会自动为你个性化。':'录 5 次挥杆（最少 3 次），约 1 分钟。录完自动为你训练。';
 }
-$('adapt-start').onclick=()=>startRecording('adapt');
+// 个性化状态小标签：只在有状态可说时显示。
+function inviteNow(){let later=false;try{later=localStorage.getItem(adaptKey())==='1';}catch{}const st=mlPersonal?.status||'none';return !later&&!!mlPersonal&&['none','no-model'].includes(st)&&!(mlPersonal.adaptSamples>0)&&$('phone-main').dataset.active==='1';}
+function renderPersonal(){const invite=inviteNow(),st=invite?'invite':mlPersonal?.status,chip=$('personal-chip'),text={invite:'让识别更懂你 · 录 5 次挥杆 →',ready:'✓ 已个性化',power:'✓ 已个性化（力度）',queued:'正在为你训练…',training:'正在为你训练…',waiting:'已录入 · 等电脑完成训练',stale:'模型已更新 · 正在重新个性化',failed:'个性化未完成，可在“更多设置”里重做'}[st]||'';chip.classList.toggle('hidden',!text||stage!=='ready'||!!mlTrial);chip.dataset.status=st||'none';chip.textContent=text;}
+function setPersonal(p){const prev=mlPersonal?.status;mlPersonal={...p};if(['queued','training'].includes(p.status))mlTraining=true;
+ if(mlTraining&&['ready','power'].includes(p.status)){mlTraining=false;$('shot-status').textContent=p.status==='ready'?'个性化完成：识别与力度已按你的挥杆调整。':'已按你的挥杆调整力度。';flash();}
+ if(mlTraining&&p.status==='failed'){mlTraining=false;$('shot-status').textContent='个性化没有完成，稍后可以在“更多设置”里重做。';}
+ if(prev!==p.status){renderPersonal();renderAdapt();}}
+$('adapt-start').onclick=()=>startPersonal();
+$('personal-chip').onclick=()=>{if($('personal-chip').dataset.status==='invite')startPersonal();};
+$('personal-redo').onclick=()=>{try{localStorage.removeItem(adaptKey());}catch{}$('phone-more').open=false;startPersonal();};
 $('adapt-later').onclick=()=>{try{localStorage.setItem(adaptKey(),'1');}catch{}renderAdapt();};
 
 // ---------- 数据采集：可暂停、可跳过；太小的动作忽略，不像的动作先确认 ----------
@@ -234,7 +249,8 @@ function setTrial(trial){
  const prevKey=trialKey;mlTrial=trial;const on=!!trial;$('ml-collect').classList.toggle('hidden',!on);$('phone-main').dataset.ml=on?'on':'off';
  if(!on){segmenter=null;trialKey='';closeReview();renderReady();renderAdapt();return;}
  trialKey=`${trial.id}|${trial.index}|${trial.paused}`;const st=trial.stats||{};
- $('ml-person').textContent=`${{adapt:'快速适应',motion:'动作采样'}[trial.mode]||'数据采集'} · ${trial.person}`;$('ml-count').textContent=`${trial.index+1} / ${trial.count}`;
+ $('ml-collect').dataset.mode=trial.mode;$('ml-person').textContent=`${{adapt:'个性化',motion:'动作采样'}[trial.mode]||'数据采集'} · ${trial.person}`;$('ml-count').textContent=`${trial.index+1} / ${trial.count}`;
+ $('ml-stop').textContent=trial.mode==='adapt'?(trial.canFinish?`完成（已录 ${st.saved} 次），开始训练`:`退出（至少录 ${trial.min} 次才能训练）`):'结束本组';$('ml-stop').classList.toggle('finish',!!trial.canFinish);
  $('ml-stats').textContent=`已保存 ${st.saved||0}${st.discarded?` · 丢弃 ${st.discarded}`:''}${st.skipped?` · 跳过 ${st.skipped}`:''}${st.small?` · 忽略小动作 ${st.small}`:''}`;
  $('ml-pause').textContent=trial.paused?'继续':'暂停';
  $('ml-demo').innerHTML=motionSVG(trial.label,trial.level||3,{grip,pose:trial.pose});$('ml-label').textContent=trial.labelName;$('ml-tier').textContent=trial.pose&&trial.pose!=='finish'?'停住 1 秒':trial.level?levelText(trial.label,trial.level):'自然动作';$('ml-tier').dataset.tier=trial.pose&&trial.pose!=='finish'?'pose':trial.level?`l${trial.level}`:'none';$('ml-prompt').textContent=trial.prompt||ML_LABEL_TIPS[trialKind(trial)]||'';$('adapt-card').classList.add('hidden');
@@ -287,7 +303,7 @@ $('ml-keep').onclick=()=>decideReview(true);$('ml-discard').onclick=()=>decideRe
 $('ml-pause').onclick=()=>{if(mlTrial)conn.send({type:'ml_session',action:mlTrial.paused?'resume':'pause'});};
 $('ml-skip').onclick=()=>{if(mlTrial){closeReview();conn.send({type:'ml_session',action:'skip'});}};
 $('ml-undo').onclick=()=>{if(mlTrial)conn.send({type:'ml_session',action:'undo'});};
-$('ml-stop').onclick=()=>{if(mlTrial){closeReview();conn.send({type:'ml_session',action:'stop'});}};
+$('ml-stop').onclick=()=>{if(mlTrial){closeReview();conn.send({type:'ml_session',action:mlTrial.canFinish?'finish':'stop'});}};
 function mlAck(m){
  if(m.source==='play'){if(lastPlaySample?.id===m.id)lastPlaySample.ack=m;return;}
  if(m.source==='missed'){$('shot-status').textContent=m.ok?'已上传漏识别片段，可在电脑练习室复核。':m.reason;return;}
@@ -304,7 +320,7 @@ $('ml-record-label').innerHTML=CLASSES.map(c=>`<option value="${c}">${CLASS_NAME
 function renderRecord(){const label=$('ml-record-label').value||'swing',level=$('ml-record-level').value||'ladder';$('ml-record-demo').innerHTML=motionSVG(label,level==='ladder'?3:Number(level),{grip});$('ml-record-tip').textContent=(label==='other'?MOTION_TIPS.other:level==='ladder'?`${MOTION_TIPS[label]}。力度按 20%→100% 轮换`:levelText(label,Number(level)))+'。随时可以暂停；太小的动作不会记录。';$('ml-record-level').disabled=label==='other';$('ml-record-device').textContent=`每条录音都会记录：${String($('ml-record-person').value||identity?.name||'球手').trim()} · 动作与力度 · ${currentDevice()} · ${GRIPS[grip]}`;}
 $('ml-record-label').onchange=renderRecord;$('ml-record-level').onchange=renderRecord;$('ml-record-person').oninput=renderRecord;
 function startRecording(mode){if(!enabled)return warn('请先点击“启用体感”，再录入训练数据。');const label=$('ml-record-label').value||'swing',level=$('ml-record-level').value||'ladder';conn.send({type:'ml_session',action:'start',mode,label,level:label==='other'?null:(level==='ladder'?'ladder':Number(level)),count:Number($('ml-record-count').value)||10,person:String($('ml-record-person').value||identity?.name||'').trim()});}
-$('ml-record-start').onclick=()=>startRecording('collect');$('ml-record-adapt').onclick=()=>startRecording('adapt');$('ml-record-motion').onclick=()=>startRecording('motion');
+$('ml-record-start').onclick=()=>startRecording('collect');$('ml-record-motion').onclick=()=>startRecording('motion');
 $('device-name').value=deviceName;$('device-name').placeholder=autoDevice();
 renderPosture();renderRecord();setStage();refreshDetector();
 

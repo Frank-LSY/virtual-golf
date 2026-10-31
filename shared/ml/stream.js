@@ -144,3 +144,13 @@ export function streamMetrics(model,entries,opts={}){
  const rate=(a,b)=>b?a/b:null;
  return {...r,onTimeRate:rate(r.onTime,r.swings),detectRate:rate(r.onTime+r.wrongClass,r.swings),earlyRate:rate(r.early,r.swings),missRate:rate(r.missed,r.swings),falseTriggerRate:rate(r.falseTrigger,r.others)};
 }
+// 触发置信度自动选择（0.23）：按验证集流式回放的“准时识别率 − 误触发率”（相当于约登指数）取最优档位；
+// 验证样本少时相邻档位只差一两条样本，分数与最优相差不到一条挥杆（至少 2 个百分点）的档位视为并列，取并列档位的中间值，
+// 避免每次训练都在两端来回跳。返回所选档位与每档得分，供电脑展示。
+export function chooseThreshold(curve,{fallback=STREAM.threshold}={}){
+ const rows=(curve||[]).filter(c=>Number.isFinite(c.threshold)&&Number.isFinite(c.onTimeRate)&&Number.isFinite(c.falseTriggerRate)).map(c=>({...c,score:c.onTimeRate-c.falseTriggerRate})).sort((a,b)=>a.threshold-b.threshold);
+ if(!rows.length)return {threshold:fallback,score:null,candidates:[],rows:[],auto:false};
+ const best=Math.max(...rows.map(r=>r.score)),swings=Math.max(1,...rows.map(r=>r.swings||0)),tol=Math.max(.02,1/swings)+1e-9,cand=rows.filter(r=>r.score>=best-tol);
+ const pick=cand[Math.floor(cand.length/2)];
+ return {threshold:pick.threshold,score:pick.score,best,tolerance:tol,candidates:cand.map(r=>r.threshold),rows:rows.map(r=>({threshold:r.threshold,onTimeRate:r.onTimeRate,falseTriggerRate:r.falseTriggerRate,score:r.score})),auto:true};
+}

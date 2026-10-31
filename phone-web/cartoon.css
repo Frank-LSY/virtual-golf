@@ -59,3 +59,31 @@ h1,h2{font-family:var(--toon-font);font-weight:900}
 .prp-dpad button{padding:0!important}
 .prp-zoom{display:flex;flex-direction:column;align-items:center;gap:6px}.prp-zoom button{width:58px;height:44px;font-size:20px!important;padding:0!important}.prp-zoom span{font:800 12px var(--toon-font);color:var(--muted)}
 .prp-tip{margin:10px 0 0;font:700 12px/1.6 var(--toon-font);color:var(--ink-2)}
+/* 0.23 手机端简化：准备击球是主按钮；球杆只留下拉框；解释与高级选项收进“更多设置” */
+#phone-practice-arm.arm-button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%;min-height:clamp(150px,30vh,240px);margin:12px 0 10px;border-radius:30px!important;font:900 30px/1.1 var(--toon-font)!important}
+#phone-practice-arm.arm-button.hidden{display:none}
+#phone-practice-arm.arm-button small{font:800 14px var(--toon-font);opacity:.75}
+#phone-practice-arm.arm-button.cancel{background:var(--golf)!important;color:#fff!important;text-shadow:0 2px 0 rgba(34,38,74,.45);animation:arm-pulse 1.3s ease-in-out infinite}
+@keyframes arm-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+#phone-main[data-active="1"] .swing-orb{display:none}
+#phone-practice-mode{display:none!important}
+.phone-club-picker{padding:0!important;border:0!important;box-shadow:none!important;background:transparent!important;margin:0 0 10px!important}
+.phone-club-picker select{width:100%;border:3px solid var(--ol-c)!important;border-radius:16px!important;box-shadow:var(--pop-s);font:900 17px var(--toon-font)!important;padding:12px 14px!important;background:#fff}
+.personal-chip{display:inline-block;margin:0 0 6px;padding:5px 12px;border:2.5px solid var(--ol-c);border-radius:999px;background:#fff;box-shadow:var(--pop-s);font:900 13px var(--toon-font)}
+.personal-chip.hidden{display:none}
+.personal-chip[data-status="ready"],.personal-chip[data-status="power"]{background:var(--golf-l)}
+.personal-chip[data-status="training"],.personal-chip[data-status="queued"]{background:var(--sun-l)}
+.phone-more{margin:14px 0 4px;border:3px solid var(--ol-c);border-radius:20px;background:#fff;box-shadow:var(--pop-s);text-align:left}
+.phone-more>summary{padding:12px 16px;font:900 15px var(--toon-font);cursor:pointer;list-style:none}
+.phone-more>summary::after{content:'▾';float:right}
+.phone-more[open]>summary::after{content:'▴'}
+.phone-more-body{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px}
+.more-row{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.more-row>span{font:800 13px var(--toon-font);color:var(--muted)}
+#personal-redo{width:100%}
+.adapt-card #adapt-text{font:700 14px/1.6 var(--toon-font)}
+#ml-collect[data-mode="adapt"] #ml-undo{display:none}
+#ml-stop.finish{background:var(--golf)!important;color:#fff!important;border:3px solid var(--ol-c)!important;border-radius:14px!important;box-shadow:var(--pop-s);padding:10px 14px;font-weight:900}
+.personal-chip[data-status="invite"]{background:var(--sun-c);cursor:pointer}
+#phone-main[data-active="1"] #title,#phone-main[data-active="1"] .phone-eyebrow{display:none}
+#phone-main[data-active="1"] #instruction{margin:6px 0 0;font-weight:800}

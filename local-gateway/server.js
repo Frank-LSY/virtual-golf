@@ -49,7 +49,7 @@ async function handler(req,res){
  try{
   const url=new URL(req.url,'http://localhost');
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Cache-Control','no-store');
-  if(url.pathname==='/api/health'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({ok:true,app:'swinglink',version:'0.22.0'}));}
+  if(url.pathname==='/api/health'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({ok:true,app:'swinglink',version:'0.23.0'}));}
   if(url.pathname==='/api/config'){
    const host=addresses[0]||'localhost',phoneUrl=`${secure?'https':'http'}://${host}:${secure?tlsPort:port}/phone?token=${token}`;
    res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({token,secure,caName,phoneUrl,addresses,port,tlsPort,qr:await QRCode.toString(phoneUrl,{type:'svg',margin:1,color:{dark:'#244d3e',light:'#ffffff'}})}));
@@ -88,7 +88,7 @@ function attach(server){
      ws.role=m.role;ws.clientId=m.clientId;if(ws.role==='phone'){send(ws,{type:'player_identity',player:players.ensure(ws.clientId)});persistExtra('players',players.saved());}send(ws,{type:'ready',protocolVersion:1});send(ws,{type:'room_state',state:game.snapshot()});send(ws,{type:'input_lock',locked:game.state.phase!=='playing'});ml.connected(ws);maze.connected(ws);if(ws.role==='phone')send(ws,{type:'screen_view',...screenView});status();return;
     }
     if(!ws.role)throw Error('请先连接。');
-    if(m.type==='player_profile'&&ws.role==='phone'){const profile=players.update(ws.clientId,m);game.updateProfile(profile);send(ws,{type:'player_identity',player:profile});ml.pushProfile(ws.clientId);persistExtra('players',players.saved());status();state();return;}
+    if(m.type==='player_profile'&&ws.role==='phone'){const profile=players.update(ws.clientId,m);game.updateProfile(profile);send(ws,{type:'player_identity',player:profile});ml.pushModel(ws);persistExtra('players',players.saved());status();state();return;}
     if(m.type==='calibration_progress'&&ws.role==='phone'){const now=Date.now();if(now-(ws.lastCalProgress||0)<150)return;ws.lastCalProgress=now;ws.calibrationProgress={step:String(m.step||'').slice(0,40),hint:String(m.hint||'').slice(0,180),progress:Math.max(0,Math.min(1,Number(m.progress)||0))};status();return;}
     // 电脑当前所在的游戏（大厅 / 高尔夫 / 云端滚球），转告手机，让手机顶部显示对应的游戏。
     if(m.type==='screen_view'&&ws.role==='screen'){screenView={game:['hub','golf','skyroll'].includes(m.game)?m.game:'hub',view:String(m.view||'').slice(0,12)};for(const c of clients)if(c.role==='phone')send(c,{type:'screen_view',...screenView});return;}

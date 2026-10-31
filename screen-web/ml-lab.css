@@ -196,3 +196,34 @@
 #ml-live-tier[data-tier=pose]{background:var(--grass-soft);color:var(--grass-deep)}
 .ml-power-levels{grid-column:1/-1;margin:4px 0 0;font-size:12px;line-height:1.7}
 .ml-motion-cal{margin:6px 0 0;font-size:12px;color:var(--ink-2);line-height:1.6}
+/* 0.23 电脑只做展示：动作采集与模型训练页简化 */
+.ml-grid-collect{grid-template-columns:minmax(300px,1fr) minmax(380px,1.4fr)}
+.ml-grid-model{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}
+.ml-grid-model .ml-personal-card{grid-column:1/-1}
+.ml-howto h4,.ml-model-card h4{margin:16px 0 8px;font-size:14px}
+.ml-players{display:flex;flex-direction:column;gap:6px}
+.ml-player{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.ml-player>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ml-player small{font-size:12px;color:var(--muted)}
+.ml-player .ml-player-detail{grid-column:1/-1}
+.ml-chip.st-ready,.ml-chip.st-power{background:var(--grass-soft);color:var(--grass-deep)}
+.ml-chip.st-training,.ml-chip.st-queued{background:#fff3c4;color:#8a5a00}
+.ml-chip.st-failed{background:var(--flag-soft);color:#c2421f}
+.ml-chip.st-stale,.ml-chip.st-waiting{background:#e6efff;color:#2b5ea8}
+.ml-review-note{margin:8px 0;padding:8px 10px;border-radius:10px;background:#fff3c4;font-size:13px;font-weight:700}
+.ml-review-note[hidden]{display:none}
+.ml-sessions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+.ml-sessions .ml-muted{margin:0}
+.ml-curve-wrap{overflow-x:auto}
+.ml-th-table{width:100%;border-collapse:collapse;font-size:14px}
+.ml-th-table th,.ml-th-table td{padding:8px 10px;text-align:center;border-top:1px solid var(--line);font-weight:900;font-family:var(--font-num)}
+.ml-th-table th:first-child{text-align:left;font-family:var(--font);color:var(--muted)}
+.ml-th-table thead th{border-top:0;color:var(--muted)}
+.ml-th-table .cur{background:var(--grass-soft);color:var(--grass-deep)}
+.ml-tile.ok{background:var(--grass-soft)}.ml-tile.ok b{color:var(--grass-deep)}
+.ml-tile.warn{background:#fff3c4}.ml-tile.warn b{color:#8a5a00}
+.lab-detector b{font-weight:900;margin:0 6px}
+.ml-train-actions{display:flex;gap:10px;margin:10px 0}
+@media(max-width:900px){.ml-grid-collect,.ml-grid-model{grid-template-columns:1fr}}
+.ml-train-actions [hidden]{display:none!important}
+.ml-counter:empty{display:none}

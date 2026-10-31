@@ -61,7 +61,29 @@ try{
  send(phone,{type:'player_profile',name:'小李',style:'sage'});await wait(phone,m=>m.type==='player_identity');
  let pseudo=0;for(let i=0;i<16;i++){const club=['driver','putter','chip','iron'][i%4],label=club==='putter'?'putt':'swing';send(phone,{type:'ml_sample',id:id(),source:'play',seq:i+1,recording:encodeRecording(synthRecording({label,level:[2,4,5][i%3],seed:5000+i})),rule:{triggered:true,power:.5,dir:0,peak:400,axis:'beta'},context:{mode:'play',scope:'round',clubId:club}});const ack=await wait(phone,m=>m.type==='ml_sample_ack'&&m.source==='play');assert.ok(ack.prediction);if(ack.status==='pseudo')pseudo++;}
  assert.ok(pseudo>=10,'高置信且与球杆一致的实战挥杆被接受为伪标签：'+pseudo);
- const tuned=await wait(screen,m=>m.type==='ml_state'&&m.job?.kind==='head'&&m.job.finished,120000);assert.equal(tuned.job.error,null);assert.ok(tuned.current.includes('+'),'在线微调生成新版本');assert.equal(tuned.online.acceptedSinceTune,0);
+ // 0.23：累计 15 杆被接受的实战挥杆后，只为这位球手重新做个人迁移（不再改动共享模型）
+ const tuned=await wait(screen,m=>m.type==='ml_state'&&m.job?.kind==='adapt'&&m.job.key==='ml-phone-1|小李'&&m.job.finished,120000);assert.equal(tuned.job.error,null);assert.equal(tuned.current,done.current,'共享模型不变');assert.equal(tuned.online.sinceTune['ml-phone-1|小李'],0);assert.ok(['ready','power'].includes(tuned.profiles.find(p=>p.key==='ml-phone-1|小李').personal.status));
+ // 触发置信度跟随验证结果自动选择
+ assert.equal(done.settings.thresholdMode,'auto');assert.ok(done.readiness.choice,'记录自动选择依据');assert.equal(done.readiness.choice.auto,done.readiness.curve.some(c=>c.others>0),'验证集没有非挥杆动作时保留默认值');assert.equal(done.settings.threshold,done.readiness.threshold);assert.ok(done.readiness.curve.length===5);
+ // 0.23 快速个性化：新手机自己发起，录 3 次即可完成；同时另一台手机的采集不受影响；完成后自动迁移并把个人头下发给这台手机
+ const phone2=await connect('phone','ml-phone-2');await wait(phone2,m=>m.type==='ready');send(phone2,{type:'player_profile',name:'小周',style:'coast'});await wait(phone2,m=>m.type==='player_identity');
+ const intro=await wait(phone2,m=>m.type==='ml_model'&&m.model);assert.equal(intro.adapter,null);assert.ok(['none','no-model'].includes(intro.personal.status),intro.personal.status);
+ send(phone2,{type:'ml_motion',ready:true,hz:60});await new Promise(r=>setTimeout(r,150));drain(phone);drain(phone2);
+ send(phone,{type:'ml_session',action:'start',mode:'collect',label:'other',count:2,person:'小李'});send(phone2,{type:'ml_session',action:'start',mode:'adapt'});
+ const other1=(await wait(phone,m=>m.type==='ml_collect'&&m.active)).session,quick=(await wait(phone2,m=>m.type==='ml_collect'&&m.active)).session;
+ assert.notEqual(other1.id,quick.id,'两台手机各自一组');assert.equal(quick.mode,'adapt');assert.equal(quick.count,5);assert.equal(quick.min,3);assert.equal(quick.person,'小周');assert.equal(quick.canFinish,false);
+ let trial=quick;for(let i=0;i<3;i++){if(i)trial=(await wait(phone2,m=>m.type==='ml_collect'&&m.active&&m.session.index===i)).session;assert.equal(trial.label,'swing');
+  send(phone2,{type:'ml_sample',id:id(),source:'adapt',sessionId:trial.id,trialIndex:trial.index,recording:encodeRecording(synthRecording({label:'swing',level:trial.level,person:{gain:1.3,tempo:1.2},seed:7700+i})),device:{ua:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X)',name:'小周的 iPhone'}});
+  const ack=await wait(phone2,m=>m.type==='ml_sample_ack');assert.equal(ack.ok,true,ack.reason);}
+ const third=(await wait(phone2,m=>m.type==='ml_collect'&&m.active&&m.session.index===3)).session;assert.equal(third.canFinish,true,'录满 3 次可以完成');
+ const busyOther=await wait(screen,m=>m.type==='ml_state'&&m.sessions?.length===2);assert.ok(busyOther.sessions.some(x=>x.person==='小周')&&busyOther.sessions.some(x=>x.person==='小李'));
+ send(phone2,{type:'ml_session',action:'finish'});await wait(phone2,m=>m.type==='ml_collect'&&!m.active);
+ await wait(phone2,m=>m.type==='ml_personal'&&['queued','training'].includes(m.status));
+ const personal=await wait(phone2,m=>m.type==='ml_model'&&['ready','power'].includes(m.personal?.status),120000);
+ if(personal.personal.status==='ready'){assert.equal(personal.adapter.modelId,done.current);assert.equal(typeof personal.adapter.head.cw,'string');}else assert.equal(personal.adapter,null);
+ assert.equal(personal.personal.samples,3);assert.ok(personal.profile?.power?.swing,'个人力度映射');
+ const adapters=JSON.parse(await readFile(path.join(dataDir,'ml','adapters','index.json'),'utf8'));assert.ok(adapters['ml-phone-2|小周'],'个人头按人存盘');assert.equal(adapters['ml-phone-2|小周'].modelId,done.current);
+ send(phone,{type:'ml_session',action:'stop'});await wait(phone,m=>m.type==='ml_collect'&&!m.active);phone2.close();
  // 模型识别：手机免校准就绪；模型触发的挥杆被训练场接受并记录识别方式；待定动作进入复核；开关可从手机与电脑切换
  send(phone,{type:'ml_status',detector:'model',reason:'',modelId:tuned.current,device:{name:'测试 iPhone'}});send(phone,{type:'calibrated',version:'0.1.0',peakMax:600,dirZero:0,axis:'beta',noise:0,auto:true,mode:'model'});await new Promise(r=>setTimeout(r,200));
  drain(phone);drain(screen);const kin={t0:1000,dt:40,u:Array.from({length:30},(_,i)=>i<20?i/19:Math.max(-1,1-(i-19)/3)),impactAt:1800,now:2200,top:150,topU:1};send(phone,{type:'test_swing',power:.62,dir:.05,peak:700,seq:9001,stateVersion:0,clientTime:Date.now(),path:['MODEL','swing'],backswingMs:600,downswingMs:240,detector:'model',ml:{label:'swing',confidence:.93,learned:true,modelId:tuned.current},kin});
@@ -89,5 +111,5 @@ try{
  const target=list.samples.find(s=>s.source==='collect'&&s.label==='putt'),gone=list.samples.find(s=>s.source==='collect'&&s.id!==target.id);send(screen,{type:'ml_update',id:target.id,label:'swing',level:2});send(screen,{type:'ml_update',id:gone.id,deleted:true});await new Promise(r=>setTimeout(r,800));drain(screen);send(screen,{type:'ml_list',profile:'ml-phone-1|小李',source:'collect'});const after=await wait(screen,m=>m.type==='ml_list');assert.equal(after.total,36);const changed=after.samples.find(s=>s.id===target.id);assert.equal(changed.label,'swing');assert.equal(changed.level,2);assert.equal(changed.power,.4);
  send(screen,{type:'ml_update',id:target.id,level:9});assert.match((await wait(screen,m=>m.type==='error')).message,/力度档位/);
  send(phone,{type:'ml_update',id:target.id,deleted:true});assert.match((await wait(phone,m=>m.type==='error')).message,/电脑/);
- console.log('PASS: 5 档力度引导采集与进度校验、撤销、动作采样（停住 / 收杆）、两名球手两台设备、后台完整训练（含流式回放）与自动部署、影子推理与伪标签、15 杆在线微调、模型识别免校准击球（附真实挥杆轨迹）、小人姿势转发、待定动作、识别方式开关、手机发起采集、暂停 / 跳过 / 远程确认、误触发改标、电脑改标与删除。验证 F1',metrics.validation.macroF1.toFixed(3),'流式准时',metrics.stream?.onTimeRate?.toFixed(3));
+ console.log('PASS: 5 档力度引导采集与进度校验、撤销、动作采样（停住 / 收杆）、两名球手两台设备、后台完整训练（含流式回放）与自动部署、影子推理与伪标签、15 杆后按人重新迁移、快速个性化（两台手机同时采集、3 次即完成、个人迁移与个人头下发）、触发置信度自动选择、模型识别免校准击球（附真实挥杆轨迹）、小人姿势转发、待定动作、识别方式开关、手机发起采集、暂停 / 跳过 / 远程确认、误触发改标、电脑改标与删除。验证 F1',metrics.validation.macroF1.toFixed(3),'流式准时',metrics.stream?.onTimeRate?.toFixed(3));
 }finally{clearTimeout(stop);screen?.close();phone?.close();server.kill();}

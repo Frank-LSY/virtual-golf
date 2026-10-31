@@ -8,6 +8,7 @@ import {MotionRecorder,TrialSegmenter,sampleId,ML_LABEL_TIPS} from '../phone-web
 import {encodeRecording} from '../shared/ml/codec.js';
 import {deserializeModel} from '../shared/ml/net.js';
 import {predictWindow,motionCalibration} from '../shared/ml/adapt.js';
+import {withAdapter,deserializeHead} from '../shared/ml/personal.js';
 import {LiveArc,arcCurve,arcToPose,traceToPose,recordingKinematics} from '../shared/ml/kinematics.js';
 import {resample,findAnchor,windowAt,prepareInput} from '../shared/ml/signal.js';
 import {CLASS_NAMES,CLASSES,SWING_CLASSES,LEVELS,LEVEL_NAMES,levelText,DETECTORS,deviceLabel} from '../shared/ml/labels.js';
@@ -31,7 +32,7 @@ async function phoneHarness(){
  const handlers=new Map(),window={isSecureContext:true,addEventListener:(k,fn)=>handlers.set(k,fn),removeEventListener:k=>handlers.delete(k)};let clock=1000;
  const timers=new Map(),intervals=[];let timerId=0;const setTimeout=(fn,ms)=>{const id=++timerId;timers.set(id,{fn,due:clock+ms});return id;};
  class FakeDate extends Date{constructor(...args){super(...(args.length?args:[clock]));}static now(){return clock;}}
- const injected={CLUBS,Connection,chineseLog,chineseCsv,INPUT_DEFAULTS,inputSettings,MotionRecorder,TrialSegmenter,sampleId,ML_LABEL_TIPS,encodeRecording,deserializeModel,predictWindow,motionCalibration,LiveArc,arcCurve,arcToPose,traceToPose,recordingKinematics,resample,findAnchor,windowAt,prepareInput,CLASS_NAMES,CLASSES,SWING_CLASSES,LEVELS,LEVEL_NAMES,levelText,deviceLabel,StreamDetector,streamPower,streamDecision,heuristicDecision,STREAM,motionSVG,gripSVG,GRIP_TIPS,GRIPS,MOTION_TIPS,document,window,navigator:{vibrate(){}},DeviceMotionEvent:{},localStorage,sessionStorage:localStorage,performance:{now:()=>clock},Date:FakeDate,setTimeout,clearTimeout:id=>timers.delete(id),setInterval:fn=>intervals.push(fn)};
+ const injected={CLUBS,Connection,chineseLog,chineseCsv,INPUT_DEFAULTS,inputSettings,MotionRecorder,TrialSegmenter,sampleId,ML_LABEL_TIPS,encodeRecording,deserializeModel,predictWindow,motionCalibration,withAdapter,deserializeHead,LiveArc,arcCurve,arcToPose,traceToPose,recordingKinematics,resample,findAnchor,windowAt,prepareInput,CLASS_NAMES,CLASSES,SWING_CLASSES,LEVELS,LEVEL_NAMES,levelText,deviceLabel,StreamDetector,streamPower,streamDecision,heuristicDecision,STREAM,motionSVG,gripSVG,GRIP_TIPS,GRIPS,MOTION_TIPS,document,window,navigator:{vibrate(){}},DeviceMotionEvent:{},localStorage,sessionStorage:localStorage,performance:{now:()=>clock},Date:FakeDate,setTimeout,clearTimeout:id=>timers.delete(id),setInterval:fn=>intervals.push(fn)};
  const source=(await readFile(new URL('../phone-web/app.js',import.meta.url),'utf8')).replace(/^(?:import|export) .*;\r?\n/gm,'');new Function(...Object.keys(injected),source)(...Object.values(injected));
  const sample=(beta,step=40)=>{clock+=step;for(const [id,t] of timers)if(t.due<=clock){timers.delete(id);t.fn();}handlers.get('devicemotion')?.({rotationRate:{alpha:0,beta,gamma:0},accelerationIncludingGravity:{y:0,z:9.8}});};
  const motion=(g,a,step)=>{clock+=step;for(const [id,t] of timers)if(t.due<=clock){timers.delete(id);t.fn();}handlers.get('devicemotion')?.({rotationRate:{alpha:g[0],beta:g[1],gamma:g[2]},accelerationIncludingGravity:{x:a[0],y:a[1],z:a[2]}});};
@@ -44,7 +45,7 @@ test('启用体感后直接就绪（无需校准）：免校准规则按挥杆�
  const h=await phoneHarness();assert.equal(h.conn.sent[0].type,'input_settings');
  h.conn.receive({type:'practice_subscription',active:true,stream:true,busyUntil:0});assert.equal(h.buttons[0].disabled,true);
  await h.elements.get('enable').onclick();const ready=h.conn.sent.find(m=>m.type==='calibrated');assert.ok(ready,'启用体感即就绪');assert.equal(ready.mode,'auto');assert.equal(ready.axis,'auto');
- for(let i=0;i<10;i++)h.sample(0,16);assert.ok(h.conn.sent.some(m=>m.type==='sensor_sample'&&m.sample.axis==='auto'));assert.ok(h.elements.get('title').innerHTML.includes('先试挥'));assert.match(h.elements.get('detector-status').textContent,/免校准规则/);
+ for(let i=0;i<10;i++)h.sample(0,16);assert.ok(h.conn.sent.some(m=>m.type==='sensor_sample'&&m.sample.axis==='auto'));assert.ok(h.elements.get('instruction').innerHTML.includes('试挥'));assert.match(h.elements.get('detector-status').textContent,/免校准规则/);
  h.elements.get('phone-practice-arm').onclick();assert.equal(h.conn.sent.at(-1).type,'practice_arm');assert.equal(h.conn.sent.at(-1).armed,true);
  h.conn.receive({type:'practice_subscription',active:true,stream:true,armed:true,busyMs:0});assert.match(h.elements.get('phone-practice-mode').textContent,/已准备/);
  const settings={...INPUT_DEFAULTS,powerGain:1.3,directionGain:.7};h.conn.receive({type:'input_settings_request',settings,requestId:'test-tune'});
@@ -62,7 +63,7 @@ test('启用体感后直接就绪（无需校准）：免校准规则按挥杆�
 test('手机正式球局显示准备按钮，未准备及已准备均持续发送陀螺仪；切到后台取消准备',async()=>{
  const h=await phoneHarness();await h.elements.get('enable').onclick();for(let i=0;i<32;i++)h.sample(0);
  h.conn.receive({type:'round_subscription',active:true,stream:true,armed:false});h.conn.receive({type:'room_state',state:{stateVersion:1,phase:'playing',armed:false}});h.conn.receive({type:'input_lock',locked:false});
- assert.equal(h.elements.get('phone-practice-arm').classList.contains('hidden'),false);assert.match(h.elements.get('title').innerHTML,/先试挥/);
+ assert.equal(h.elements.get('phone-practice-arm').classList.contains('hidden'),false);assert.match(h.elements.get('instruction').innerHTML,/试挥/);assert.equal(h.elements.get('arm-main').textContent,'准备击球');
  const before=h.conn.sent.filter(m=>m.type==='sensor_sample').length;h.sample(20,100);assert.ok(h.conn.sent.filter(m=>m.type==='sensor_sample').length>before);
  h.elements.get('phone-practice-arm').onclick();assert.deepEqual(h.conn.sent.at(-1),{type:'round_arm',armed:true});
  h.conn.receive({type:'room_state',state:{stateVersion:2,phase:'playing',armed:true}});const armedCount=h.conn.sent.filter(m=>m.type==='sensor_sample').length;h.sample(30,100);assert.ok(h.conn.sent.filter(m=>m.type==='sensor_sample').length>armedCount);assert.match(h.elements.get('phone-practice-mode').textContent,/视角持续生效/);
@@ -112,7 +113,7 @@ test('手机仅为当前球手选杆，使用最新版本并反映换杆后取�
  const h=await phoneHarness();await h.elements.get('enable').onclick();for(let i=0;i<32;i++)h.sample(0);
  h.conn.receive({type:'round_subscription',active:true,stream:true,canControl:true,armed:true});h.conn.receive({type:'room_state',state:{stateVersion:7,phase:'playing',armed:true,clubId:'auto',selectedClub:{name:'7 号铁杆',range:165}}});h.conn.receive({type:'input_lock',locked:false});
  const select=h.elements.get('phone-club');select.value='sand';select.onchange();assert.deepEqual(h.conn.sent.at(-1),{type:'round_club',clubId:'sand',stateVersion:7});
- h.conn.receive({type:'room_state',state:{stateVersion:8,phase:'playing',armed:false,clubId:'sand',selectedClub:{name:'沙坑杆',range:55}}});assert.equal(select.value,'sand');assert.match(h.elements.get('phone-club-tip').textContent,/沙坑杆/);assert.equal(h.elements.get('phone-practice-arm').textContent,'准备击球 →');
+ h.conn.receive({type:'room_state',state:{stateVersion:8,phase:'playing',armed:false,clubId:'sand',selectedClub:{name:'沙坑杆',range:55}}});assert.equal(select.value,'sand');assert.equal(h.elements.get('arm-main').textContent,'准备击球');assert.match(h.elements.get('arm-sub').textContent,/试挥/);
  h.conn.receive({type:'round_subscription',active:true,stream:false,canControl:false});assert.equal(select.disabled,true);const before=h.conn.sent.length;select.onchange();assert.equal(h.conn.sent.length,before);
  h.conn.receive({type:'round_subscription',active:true,canControl:true});h.conn.receive({type:'room_state',state:{stateVersion:9,phase:'animating'}});assert.equal(select.disabled,true);select.onchange();assert.equal(h.conn.sent.length,before);
 });

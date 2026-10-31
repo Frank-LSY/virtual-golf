@@ -146,7 +146,7 @@ test('标签简化：旧的全挥杆 / 切杆 / 轻中重迁移为挥杆 + 力�
  assert.equal(s.label,'swing');assert.equal(s.power,.4);assert.deepEqual(s.legacy,{label:'partial',tier:'mid'});assert.equal(s.tier,undefined);assert.equal(s.weak,'swing');assert.equal(s.prediction.label,'swing');assert.equal(s.prediction.probs.swing,.8);assert.equal(migrateSample(s),false,'只迁移一次');
  const o={id:'b',label:'other',tier:null};assert.equal(migrateSample(o),false);
  assert.equal(levelText('swing',4),'80% · 手上杆到肩高');assert.match(levelText('putt',1),/一拳/);
- assert.deepEqual(ADAPT_PLAN.filter(s=>s.label==='swing').map(s=>s.level),[1,2,3,4,5]);assert.equal(ADAPT_PLAN.length,12);
+ assert.deepEqual(ADAPT_PLAN.map(s=>s.level),[5,3,5,2,4],'快速个性化：5 次挥杆');assert.ok(ADAPT_PLAN.every(s=>s.label==='swing'));
  assert.equal(MOTION_PLAN.length,8);assert.equal(POSES.finish.label,'swing');assert.equal(POSES.top.label,'other');
 });
 test('力度可比较：同组相差 ≥ 0.1；旧数据与新档位跨组需相差 ≥ 0.4；不同人或不同类别不比较',()=>{
