@@ -1,7 +1,9 @@
 import {CourseLandscape} from './course-landscape.js';
 import {courseTour} from '../shared/course-tour.js';
 import {courseToLocal} from '../shared/course-layout.js';
-import {CourseAtmosphere,treeMaterial,refreshTexture} from './environment-textures.js';
+import {CourseAtmosphere,treeMaterial,refreshTexture,decorMaterial} from './environment-textures.js';
+import {courseStyle} from '../shared/course-styles.js';
+import {courseDecor,frondGeometry} from './course-decor.js';
 import {configureToonRenderer,hookToonRenderer,cartoonColor} from './toon-look.js';
 import {GreenGuide} from './green-guide.js';
 import {CUP_LABELS} from '../shared/putting.js';
@@ -10,7 +12,7 @@ import {BALL_RADIUS,PIN_HEIGHT} from '../shared/ball.js';
 import {bindViewGestures} from './view-controls.js';
 import {golfBall,holeCup,terrainMaterial} from './visuals.js';
 import * as THREE from 'three';
-import {TREE_MESHES,treeParts,ROCK_SIZE} from '../shared/trees.js';
+import {TREE_MESHES,treeParts,ROCK_SIZE,treeSpecies,SPECIES_SIZE} from '../shared/trees.js';
 import {WATER_LEVEL} from '../shared/water.js';
 import {ImpactEffects,pondMaterial} from './impact-effects.js';
 import {TerrainDetails} from './terrain-details.js';
@@ -21,7 +23,7 @@ export class GolfScene {
  constructor(container){
   this.container=container;this.scene=new THREE.Scene();this.camera=new THREE.PerspectiveCamera(39,1,.5,2200);this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
   this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.8));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.12;configureToonRenderer(this.renderer);hookToonRenderer(this.renderer,this.scene);container.append(this.renderer.domElement);
-  this.scene.add(new THREE.HemisphereLight('#fffbe5','#6f8fb0',1.65));
+  this.hemi=new THREE.HemisphereLight('#fffbe5','#6f8fb0',1.65);this.scene.add(this.hemi);
   this.sun=new THREE.DirectionalLight('#fff0d7',2.4);this.sun.position.set(-110,180,-40);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);Object.assign(this.sun.shadow.camera,{left:-180,right:180,top:240,bottom:-240,near:1,far:650});this.sun.shadow.bias=-.0008;this.sun.shadow.normalBias=.6;this.scene.add(this.sun);this.scene.add(this.sun.target);this.atmosphere=new CourseAtmosphere(this.scene);
   this.viewState=new ViewState();const fill=new THREE.DirectionalLight('#dceaff',.42);fill.position.set(80,60,100);this.scene.add(fill);this.currentLook=new THREE.Vector3();this.targetLook=new THREE.Vector3();this.targetPosition=new THREE.Vector3();this.group=new THREE.Group();this.scene.add(this.group);this.preview=true;this.orbit=0;this.startTime=performance.now();this.flight=null;this.view='follow';this.slopeVisible=false;
   new ResizeObserver(()=>this.resize()).observe(container);
@@ -36,9 +38,11 @@ export class GolfScene {
  mount(container,preview){this.container=container;container.append(this.renderer.domElement,this.viewToolbar);this.preview=preview;this.view=preview?'overview':'follow';this.orbit=0;this.resize();new ResizeObserver(()=>this.resize()).observe(container);}
  clear(){this.group.traverse(obj=>{if(!obj.geometry?.userData.sharedBallGeometry)obj.geometry?.dispose();const materials=Array.isArray(obj.material)?obj.material:[obj.material];for(const m of materials)m?.dispose();});this.scene.remove(this.group);this.group=new THREE.Group();this.scene.add(this.group);}
  load(hole){
-  this.viewState.reset();this.hole=hole;this.ballPosition={x:0,z:0};this.flight=null;this.clear();const c=COURSES.find(c=>c.id===hole.courseId);this.palette=c;this.scene.background=new THREE.Color('#9fd6ff');this.scene.fog=new THREE.Fog(cartoonColor(c.sky,{saturation:1.6,lightness:1}),520,1250);this.atmosphere.load(hole);
+  this.viewState.reset();this.hole=hole;this.ballPosition={x:0,z:0};this.flight=null;this.clear();const c=COURSES.find(c=>c.id===hole.courseId)||COURSES[1],style=courseStyle(hole.practice?'sunny':c.id);this.palette=c;this.style=style;this.scene.background=new THREE.Color(style.sky[1]);this.scene.fog=new THREE.Fog(cartoonColor(style.fog[0],{saturation:1.25,lightness:1}),style.fog[1],style.fog[2]);this.atmosphere.load(hole);
+  // 0.27 每座球场自己的光：沙漠烈日偏暖、松林清冷、雨林柔和多散射。
+  this.sun.color.set(style.sun[0]);this.sun.intensity=style.sun[1];this.hemi.color.set(style.hemi[0]);this.hemi.groundColor.set(style.hemi[1]);this.hemi.intensity=style.hemi[2];
   const nx=146,nz=Math.ceil((hole.length+130)/1.65),width=220,depth=hole.length+130,geo=new THREE.PlaneGeometry(width,depth,nx,nz);geo.rotateX(-Math.PI/2);geo.translate(0,0,hole.length/2);
-  const pos=geo.attributes.position,colors=[],kinds=[];const toonGround=hex=>cartoonColor(hex,{saturation:1.04,lightness:.93}),base=toonGround(c.grass),fair=toonGround(c.fairway),green=toonGround(c.green),sand=new THREE.Color('#e7d7a9'),edge=new THREE.Color('#d6c8a0');
+  const pos=geo.attributes.position,colors=[],kinds=[];const toonGround=hex=>cartoonColor(hex,{saturation:1.04,lightness:.93}),base=toonGround(c.grass),fair=toonGround(c.fairway),green=toonGround(c.green),sand=new THREE.Color(style.sand),edge=new THREE.Color('#d6c8a0');
   for(let i=0;i<pos.count;i++){
    const x=pos.getX(i),z=pos.getZ(i),y=heightAt(hole,x,z),s=surfaceAt(hole,x,z);pos.setY(i,y);
    kinds.push(s==='sand'?2:s==='rough'?1:s==='green'?3:0);const col=(s==='fairway'||s==='tee'?fair:s==='green'?green:s==='sand'?sand:base).clone();
@@ -47,7 +51,8 @@ export class GolfScene {
   }
   geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geo.setAttribute('terrainKind',new THREE.Float32BufferAttribute(kinds,1));geo.computeVertexNormals();const terrain=new THREE.Mesh(geo,terrainMaterial(hole));terrain.receiveShadow=true;terrain.userData.noOutline=true;this.group.add(terrain);
   const ocean=new THREE.Mesh(new THREE.PlaneGeometry(2200,2200),pondMaterial(c.water));ocean.rotation.x=-Math.PI/2;ocean.position.set(0,-3.5,hole.length/2);this.group.add(ocean);this.ocean=ocean; ocean.visible=!!hole.practice;
-  if(!hole.practice){const landscape=new CourseLandscape(courseTour(hole.courseId,hole.seed-hole.index*7919),{activeIndex:hole.index}),origin=courseToLocal(hole.placement,{x:0,z:0});landscape.rotation.y=-hole.placement.heading;landscape.position.set(origin.x,0,origin.z);this.group.add(landscape);}
+  this.landscape=null;this.decor=null;
+  if(!hole.practice){const landscape=this.landscape=new CourseLandscape(courseTour(hole.courseId,hole.seed-hole.index*7919),{activeIndex:hole.index}),origin=courseToLocal(hole.placement,{x:0,z:0});landscape.rotation.y=-hole.placement.heading;landscape.position.set(origin.x,0,origin.z);this.group.add(landscape);}
   this.ponds=[];for(const p of hole.hazards.filter(p=>p.type==='water')){
    const pond=new THREE.Mesh(new THREE.CircleGeometry(1,96),pondMaterial(c.water));pond.rotation.x=-Math.PI/2;pond.rotation.z=-p.angle;pond.scale.set(p.rx,p.rz,1);pond.position.set(p.x,WATER_LEVEL,p.z);this.group.add(pond);this.ponds.push(pond);
   }
@@ -70,7 +75,7 @@ export class GolfScene {
   this.pole=new THREE.Mesh(new THREE.CylinderGeometry(.025,.03,PIN_HEIGHT,16),new THREE.MeshStandardMaterial({color:'#f3eee0',roughness:.35,metalness:.3}));this.pole.position.y=PIN_HEIGHT/2;this.pole.castShadow=true;this.pinRig.add(this.pole);
   const geometry=new THREE.PlaneGeometry(1.25,.72,16,6);geometry.translate(.625,0,0);this.flagRest=Float32Array.from(geometry.attributes.position.array);
   this.flagPivot=new THREE.Group();this.flagPivot.position.y=2.67;this.pinRig.add(this.flagPivot);
-  this.flag=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:'#d79555',side:THREE.DoubleSide,roughness:.85}));this.flag.position.x=.025;this.flag.castShadow=true;this.flagPivot.add(this.flag);
+  this.flag=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:this.style?.flag||'#d79555',side:THREE.DoubleSide,roughness:.85}));this.flag.position.x=.025;this.flag.castShadow=true;this.flagPivot.add(this.flag);
   this.flagYaw=null;this.pinShake=null;this.updateFlag(0);
  }
  static flagPose(wind,time){
@@ -93,9 +98,29 @@ export class GolfScene {
   const geometry=shape=>{const data=TREE_MESHES[shape],g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(data.positions,3));g.setIndex(data.indices);g.computeVertexNormals();return g;};
   const dummy=new THREE.Object3D(),batches=new Map(),fade=!h.practice;this.treeEntries=new Map();this.treeMaterials=[];this.treeFade=fade?{values:new Float32Array(h.trees.length).fill(1),targets:new Float32Array(h.trees.length).fill(1),slots:h.trees.map(()=>[]),meshes:[]}:null;
   h.trees.forEach((tree,i)=>treeParts(h,tree,i).forEach(p=>{if(!batches.has(p.shape))batches.set(p.shape,[]);batches.get(p.shape).push(p);}));
-  for(const [shape,parts] of batches){const trunk=shape==='trunk',material=treeMaterial(trunk?'#8c8060':'#ffffff',trunk?'bark':h.courseId==='pine'?'pine':'leaves',fade),mesh=new THREE.InstancedMesh(geometry(shape),material,parts.length);if(fade){mesh.geometry.setAttribute('instanceFade',new THREE.InstancedBufferAttribute(new Float32Array(parts.length).fill(1),1));this.treeFade.meshes.push(mesh);}mesh.castShadow=true;mesh.receiveShadow=true;this.treeMaterials.push(material);
-   parts.forEach((p,slot)=>{if(fade)this.treeFade.slots[p.treeIndex].push([mesh,slot]);dummy.position.set(p.x,p.y,p.z);dummy.scale.set(p.sx,p.sy,p.sz);dummy.rotation.set(0,p.rotation,0);dummy.updateMatrix();mesh.setMatrixAt(slot,dummy.matrix);if(!trunk){mesh.setColorAt(slot,new THREE.Color(c.trees).multiplyScalar(.92+(p.treeIndex%5)*.045+(p.partIndex%3)*.055));if(!this.treeEntries.has(p.treeIndex))this.treeEntries.set(p.treeIndex,[]);this.treeEntries.get(p.treeIndex).push({mesh,slot,matrix:dummy.matrix.clone()});}});this.group.add(mesh);
+  const style=courseStyle(h.practice?'sunny':h.courseId),species=h.practice?'round':treeSpecies(h.courseId),leafColor=(tree,part)=>{const list=style.leaves,accent=species==='round'&&list.length>4&&tree%9===4;return new THREE.Color(accent?list[4+tree%(list.length-4)]:list[tree%Math.min(4,list.length)]).multiplyScalar(.94+(part%3)*.045);};
+  // 0.27 棕榈树冠的碰撞体是一圈扁平叶冠，画面上只显示中心的一小团，叶片（点缀）铺满外缘。
+  const shown=p=>p.shape==='palmCrown'?{sx:p.sx*.34,sy:p.sy*.8,sz:p.sz*.34}:p;
+  for(const [shape,parts] of batches){const trunk=shape==='trunk',material=treeMaterial(trunk?style.trunk:'#ffffff',trunk?'bark':species==='pine'?'pine':'leaves',fade),mesh=new THREE.InstancedMesh(geometry(shape),material,parts.length);if(fade){mesh.geometry.setAttribute('instanceFade',new THREE.InstancedBufferAttribute(new Float32Array(parts.length).fill(1),1));this.treeFade.meshes.push(mesh);}mesh.castShadow=true;mesh.receiveShadow=true;this.treeMaterials.push(material);
+   parts.forEach((p,slot)=>{if(fade)this.treeFade.slots[p.treeIndex].push([mesh,slot]);const v=shown(p);dummy.position.set(p.x,p.y,p.z);dummy.scale.set(v.sx,v.sy,v.sz);dummy.rotation.set(0,p.rotation,0);dummy.updateMatrix();mesh.setMatrixAt(slot,dummy.matrix);if(!trunk){mesh.setColorAt(slot,leafColor(p.treeIndex,p.partIndex));if(!this.treeEntries.has(p.treeIndex))this.treeEntries.set(p.treeIndex,[]);this.treeEntries.get(p.treeIndex).push({mesh,slot,matrix:dummy.matrix.clone()});}});this.group.add(mesh);
   }
+  this.treeDecor(h,style,species,fade);
+ }
+ // 0.27 树上的点缀：苹果、棕榈叶与椰子、雨林藤蔓。与所在的树一起淡化、一起摇晃。
+ treeDecor(h,style,species,fade){
+  if(!['apple','palm','canopy'].includes(species)||!h.trees.length)return;const rng=random(h.seed+3301),items=new Map(),add=(kind,tree,matrix,color)=>{if(!items.has(kind))items.set(kind,[]);items.get(kind).push({tree,matrix,color});},m=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),v=new THREE.Vector3(),sc=new THREE.Vector3();
+  h.trees.forEach((tree,i)=>{const parts=treeParts(h,tree,i);
+   if(species==='apple'){for(const p of parts.filter(p=>p.kind==='crown')){const n=p.partIndex===1?7:3;for(let k=0;k<n;k++){const a=rng()*Math.PI*2,y=-.15+rng()*.85,r=Math.sqrt(1-y*y);v.set(p.x+Math.sin(a)*r*p.sx*.93,p.y+y*p.sy*.9,p.z+Math.cos(a)*r*p.sz*.93);m.compose(v,q.identity(),sc.setScalar(tree.scale*(.85+rng()*.3)));add('apple',i,m.clone(),rng()<.18?'#f2a531':style.accent);}}
+    for(let k=0;k<2;k++){const a=rng()*Math.PI*2,r=(1+rng()*2)*tree.scale,x=tree.x+Math.sin(a)*r,z=tree.z+Math.cos(a)*r;if(surfaceAt(h,x,z)!=='rough')continue;m.compose(v.set(x,heightAt(h,x,z)+.16,z),q.identity(),sc.setScalar(tree.scale*.9));add('apple',i,m.clone(),style.accent);}}
+   if(species==='palm'){const p=parts.find(p=>p.shape==='palmCrown'),count=9;for(let k=0;k<count;k++){const yaw=p.rotation+k/count*Math.PI*2+(rng()-.5)*.25,len=p.sx*(1.02+rng()*.12);m.compose(v.set(p.x,p.y+p.sy*.18,p.z),q.setFromEuler(e.set(0,yaw,(rng()-.4)*.25)),sc.set(len,len*(.8+rng()*.25),len*.95));add('frond',i,m.clone(),style.leaves[k%style.leaves.length]);}
+    for(let k=0;k<3;k++){const a=k*2.1+rng();m.compose(v.set(p.x+Math.sin(a)*.42*tree.scale,p.y-p.sy*.25,p.z+Math.cos(a)*.42*tree.scale),q.identity(),sc.setScalar(tree.scale));add('coconut',i,m.clone(),'#6b4a2b');}}
+   if(species==='canopy'){const top=parts.find(p=>p.partIndex===1);for(let k=0;k<4;k++){const a=rng()*Math.PI*2,r=top.sx*(.55+rng()*.35),len=(2+rng()*3.2)*tree.scale;m.compose(v.set(top.x+Math.sin(a)*r,top.y-top.sy*.35,top.z+Math.cos(a)*r),q.identity(),sc.set(tree.scale,len,tree.scale));add('vine',i,m.clone(),k%2?'#2f7a3b':'#3f8f45');}}
+  });
+  const geometries={apple:()=>new THREE.IcosahedronGeometry(.21,0),coconut:()=>new THREE.SphereGeometry(.27,8,6),vine:()=>new THREE.CylinderGeometry(.05,.03,1,5).translate(0,-.5,0),frond:()=>frondGeometry()};
+  for(const [kind,list] of items){const material=decorMaterial('#ffffff',{doubleSide:kind==='frond',fade,roughness:kind==='apple'?.45:.9}),mesh=new THREE.InstancedMesh(geometries[kind](),material,list.length);mesh.castShadow=kind==='frond'||kind==='coconut';mesh.receiveShadow=true;mesh.userData.noOutline=true;
+   if(fade){mesh.geometry.setAttribute('instanceFade',new THREE.InstancedBufferAttribute(new Float32Array(list.length).fill(1),1));this.treeFade.meshes.push(mesh);}
+   list.forEach((it,slot)=>{mesh.setMatrixAt(slot,it.matrix);mesh.setColorAt(slot,new THREE.Color(it.color));if(fade)this.treeFade.slots[it.tree].push([mesh,slot]);if(!this.treeEntries.has(it.tree))this.treeEntries.set(it.tree,[]);this.treeEntries.get(it.tree).push({mesh,slot,matrix:it.matrix.clone()});});
+   this.treeMaterials.push(material);this.group.add(mesh);}
  }
  updateObstructions(dt){
   if(this.preview||!this.ball||!this.cameraObstacles?.length)return;this.scene.updateMatrixWorld(true);this.obstructionRay??=new THREE.Raycaster();const target=this.ball.getWorldPosition(new THREE.Vector3()),direction=target.clone().sub(this.camera.position),length=direction.length();this.obstructionRay.set(this.camera.position,direction.normalize());this.obstructionRay.far=Math.max(0,length-.15);const blocked=new Set(this.obstructionRay.intersectObjects(this.cameraObstacles,false).map(hit=>hit.object));
@@ -107,7 +132,8 @@ export class GolfScene {
  updateTreeFade(dt,target){
   const f=this.treeFade;if(!f||this.preview||!this.hole)return;const trees=this.hole.trees,cx=-this.camera.position.x,cz=this.camera.position.z,cy=this.camera.position.y,tx=target.x,tz=target.z,dx=tx-cx,dz=tz-cz,len2=dx*dx+dz*dz||1;
   const lx=-this.currentLook.x-cx,lz=this.currentLook.z-cz,ll=Math.hypot(lx,lz)||1,fx=lx/ll,fz=lz/ll,half=Math.atan(Math.tan(this.camera.fov*Math.PI/360)*this.camera.aspect),spread=Math.tan(half)+.15;
-  for(let i=0;i<trees.length;i++){const t=trees[i],r=3.1*t.scale+.8,u=((t.x-cx)*dx+(t.z-cz)*dz)/len2,px=cx+dx*Math.max(0,Math.min(1,u)),pz=cz+dz*Math.max(0,Math.min(1,u)),d=Math.hypot(t.x-px,t.z-pz),near=Math.hypot(t.x-cx,t.z-cz)<r+2.5,top=heightAt(this.hole,t.x,t.z)+9.5*t.scale,between=u>-.05&&u<.97&&d<r&&cy<top+4;
+  const size=SPECIES_SIZE[this.hole.practice?'round':treeSpecies(this.hole.courseId)]||SPECIES_SIZE.round;
+  for(let i=0;i<trees.length;i++){const t=trees[i],r=size.radius*t.scale+.8,u=((t.x-cx)*dx+(t.z-cz)*dz)/len2,px=cx+dx*Math.max(0,Math.min(1,u)),pz=cz+dz*Math.max(0,Math.min(1,u)),d=Math.hypot(t.x-px,t.z-pz),near=Math.hypot(t.x-cx,t.z-cz)<r+2.5,top=heightAt(this.hole,t.x,t.z)+size.top*t.scale,between=u>-.05&&u<.97&&d<r&&cy<top+4;
    const along=(t.x-cx)*fx+(t.z-cz)*fz,side=Math.abs((t.x-cx)*fz-(t.z-cz)*fx),close=along>-r&&along<20+r&&side<r+Math.max(0,along)*spread&&cy<top+6;
    f.targets[i]=near||between?.18:close?(u>=.97?.45:.18):1;}
   const k=1-Math.exp(-dt*7);const dirty=new Set();for(let i=0;i<trees.length;i++){const v=f.values[i],next=Math.abs(f.targets[i]-v)<.01?f.targets[i]:v+(f.targets[i]-v)*k;if(next!==v){f.values[i]=next;for(const [mesh,slot] of f.slots[i]){mesh.geometry.attributes.instanceFade.array[slot]=next;dirty.add(mesh);}}}
@@ -118,6 +144,7 @@ export class GolfScene {
  }
  updateEnvironment(now){
   const seconds=(now-this.startTime)/1000;this.atmosphere?.update(this.camera,seconds,this.preview||this.view==='overview'||this.slopeVisible);
+  this.landscape?.animate?.(seconds);this.decor?.userData.animate?.(seconds);
   for(const material of [this.terrainDetails?.groundMaterial,this.terrainDetails?.patch.material,...(this.treeMaterials||[])])refreshTexture(material);
   if(this.ocean){this.ocean.material.userData.clock.value=seconds;refreshTexture(this.ocean.material);}
   this.slopeGrid?.update((now-this.startTime)/1000);
@@ -128,11 +155,12 @@ export class GolfScene {
  }
  details(h,c){
   // 岩石由共享模块生成（与服务器物理同一份数据、同一形状），画面与碰撞完全一致。
-  const rockMat=new THREE.MeshStandardMaterial({color:h.courseId==='coast'?'#c1bca9':'#a1aa8e',roughness:1,flatShading:true}),rockGeo=new THREE.DodecahedronGeometry(ROCK_SIZE,0);
+  const rockMat=new THREE.MeshStandardMaterial({color:courseStyle(h.courseId).rock,roughness:1,flatShading:true}),rockGeo=new THREE.DodecahedronGeometry(ROCK_SIZE,0);
   for(const r of h.rocks||[]){const rock=new THREE.Mesh(rockGeo,rockMat.clone());rock.material.transparent=true;this.cameraObstacles.push(rock);rock.position.set(r.x,r.y,r.z);rock.scale.set(r.sx,r.sy,r.sz);rock.rotation.set(r.rx,r.ry,r.rz);rock.castShadow=true;rock.receiveShadow=true;this.group.add(rock);}
-  const teeMat=new THREE.MeshStandardMaterial({color:'#f6ecd3'});for(const x of [-4,4]){const marker=new THREE.Mesh(new THREE.SphereGeometry(.6,12,8),teeMat);marker.position.set(x,heightAt(h,x,0)+.4,0);this.group.add(marker);}
+  const teeMat=new THREE.MeshStandardMaterial({color:courseStyle(h.courseId).tee});
+  const decor=this.decor=courseDecor(h);if(decor)this.group.add(decor);for(const x of [-4,4]){const marker=new THREE.Mesh(new THREE.SphereGeometry(.6,12,8),teeMat);marker.position.set(x,heightAt(h,x,0)+.4,0);this.group.add(marker);}
  }
- setBall(p,aim=0){if(!this.hole||this.flight)return;this.ballPosition=p;this.ball.position.set(p.x,ballRestHeight(this.hole,p),p.z);this.terrainDetails?.setBall(p);this.ballRing.position.set(p.x,heightAt(this.hole,p.x,p.z)+.09,p.z);this.ballRing.visible=!this.preview;
+ setBall(p,aim=0){if(!this.hole||this.flight)return;this.ballPosition=p;this.decor?.userData.clearAround?.(p);this.ball.position.set(p.x,ballRestHeight(this.hole,p),p.z);this.terrainDetails?.setBall(p);this.ballRing.position.set(p.x,heightAt(this.hole,p.x,p.z)+.09,p.z);this.ballRing.visible=!this.preview;
   const a=Math.atan2(this.hole.pin.x-p.x,this.hole.pin.z-p.z)+aim*Math.PI/180,d=Math.min(distance(p,this.hole.pin),75),points=[];for(let i=0;i<=30;i++){const x=p.x+Math.sin(a)*d*i/30,z=p.z+Math.cos(a)*d*i/30;points.push(new THREE.Vector3(x,heightAt(this.hole,x,z)+.25,z));}this.aimLine.geometry.dispose();this.aimLine.geometry=new THREE.BufferGeometry().setFromPoints(points);this.aimLine.computeLineDistances();this.aimLine.visible=!this.preview;this.setCamera();
  }
  overviewLike(){return this.preview||this.view==='overview'||this.slopeVisible;}

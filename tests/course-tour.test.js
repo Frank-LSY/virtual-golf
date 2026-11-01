@@ -46,3 +46,11 @@ test('十六人乘八台球车，人物保持座位随车移动，结束恢复�
 test('全场远景有界细分与批量树木，退出接驳释放几何和材质',()=>{
  const group=new CourseLandscape(courseTour('rainforest',421));let triangles=0,calls=0,disposed=0;group.traverse(o=>{if(o.isMesh){calls++;triangles+=(o.geometry.index?.count||o.geometry.attributes.position.count)/3*(o.count||1);o.geometry.addEventListener('dispose',()=>disposed++);}});assert.ok(calls<30);assert.ok(triangles<180000);group.dispose();assert.ok(disposed>0);
 });
+
+test('0.27.1 换洞不播球车：advance 一步进入下一洞或会所，成绩与身份不变，不留接驳状态', ()=>{
+ const g=new Game();g.start('coast',3,[{id:'a',deviceId:'pa',name:'甲',style:'sage'},{id:'b',deviceId:'pb',name:'乙',style:'coast'}]);g.state.seed=421;
+ for(let hole=0;hole<3;hole++){for(const id of ['a','b']){const h=g.hole;g.selectPlayer(id);g.player.ball={x:h.pin.x,z:h.pin.z-1};g.state.ball={...g.player.ball};g.setArmed(true);g.stroke({power:.04,dir:0,seq:hole*2+(id==='a'?1:2),stateVersion:g.state.stateVersion},g.player.deviceId);g.settle();}
+  const scores=structuredClone(g.state.players.map(p=>p.scores));
+  if(hole<2){assert.equal(g.state.phase,'hole_complete');g.advance();assert.equal(g.state.phase,'playing');assert.equal(g.state.holeIndex,hole+1);assert.equal(g.state.transfer,undefined);assert.deepEqual(g.state.players.map(p=>p.scores),scores);assert.deepEqual(g.state.players.map(p=>p.deviceId),['pa','pb']);assert.equal(g.state.activePlayerId,'a');assert.throws(()=>g.advance(),/完成/);}
+  else{assert.equal(g.state.phase,'finished');g.advance('clubhouse');assert.equal(g.state.phase,'finished');assert.equal(g.state.returnedToClubhouse,true);assert.equal(g.state.transfer,undefined);assert.ok(g.state.clubhouseVisit.startedAt+g.state.clubhouseVisit.duration<=Date.now(),'会所画面直接是到站后的样子');assert.deepEqual(g.state.players.map(p=>p.scores),scores);}}
+});

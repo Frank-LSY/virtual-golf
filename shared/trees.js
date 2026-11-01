@@ -42,11 +42,23 @@ function crown(seed){
 // 岩石（0.22 起参与碰撞）：与画面中 Three.js 十二面体（半径 1.6）相同的 20 个顶点，凸包即真实外形。
 export const ROCK_SIZE=1.6;
 function dodecahedron(radius){const t=(1+Math.sqrt(5))/2,r=1/t,raw=[[-1,-1,-1],[-1,-1,1],[-1,1,-1],[-1,1,1],[1,-1,-1],[1,-1,1],[1,1,-1],[1,1,1],[0,-r,-t],[0,-r,t],[0,r,-t],[0,r,t],[-r,-t,0],[-r,t,0],[r,-t,0],[r,t,0],[-t,0,-r],[t,0,-r],[-t,0,r],[t,0,r]];return convex(raw.map(p=>{const l=Math.hypot(...p);return p.map(v=>v/l*radius);}));}
-export const TREE_MESHES={trunk:frustum(.62,.32,5,12),pine:frustum(3.5,0,8,14),crown:crown(17),crownB:crown(39),crownC:crown(71),rock:dodecahedron(ROCK_SIZE)};
+// 0.27 棕榈树冠：一圈 10 个点的扁平双锥（上缘略鼓、下缘稍尖），叶片挂在它的外缘。
+function palmCrown(){const v=[];for(let j=0;j<10;j++){const a=j/10*Math.PI*2;v.push([Math.sin(a),0,Math.cos(a)]);}v.push([0,.42,0],[0,-.5,0]);return convex(v);}
+export const TREE_MESHES={trunk:frustum(.62,.32,5,12),pine:frustum(3.5,0,8,14),crown:crown(17),crownB:crown(39),crownC:crown(71),palmCrown:palmCrown(),rock:dodecahedron(ROCK_SIZE)};
+// 0.27 每座球场一种树：公园阔叶（原样）、松林松树（原样）、苹果园苹果树、沙漠棕榈、海岸风剪树、雨林大树。
+// 画面与碰撞用同一组部件，树长什么样，球就撞到什么。
+export const TREE_SPECIES=Object.freeze({orchard:'apple',sunny:'round',pine:'pine',desert:'palm',coast:'windswept',rainforest:'canopy'});
+export const treeSpecies=courseId=>TREE_SPECIES[courseId]||'round';
+// 树的大致高度与树冠半径（倍数，乘以树的缩放），用于镜头淡化与远景。
+export const SPECIES_SIZE=Object.freeze({round:{top:9.5,radius:3.1},pine:{top:12,radius:3.1},apple:{top:6.6,radius:3.3},palm:{top:10.3,radius:3.6},windswept:{top:7.3,radius:3.7},canopy:{top:11.3,radius:4.2}});
+// 海岸的盛行风：全场坐标里吹向 +x；换算到每个球洞自己的坐标。
+const COAST_WIND={x:1,z:.25};
+function leewardLocal(h){const hd=h.placement?.heading;if(!Number.isFinite(hd))return {x:1,z:0};const c=Math.cos(hd),s=Math.sin(hd),x=COAST_WIND.x*c-COAST_WIND.z*s,z=COAST_WIND.x*s+COAST_WIND.z*c,l=Math.hypot(x,z)||1;return {x:x/l,z:z/l};}
 // Three.js 欧拉角 XYZ 顺序的旋转矩阵（R = Rx·Ry·Rz，行主序）。
 export function eulerXYZ(x,y,z){const a=Math.cos(x),b=Math.sin(x),c=Math.cos(y),d=Math.sin(y),e=Math.cos(z),f=Math.sin(z);return [c*e,-c*f,d,a*f+b*e*d,a*e-b*f*d,-b*c,b*f-a*e*d,b*e+a*f*d,a*c];}
 export function rockVertices(rock){const m=TREE_MESHES.rock.positions,R=eulerXYZ(rock.rx,rock.ry,rock.rz),out=[];for(let i=0;i<m.length;i+=3){const x=m[i]*rock.sx,y=m[i+1]*rock.sy,z=m[i+2]*rock.sz;out.push({x:rock.x+R[0]*x+R[1]*y+R[2]*z,y:rock.y+R[3]*x+R[4]*y+R[5]*z,z:rock.z+R[6]*x+R[7]*y+R[8]*z});}return out;}
 export function treeParts(h,tree,index=0){
+ const species=treeSpecies(h.courseId);if(!['round','pine'].includes(species))return speciesParts(h,tree,index,species);
  const y=heightAt(h,tree.x,tree.z),s=tree.scale,pine=h.courseId==='pine',rotation=tree.rotation||0,rng=random(h.seed+index*1877+Math.round(tree.x*51+tree.z*73)),count=pine?5:7;
  const parts=[{shape:'trunk',kind:'trunk',x:tree.x,y:y+2.5*s,z:tree.z,sx:s,sy:s,sz:s}];
  const spread=.9+rng()*.3,height=.88+rng()*.24;
@@ -54,6 +66,31 @@ export function treeParts(h,tree,index=0){
   const a=rotation+j*2.39996+(rng()-.5)*.35,ring=j===0?0:(1.35+rng()*.85)*spread*s,level=j===0?6.5:j<5?5.9+rng()*.75:8+rng()*.7;
   const radius=(j===0?2.8:1.75+rng()*.7)*s,cone=s*(1-j*.14)*(1+rng()*.1);
   parts.push({shape:pine?'pine':['crown','crownB','crownC'][j%3],kind:'crown',x:tree.x+(pine?Math.sin(a)*.25*s:Math.sin(a)*ring),y:y+(pine?5+j*1.55:level*height)*s,z:tree.z+(pine?Math.cos(a)*.25*s:Math.cos(a)*ring),sx:pine?cone:radius*spread*(.85+rng()*.25),sy:pine?cone*(.92+rng()*.15):radius*(.7+rng()*.35)*height,sz:pine?cone:radius*(.8+rng()*.3),rotation:a});
+ }
+ return parts.map((p,partIndex)=>({rotation,...p,treeIndex:index,partIndex}));
+}
+function speciesParts(h,tree,index,species){
+ const y=heightAt(h,tree.x,tree.z),s=tree.scale,rotation=tree.rotation||0,rng=random(h.seed+index*1877+Math.round(tree.x*51+tree.z*73)),parts=[];
+ const crown=(j,shape,x,yy,z,sx,sy,sz,a=rotation)=>parts.push({shape,kind:'crown',x,y:yy,z,sx,sy,sz,rotation:a});
+ if(species==='apple'){
+  // 苹果树：矮树干、圆而饱满的树冠，四个侧叶团压低，像修剪过的果树。
+  parts.push({shape:'trunk',kind:'trunk',x:tree.x,y:y+1.55*s,z:tree.z,sx:s*1.1,sy:s*.62,sz:s*1.1});
+  const spread=.95+rng()*.15;crown(0,'crown',tree.x,y+4.4*s,tree.z,2.6*s*spread,2.05*s,2.5*s*spread);
+  for(let j=1;j<=4;j++){const a=rotation+j*Math.PI/2+(rng()-.5)*.4,r=(1.5+rng()*.35)*s,rad=(1.45+rng()*.35)*s;crown(j,['crownB','crownC','crown'][j%3],tree.x+Math.sin(a)*r,y+(3.9+rng()*.7)*s,tree.z+Math.cos(a)*r,rad,rad*.82,rad*.95,a);}
+ }else if(species==='palm'){
+  // 棕榈：细高树干，顶上一圈扁平叶冠。
+  parts.push({shape:'trunk',kind:'trunk',x:tree.x,y:y+4.6*s,z:tree.z,sx:s*.58,sy:s*1.84,sz:s*.58});
+  const r=(3.2+rng()*.5)*s;crown(0,'palmCrown',tree.x,y+9.5*s,tree.z,r,1.25*s,r);
+ }else if(species==='windswept'){
+  // 海风修剪过的树：树冠扁平，整体偏向下风一侧。
+  const w=leewardLocal(h);parts.push({shape:'trunk',kind:'trunk',x:tree.x,y:y+2.1*s,z:tree.z,sx:s*.95,sy:s*.84,sz:s*.95});
+  for(let j=0;j<4;j++){const along=(j-.6)*1.15*s,side=(rng()-.5)*1.4*s,rad=(j===0?1.5:2.0+rng()*.5)*s;crown(j,['crown','crownB','crownC'][j%3],tree.x+w.x*along-w.z*side,y+(4.5+j*.3+rng()*.4)*s,tree.z+w.z*along+w.x*side,rad*1.15,rad*.56,rad,rotation+j*1.7);}
+ }else{
+  // 雨林大树：高树干，顶上一把宽“伞”，下面三团侧冠，再低处一团。
+  parts.push({shape:'trunk',kind:'trunk',x:tree.x,y:y+3.8*s,z:tree.z,sx:s*.95,sy:s*1.52,sz:s*.95});
+  const top=(3.4+rng()*.5)*s;crown(0,'crown',tree.x,y+9.7*s,tree.z,top,1.45*s,top*.95);
+  for(let j=1;j<=3;j++){const a=rotation+j*2.094+(rng()-.5)*.5,r=(2.1+rng()*.5)*s,rad=(1.8+rng()*.4)*s;crown(j,['crownB','crownC','crown'][j%3],tree.x+Math.sin(a)*r,y+(8.3+rng()*.6)*s,tree.z+Math.cos(a)*r,rad,rad*.68,rad*.92,a);}
+  const a=rotation+(rng()-.5)*3;crown(4,'crownC',tree.x+Math.sin(a)*1.2*s,y+(6.4+rng()*.4)*s,tree.z+Math.cos(a)*1.2*s,1.55*s,1.1*s,1.45*s,a);
  }
  return parts.map((p,partIndex)=>({rotation,...p,treeIndex:index,partIndex}));
 }

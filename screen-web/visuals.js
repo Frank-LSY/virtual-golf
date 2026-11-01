@@ -2,6 +2,7 @@ import {addTerrainTextures} from './environment-textures.js';
 import * as THREE from 'three';
 import {BALL_RADIUS,CUP_RADIUS,CUP_DEPTH} from '../shared/ball.js';
 import {heightAt,slopeAt} from '../shared/courses.js';
+import {courseStyle} from '../shared/course-styles.js';
 let ballGeometry,ballTexture;
 export function golfBallTexture(){
  if(ballTexture)return ballTexture;const w=512,h=256,data=new Uint8Array(w*h*4);
@@ -16,26 +17,86 @@ export function golfBall(){
  geometry.computeVertexNormals();geometry.userData.sharedBallGeometry=true;ballGeometry=geometry;}
  const ball=new THREE.Mesh(ballGeometry,new THREE.MeshPhysicalMaterial({color:'#ffffff',map:golfBallTexture(),roughness:.27,metalness:0,clearcoat:.3,clearcoatRoughness:.28}));ball.castShadow=true;ball.receiveShadow=true;return ball;
 }
+// 0.27 地面纹样随球场风格变化：球道修剪纹（格纹 / 直条 / 斜条 / 宽带 / 自然斑驳 / 波纹）、
+// 长草（三叶草小花 / 雏菊 / 松针 / 沙砾灌丛 / 沙丘草 / 苔藓）、沙坑（耙痕 / 风纹 / 细浪纹）。
+const TERRAIN_NOISE=`float courseHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float courseNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(courseHash(i),courseHash(i+vec2(1.0,0.0)),f.x),mix(courseHash(i+vec2(0.0,1.0)),courseHash(i+vec2(1.0,1.0)),f.x),f.y);}
+`;
 export function terrainMaterial(hole){
- const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.95});material.userData.liePosition={value:new THREE.Vector2()};material.userData.lieRadius={value:0};
+ const style=courseStyle(hole.practice?'sunny':hole.courseId),material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.95});material.defines={COURSE_MOW:style.mow,COURSE_ROUGH:style.rough,COURSE_SAND:style.sandStyle};material.userData.courseSand={value:new THREE.Color(style.sand)};material.userData.liePosition={value:new THREE.Vector2()};material.userData.lieRadius={value:0};
  material.onBeforeCompile=shader=>{shader.uniforms.cupPosition={value:new THREE.Vector2(hole.pin.x,hole.pin.z)};shader.uniforms.cupRadius={value:hole.practice?0:CUP_RADIUS};shader.vertexShader='varying vec2 terrainXZ;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nterrainXZ = position.xz;');shader.fragmentShader='varying vec2 terrainXZ;\nuniform vec2 cupPosition;\nuniform float cupRadius;\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nif (distance(terrainXZ, cupPosition) < cupRadius) discard;\nfloat grain = fract(sin(dot(floor(terrainXZ * 65.0), vec2(12.9898, 78.233))) * 43758.5453);\ndiffuseColor.rgb *= 1.0+(grain-.5)*.055*(1.0-smoothstep(3.0,28.0,length(vViewPosition)));');};
- const original=material.onBeforeCompile;material.onBeforeCompile=shader=>{original(shader);shader.uniforms.liePosition=material.userData.liePosition;shader.uniforms.lieRadius=material.userData.lieRadius;shader.vertexShader='attribute float terrainKind; varying float groundKind;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('terrainXZ = position.xz;','terrainXZ = position.xz; groundKind = terrainKind;');shader.fragmentShader='uniform vec2 liePosition; uniform float lieRadius; varying float groundKind;\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('diffuseColor.rgb *= 1.0+(grain-.5)*.055*(1.0-smoothstep(3.0,28.0,length(vViewPosition)));',`if(distance(terrainXZ,liePosition)<lieRadius) discard;
+ const original=material.onBeforeCompile;material.onBeforeCompile=shader=>{original(shader);shader.uniforms.liePosition=material.userData.liePosition;shader.uniforms.lieRadius=material.userData.lieRadius;shader.vertexShader='attribute float terrainKind; varying float groundKind;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('terrainXZ = position.xz;','terrainXZ = position.xz; groundKind = terrainKind;');shader.uniforms.courseSand=material.userData.courseSand;shader.fragmentShader='uniform vec2 liePosition; uniform float lieRadius; uniform vec3 courseSand; varying float groundKind;\n'+TERRAIN_NOISE+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('diffuseColor.rgb *= 1.0+(grain-.5)*.055*(1.0-smoothstep(3.0,28.0,length(vViewPosition)));',`if(distance(terrainXZ,liePosition)<lieRadius) discard;
  diffuseColor.rgb *= 1.0+(grain-.5)*.055*(1.0-smoothstep(3.0,28.0,length(vViewPosition)));
  float sand = smoothstep(1.55, 1.95, groundKind) * (1.0 - smoothstep(2.05, 2.5, groundKind));
  float puttingGreen = smoothstep(2.65, 2.95, groundKind);
  float mowing = sin((terrainXZ.x * .75 + terrainXZ.y) * 1.25);
  diffuseColor.rgb *= 1.0 + puttingGreen * (mowing * .023 + (grain - .5) * .035);
- float rake = sin(terrainXZ.x * 25.0 + sin(terrainXZ.y * .55) * 2.0);
- diffuseColor.rgb *= 1.0 + sand * (rake * .035 + (grain - .5) * .13);
+ float n1 = courseNoise(terrainXZ * .055), n2 = courseNoise(terrainXZ * .21 + 7.3);
+ float nearDetail = 1.0 - smoothstep(18.0, 75.0, length(vViewPosition));
+ #if COURSE_SAND == 1
+  float ripple = sin(terrainXZ.x * 3.4 + courseNoise(terrainXZ * .3) * 5.0 + terrainXZ.y * .8);
+  diffuseColor.rgb *= 1.0 + sand * (ripple * .075 + (grain - .5) * .08);
+ #elif COURSE_SAND == 2
+  float ripple = sin(terrainXZ.y * 5.0 + sin(terrainXZ.x * .9) * 1.5);
+  diffuseColor.rgb *= 1.0 + sand * (ripple * .035 + (grain - .5) * .06);
+ #else
+  float rake = sin(terrainXZ.x * 25.0 + sin(terrainXZ.y * .55) * 2.0);
+  diffuseColor.rgb *= 1.0 + sand * (rake * .035 + (grain - .5) * .13);
+ #endif
  float rough = smoothstep(.65, .95, groundKind) * (1.0 - smoothstep(1.05, 1.4, groundKind));
  diffuseColor.rgb *= 1.0 - rough * .05 + rough * sin(terrainXZ.x * 15.0 + terrainXZ.y * 8.0) * .025;
- // 0.21.1 卡通草坪：球道上清楚的深浅修剪条纹（每条 13 米），果岭上细格纹。
+ vec2 cellUV = terrainXZ * 1.7, cellId = floor(cellUV), cellF = fract(cellUV) - .5;
+ float cellHash = fract(sin(dot(cellId, vec2(41.3, 289.1))) * 43758.5453);
+ float dotMask = 1.0 - smoothstep(.1, .19, length(cellF - (vec2(fract(cellHash * 7.0), fract(cellHash * 13.0)) - .5) * .5));
+ #if COURSE_ROUGH == 0
+  diffuseColor.rgb *= 1.0 + rough * (n2 - .5) * .1;
+  float flower = rough * nearDetail * step(.93, cellHash) * dotMask;
+  diffuseColor.rgb = mix(diffuseColor.rgb, cellHash > .968 ? vec3(1.0, .7, .78) : vec3(1.0, .99, .93), flower);
+ #elif COURSE_ROUGH == 1
+  float flower = rough * nearDetail * step(.95, cellHash) * dotMask;
+  diffuseColor.rgb = mix(diffuseColor.rgb, cellHash > .985 ? vec3(1.0, .86, .3) : vec3(1.0, .99, .92), flower);
+ #elif COURSE_ROUGH == 2
+  float needles = smoothstep(.5, .72, courseNoise(terrainXZ * .11 + 3.1));
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.56, .44, .28), rough * needles * .5);
+  diffuseColor.rgb *= 1.0 + rough * needles * sin(terrainXZ.x * 9.0 + terrainXZ.y * 4.0) * .06;
+ #elif COURSE_ROUGH == 3
+  float blotch = smoothstep(.4, .62, courseNoise(terrainXZ * .07 + 1.7));
+  diffuseColor.rgb = mix(diffuseColor.rgb, courseSand * .95, rough * blotch * .65);
+  diffuseColor.rgb *= 1.0 - rough * nearDetail * step(.9, cellHash) * dotMask * .38;
+ #elif COURSE_ROUGH == 4
+  float duneGrass = .45 + .55 * courseNoise(terrainXZ * .06 + 9.0);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.84, .79, .55), rough * duneGrass * .4);
+  diffuseColor.rgb *= 1.0 + rough * (sin(terrainXZ.x * 1.1 + terrainXZ.y * .35 + n1 * 6.0) * .07 + (n2 - .5) * .1);
+ #else
+  float moss = courseNoise(terrainXZ * .09 + 4.4);
+  diffuseColor.rgb *= 1.0 + rough * (moss - .5) * .3;
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.15, 1.32, .72), rough * smoothstep(.68, .84, moss) * .45);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, .45, .65), rough * nearDetail * step(.985, cellHash) * dotMask);
+ #endif
+ // 球道修剪纹：0.21.1 起的卡通条纹，0.27 起每座球场一种。果岭上细格纹不变。
  float fairwayBand = 1.0 - smoothstep(.25, .75, groundKind);
- float stripe = smoothstep(-.08, .08, sin(terrainXZ.y * .2417));
- diffuseColor.rgb *= 1.0 + fairwayBand * (stripe * .1 - .05);
+ #if COURSE_MOW == 0
+  float stripe = smoothstep(-.08, .08, sin(terrainXZ.x * .2618) * sin(terrainXZ.y * .2618));
+  diffuseColor.rgb *= 1.0 + fairwayBand * (stripe * .11 - .055);
+ #elif COURSE_MOW == 2
+  float stripe = smoothstep(-.1, .1, sin((terrainXZ.x + terrainXZ.y) * .19));
+  diffuseColor.rgb *= 1.0 + fairwayBand * (stripe * .1 - .05);
+ #elif COURSE_MOW == 3
+  float stripe = smoothstep(-.4, .4, sin(terrainXZ.y * .1));
+  diffuseColor.rgb *= 1.0 + fairwayBand * (stripe * .08 - .04 + (n2 - .5) * .07);
+ #elif COURSE_MOW == 4
+  diffuseColor.rgb *= 1.0 + fairwayBand * ((n1 - .5) * .17 + (n2 - .5) * .06);
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.08, 1.0, .76), fairwayBand * smoothstep(.6, .8, n1) * .55);
+ #elif COURSE_MOW == 5
+  float stripe = smoothstep(-.1, .1, sin(terrainXZ.y * .23 + sin(terrainXZ.x * .07) * 2.2));
+  diffuseColor.rgb *= 1.0 + fairwayBand * (stripe * .1 - .05);
+ #else
+  float stripe = smoothstep(-.08, .08, sin(terrainXZ.y * .2417));
+  diffuseColor.rgb *= 1.0 + fairwayBand * (stripe * .1 - .05);
+ #endif
  float checker = smoothstep(-.06, .06, sin(terrainXZ.x * .85) * sin(terrainXZ.y * .85));
  diffuseColor.rgb *= 1.0 + puttingGreen * (checker * .07 - .035);
- `);};return addTerrainTextures(material);
+ `);};const mat=addTerrainTextures(material),key=mat.customProgramCacheKey;mat.customProgramCacheKey=()=>key()+`-m${style.mow}r${style.rough}s${style.sandStyle}`;return mat;
 }
 export function holeCup(hole){
  const group=new THREE.Group(),ground=heightAt(hole,hole.pin.x,hole.pin.z),slope=slopeAt(hole,hole.pin.x,hole.pin.z);group.position.set(hole.pin.x,ground,hole.pin.z);group.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(-slope.x,1,-slope.z).normalize());

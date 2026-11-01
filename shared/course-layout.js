@@ -31,7 +31,8 @@ export function courseLayout(id){
  }
  for(const p of placements)p.green=localToCourse(p,point(0,p.length));
  const all=placements.flatMap(p=>[p.tee,p.green]),bounds={minX:Math.min(...all.map(p=>p.x))-95,maxX:Math.max(...all.map(p=>p.x))+95,minZ:Math.min(...all.map(p=>p.z))-95,maxZ:Math.max(...all.map(p=>p.z))+95};
- const clubhouse=c.id==='orchard'?point(-172,91):localToCourse(placements[0],point(-65,-35));
+ // 0.27.1 赤岩绿洲第 9 洞的回程球道经过首洞发球台左后方 (-65,-35)，会所改放到 (-65,-15)，整座房子落在长草上。
+ const clubhouse=c.id==='orchard'?point(-172,91):localToCourse(placements[0],c.id==='desert'?point(-65,-15):point(-65,-35));
  const center=point((bounds.minX+bounds.maxX)/2,(bounds.minZ+bounds.maxZ)/2),reserve=c.id==='sunny'?{type:'lake',x:center.x,z:center.z,rx:(bounds.maxX-bounds.minX)*.14,rz:(bounds.maxZ-bounds.minZ)*.16}:null;
  const layout={courseId:c.id,placements,bounds,clubhouse,center,reserve};cache.set(id,layout);return layout;
 }

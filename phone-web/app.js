@@ -205,10 +205,10 @@ let lastPracticeClub='',lastRoundClub='';conn.connect();
 function armedFeel(was,now,mine){if(!mine||was===now)return;if(now){armUsed=false;haptics.play('armed');}else{if(!armUsed)haptics.play('disarm');armUsed=false;}}
 // 开局 / 轮到你：多人轮流时，轮到这台手机会震一段明显的节奏（手机可能放在口袋里）。
 function turnFeel(wasActive,wasControl,active,control){if(!active)return;if(!wasActive)haptics.play(control?(multiplayer?'turn':'go'):'confirm');else if(control&&!wasControl)haptics.play('turn');}
-// 球停稳：自己这一杆进洞（最后一洞进洞 = 全部完成）或罚杆；球车到站可以准备下一杆。
+// 球停稳：自己这一杆进洞（最后一洞进洞 = 全部完成）或罚杆；进入下一洞时轻震确认。
 function shotFeel(prev,state){
  if(!roundActive||prev===state.phase)return;
- if(prev==='transferring'&&state.phase==='playing'){haptics.play('confirm');return;}
+ if(['transferring','hole_complete'].includes(prev)&&state.phase==='playing'){haptics.play('confirm');return;}
  if(prev!=='animating')return;const last=state.shotHistory?.at(-1),me=identity?.id;if(!last||!me||(last.deviceId!==me&&last.inputDeviceId!==me))return;
  if(last.holed)haptics.play(state.phase==='finished'?'win':'success');else if(last.penalty)haptics.play('penalty');
 }

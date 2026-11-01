@@ -18,11 +18,14 @@ try{
  const send=(ws,m)=>ws.send(JSON.stringify(m));
  async function connect(role,id){const ws=new WebSocket(base.replace('http','ws')+'/ws?token='+config.token,{origin:base});sockets.push(ws);ws.queue=[];ws.on('message',m=>ws.queue.push(JSON.parse(m)));await once(ws,'open');send(ws,{type:'hello',role,clientId:id,protocolVersion:1});await wait(ws,m=>m.type==='ready');return ws;}
  const screen=await connect('screen','course-screen'),observer=await connect('screen','course-observer'),phone=await connect('phone','course-phone-b');send(phone,{type:'calibrated',peakMax:600,dirZero:0,noise:2});send(screen,{type:'round_view',active:true});send(observer,{type:'round_view',active:true});
- send(screen,{type:'next_hole'});const inTransit=(await wait(screen,m=>m.type==='room_state'&&m.state.phase==='transferring')).state;assert.equal(inTransit.holeIndex,0);assert.equal(inTransit.players.length,2);const other=(await wait(observer,m=>m.type==='room_state'&&m.state.phase==='transferring')).state;assert.equal(other.transfer.id,inTransit.transfer.id);
- assert.equal((await wait(phone,m=>m.type==='round_subscription'&&m.transferring)).canControl,false);send(phone,{type:'round_arm',armed:true});assert.match((await wait(phone,m=>m.type==='error')).message,/等待/);send(screen,{type:'next_hole'});assert.match((await wait(screen,m=>m.type==='error')).message,/完成/);
- send(screen,{type:'skip_transfer',transferId:'old',stateVersion:inTransit.stateVersion});assert.match((await wait(screen,m=>m.type==='error')).message,/更新/);
- const arrived=(await wait(screen,m=>m.type==='room_state'&&m.state.phase==='playing'&&m.state.holeIndex===1)).state;assert.deepEqual(arrived.players.map(p=>p.scores),inTransit.players.map(p=>p.scores));assert.deepEqual(arrived.players.map(p=>p.deviceId),['course-phone-a','course-phone-b']);assert.equal(arrived.armed,false);assert.equal(arrived.shotHistory.length,2);assert.equal(arrived.transfer,undefined);
+ // 0.27.1 换洞不再播球车接驳：点“前往下一洞”后服务器一步到下一洞，所有电脑都不会收到 transferring 状态。
+ const before=game.state.players.map(p=>p.scores);send(screen,{type:'next_hole'});
+ const arrived=(await wait(screen,m=>m.type==='room_state'&&m.state.phase==='playing'&&m.state.holeIndex===1)).state;assert.deepEqual(arrived.players.map(p=>p.scores),before);assert.deepEqual(arrived.players.map(p=>p.deviceId),['course-phone-a','course-phone-b']);assert.equal(arrived.armed,false);assert.equal(arrived.shotHistory.length,2);assert.equal(arrived.transfer,undefined);
+ const other=(await wait(observer,m=>m.type==='room_state'&&m.state.holeIndex===1)).state;assert.equal(other.phase,'playing');assert.equal(other.stateVersion,arrived.stateVersion);
+ assert.ok(![...screen.queue,...observer.queue].some(m=>m.type==='room_state'&&m.state.phase==='transferring'),'没有中间的接驳状态');
+ const sub=await wait(phone,m=>m.type==='round_subscription'&&m.active&&m.playerId==='a');assert.equal(sub.canControl,false);assert.equal(sub.transferring,false);send(phone,{type:'round_arm',armed:true});assert.ok((await wait(phone,m=>m.type==='error')).message);
+ send(screen,{type:'next_hole'});assert.match((await wait(screen,m=>m.type==='error')).message,/完成/);send(screen,{type:'skip_transfer',transferId:'old',stateVersion:arrived.stateVersion});assert.ok((await wait(screen,m=>m.type==='error')).message);
  // 新手机连接也得到相同第二洞状态；没有重新播一遍接驳或重置计分。
  const reconnect=await connect('screen','course-reconnect');const restored=(await wait(reconnect,m=>m.type==='room_state')).state;assert.equal(restored.holeIndex,1);assert.deepEqual(restored.players.map(p=>p.scores),arrived.players.map(p=>p.scores));
- console.log('Course gateway passed: shared transfer, phone lock, stale/duplicate rejection, timed arrival, identity and score persistence.');
+ console.log('Course gateway passed: instant next hole (no cart ride), phone lock, duplicate rejection, identity and score persistence.');
 }finally{clearTimeout(deadline);sockets.forEach(s=>s.close());server.kill();}

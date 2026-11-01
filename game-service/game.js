@@ -59,6 +59,8 @@ export class Game {
   delete this.state.transfer;if(t.toIndex===null){this.state.phase='finished';this.state.returnedToClubhouse=true;this.state.clubhouseVisit={...t,startedAt:now-t.duration};return this.bump();}
   this.state.phase='hole_complete';return this.next();
  }
+ // 0.27.1 换洞 / 回会所不再播球车接驳：一次完成“出发 + 到站”，直接进入下一洞（或会所）。
+ advance(destination='next',now=Date.now()){this.transfer(destination,now);return this.arrive(this.state.transfer.id,true,now);}
  next(){if(this.state.phase!=='hole_complete')throw Error('请先完成当前球洞。');this.state.holeIndex++;for(const p of this.state.players)Object.assign(p,{strokes:0,ball:{x:0,z:0},aim:0,clubId:'auto',holeDone:false});this.selectPlayer(this.state.players[0].id);this.state.phase='playing';return this.bump();}
  lobby(){if(['animating','transferring'].includes(this.state.phase))throw Error('请等待球停稳或球车到站。');this.state.phase='lobby';this.state.armed=false;return this.bump();}
 }

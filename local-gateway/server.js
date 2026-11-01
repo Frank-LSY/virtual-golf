@@ -51,7 +51,7 @@ async function handler(req,res){
  try{
   const url=new URL(req.url,'http://localhost');
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Cache-Control','no-store');
-  if(url.pathname==='/api/health'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({ok:true,app:'swinglink',version:'0.26.0'}));}
+  if(url.pathname==='/api/health'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({ok:true,app:'swinglink',version:'0.27.1'}));}
   if(url.pathname==='/api/config'){
    const host=addresses[0]||'localhost',phoneUrl=`${secure?'https':'http'}://${host}:${secure?tlsPort:port}/phone?token=${token}`;
    res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({token,secure,caName,phoneUrl,addresses,port,tlsPort,qr:await QRCode.toString(phoneUrl,{type:'svg',margin:1,color:{dark:'#244d3e',light:'#ffffff'}})}));
@@ -108,8 +108,7 @@ function attach(server){
     if(m.type==='round_records'){send(ws,{type:'round_records',rounds,current:game.snapshot()});return;}
     if(m.type==='start_round'){if(['animating','transferring'].includes(game.state.phase))throw Error('请等待球停稳或球车到站。');let roster=[];if(m.multiplayer){if(!Array.isArray(m.playerIds)||m.playerIds.length<2||m.playerIds.length>MAX_PLAYERS||new Set(m.playerIds).size!==m.playerIds.length||(m.playerCount!==undefined&&m.playerCount!==m.playerIds.length))throw Error(`请按选定人数勾选 2–${MAX_PLAYERS} 台不同手机参加对战。`);roster=m.playerIds.map(id=>{if(![...clients].some(c=>c.role==='phone'&&c.clientId===id))throw Error('有参赛手机已离线，请重新选择。');return {...players.ensure(id),deviceId:id};});}else{const phone=training.phone();if(phone)roster=[{...players.ensure(phone.clientId),deviceId:phone.clientId}];}const previous=structuredClone(game.state);game.start(m.courseId,m.mode,roster);if(previous.shotHistory?.length){rounds.push(previous);rounds=rounds.slice(-20);persistExtra('rounds',rounds);}state();}
     else if(m.type==='aim'){game.setAim(m.aim);state();}
-    else if(m.type==='next_hole'||m.type==='return_clubhouse'){game.transfer(m.type==='next_hole'?'next':'clubhouse');clearTimeout(timer);const trip=game.state.transfer;timer=setTimeout(()=>{game.arrive(trip.id);state();},trip.duration+20);state();}
-    else if(m.type==='skip_transfer'){if(m.transferId!==game.state.transfer?.id||m.stateVersion!==game.state.stateVersion)throw Error('接驳状态已更新，请重试。');clearTimeout(timer);game.arrive(m.transferId,true);state();}
+    else if(m.type==='next_hole'||m.type==='return_clubhouse'){game.advance(m.type==='next_hole'?'next':'clubhouse');state();}
     else if(m.type==='lobby'){game.lobby();state();}
     else throw Error('无法识别此操作。');
    }catch(e){send(ws,{type:'error',message:e instanceof SyntaxError?'消息格式无效，请刷新页面后重试。':e.message});}

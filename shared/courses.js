@@ -72,11 +72,14 @@ export function heightAt(h,x,z){
   return y;
 }
 export function slopeAt(h,x,z){ const e=.3;return {x:(heightAt(h,x+e,z)-heightAt(h,x-e,z))/(2*e),z:(heightAt(h,x,z+e)-heightAt(h,x,z-e))/(2*e)}; }
+// 0.27 苹果园的树按果园行列种植（行距 9 米、株距 7 米），其余球场自然散布。
 export function makeTrees(h){
-  const rng=random(h.seed+4583),trees=[];
+  const rng=random(h.seed+4583),trees=[],rows=h.courseId==='orchard',used=new Set();
   for(let i=0;i<900 && trees.length<(COURSES.find(c=>c.id===h.courseId)?.treeCount||70);i++){
-    const x=(rng()-.5)*184,z=-25+rng()*(h.length+60),lie=surfaceAt(h,x,z);
-    if(lie==='rough'&&routeDistance(h,x,z)>h.width+10&&landValue(h,x,z)<.8&&distance({x,z},h.pin)>h.greenRadius+10&&(!h.placement||distance(localToCourse(h.placement,{x,z}),courseLayout(h.courseId).clubhouse)>22))trees.push({x,z,scale:.8+rng()*.8,rotation:rng()*Math.PI*2});
+    let x=(rng()-.5)*184,z=-25+rng()*(h.length+60);
+    if(rows){const cx=Math.round(x/9),cz=Math.round(z/7),key=cx+','+cz;if(used.has(key))continue;x=cx*9+(cz%2?.6:-.6);z=cz*7;if(z<-25||z>h.length+35)continue;used.add(key);}
+    const lie=surfaceAt(h,x,z);
+    if(lie==='rough'&&routeDistance(h,x,z)>h.width+10&&landValue(h,x,z)<.8&&distance({x,z},h.pin)>h.greenRadius+10&&(!h.placement||distance(localToCourse(h.placement,{x,z}),courseLayout(h.courseId).clubhouse)>22))trees.push({x,z,scale:rows?.95+rng()*.3:.8+rng()*.8,rotation:rng()*Math.PI*2});
   }return trees;
 }
 // 岩石（0.22）：原先只在画面中随机摆放、没有碰撞；现在与树一样由服务器生成并参与物理。
@@ -87,6 +90,8 @@ export function makeRocks(h){
   const x=(rng()-.5)*178,z=rng()*(h.length+35)-15,sx=1+rng()*2,sy=.6+rng(),sz=1+rng(),rx=rng(),ry=rng(),rz=rng();
   if(surfaceAt(h,x,z)!=='rough'||landValue(h,x,z)>.8||routeDistance(h,x,z)<h.width+5||distance({x,z},h.pin)<h.greenRadius+7||Math.hypot(x,z)<16)continue;
   if((h.trees||[]).some(t=>Math.hypot(t.x-x,t.z-z)<3.2*t.scale+2)||rocks.some(r=>Math.hypot(r.x-x,r.z-z)<5))continue;
+  // 0.27.1 整块岩石的占地（网格半径 1.6 × 缩放）都要在长草上，不再半块压进沙坑或水里。
+  const foot=1.6*Math.max(sx,sz)+.5;if(Array.from({length:12},(_,k)=>k/12*Math.PI*2).some(a=>surfaceAt(h,x+Math.cos(a)*foot,z+Math.sin(a)*foot)!=='rough'))continue;
   rocks.push({x,z,y:heightAt(h,x,z)+.4,sx,sy,sz,rx,ry,rz});
  }
  return rocks;
