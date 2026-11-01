@@ -18,6 +18,7 @@ import {synthDataset,synthRecording} from '../shared/ml/synthetic.js';
 import {prepare,trainModel} from '../shared/ml/train.js';
 import {serializeModel} from '../shared/ml/net.js';
 import {STREAM_VERSION} from '../shared/ml/labels.js';
+import {Haptics,bindHapticsPanel} from '../phone-web/haptics.js';
 
 // 用可控时钟与传感器事件测试实际手机控制器，不需要浏览器或真实硬件权限。
 async function phoneHarness(){
@@ -26,35 +27,36 @@ async function phoneHarness(){
  function element(){const classes=new Set();return {value:'',textContent:'',innerHTML:'',disabled:false,dataset:{},style:{},classList:{add:(...x)=>x.forEach(v=>classes.add(v)),remove:(...x)=>x.forEach(v=>classes.delete(v)),toggle:(v,on)=>{on??=!classes.has(v);on?classes.add(v):classes.delete(v);return on;},contains:v=>classes.has(v)},click(){return this.onclick?.();}};}
  for(const match of html.matchAll(/id="([^"]+)"/g))elements.set(match[1],element());
  const buttons=['play','practice'].map(mode=>Object.assign(element(),{dataset:{mode}}));
- const documentHandlers=new Map();const document={hidden:false,getElementById:id=>{assert.ok(elements.has(id),'DOM 元素存在：'+id);return elements.get(id);},querySelectorAll:()=>buttons,querySelector:selector=>selector.includes('practice')?buttons[1]:buttons[0],addEventListener:(k,fn)=>documentHandlers.set(k,fn)};
+ const documentHandlers=new Map();const document={hidden:false,body:element(),getElementById:id=>{assert.ok(elements.has(id),'DOM 元素存在：'+id);return elements.get(id);},querySelectorAll:()=>buttons,querySelector:selector=>selector.includes('practice')?buttons[1]:buttons[0],addEventListener:(k,fn)=>documentHandlers.set(k,fn)};
  const storage=new Map(),localStorage={getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)};
  let conn;class Connection extends EventTarget{constructor(){super();conn=this;this.sent=[];}send(m){this.sent.push(m);return true;}connect(){this.receive({type:'ready'});}receive(m){this.dispatchEvent(new CustomEvent('message',{detail:m}));}}
  const handlers=new Map(),window={isSecureContext:true,addEventListener:(k,fn)=>handlers.set(k,fn),removeEventListener:k=>handlers.delete(k)};let clock=1000;
  const timers=new Map(),intervals=[];let timerId=0;const setTimeout=(fn,ms)=>{const id=++timerId;timers.set(id,{fn,due:clock+ms});return id;};
  class FakeDate extends Date{constructor(...args){super(...(args.length?args:[clock]));}static now(){return clock;}}
- const injected={CLUBS,Connection,chineseLog,chineseCsv,INPUT_DEFAULTS,inputSettings,MotionRecorder,TrialSegmenter,sampleId,ML_LABEL_TIPS,encodeRecording,deserializeModel,predictWindow,motionCalibration,withAdapter,deserializeHead,LiveArc,arcCurve,arcToPose,traceToPose,recordingKinematics,resample,findAnchor,windowAt,prepareInput,CLASS_NAMES,CLASSES,SWING_CLASSES,LEVELS,LEVEL_NAMES,levelText,deviceLabel,StreamDetector,streamPower,streamDecision,heuristicDecision,STREAM,motionSVG,gripSVG,GRIP_TIPS,GRIPS,MOTION_TIPS,document,window,navigator:{vibrate(){}},DeviceMotionEvent:{},localStorage,sessionStorage:localStorage,performance:{now:()=>clock},Date:FakeDate,setTimeout,clearTimeout:id=>timers.delete(id),setInterval:fn=>intervals.push(fn)};
+ const buzz=[],haptics=new Haptics({nav:{vibrate:p=>{buzz.push(p);return true;}},doc:null,storage:null,now:()=>clock});
+ const injected={haptics,bindHapticsPanel,CLUBS,Connection,chineseLog,chineseCsv,INPUT_DEFAULTS,inputSettings,MotionRecorder,TrialSegmenter,sampleId,ML_LABEL_TIPS,encodeRecording,deserializeModel,predictWindow,motionCalibration,withAdapter,deserializeHead,LiveArc,arcCurve,arcToPose,traceToPose,recordingKinematics,resample,findAnchor,windowAt,prepareInput,CLASS_NAMES,CLASSES,SWING_CLASSES,LEVELS,LEVEL_NAMES,levelText,deviceLabel,StreamDetector,streamPower,streamDecision,heuristicDecision,STREAM,motionSVG,gripSVG,GRIP_TIPS,GRIPS,MOTION_TIPS,document,window,navigator:{vibrate(){}},DeviceMotionEvent:{},localStorage,sessionStorage:localStorage,performance:{now:()=>clock},Date:FakeDate,setTimeout,clearTimeout:id=>timers.delete(id),setInterval:fn=>intervals.push(fn)};
  const source=(await readFile(new URL('../phone-web/app.js',import.meta.url),'utf8')).replace(/^(?:import|export) .*;\r?\n/gm,'');new Function(...Object.keys(injected),source)(...Object.values(injected));
  const sample=(beta,step=40)=>{clock+=step;for(const [id,t] of timers)if(t.due<=clock){timers.delete(id);t.fn();}handlers.get('devicemotion')?.({rotationRate:{alpha:0,beta,gamma:0},accelerationIncludingGravity:{y:0,z:9.8}});};
  const motion=(g,a,step)=>{clock+=step;for(const [id,t] of timers)if(t.due<=clock){timers.delete(id);t.fn();}handlers.get('devicemotion')?.({rotationRate:{alpha:g[0],beta:g[1],gamma:g[2]},accelerationIncludingGravity:{x:a[0],y:a[1],z:a[2]}});};
  // 注入一次完整动作：静止 → 录音 → 静止（姿势与录音起点一致）。
  const play=(rec,{before=40,after=110}={})=>{const still=[rec.a[0],rec.a[1],rec.a[2]];for(let i=0;i<before;i++)motion([1,-1,.5],still,16);for(let i=1;i<rec.n;i++)motion([rec.g[i*3],rec.g[i*3+1],rec.g[i*3+2]],[rec.a[i*3],rec.a[i*3+1],rec.a[i*3+2]],rec.t[i]-rec.t[i-1]);const end=[rec.a[(rec.n-1)*3],rec.a[(rec.n-1)*3+1],rec.a[(rec.n-1)*3+2]];for(let i=0;i<after;i++)motion([1,-1,.5],end,16);};
- return {conn,elements,buttons,storage,sample,motion,play,advance:ms=>{clock+=ms;for(const fn of intervals)fn();},setHidden:value=>{document.hidden=value;documentHandlers.get('visibilitychange')?.();}};
+ return {conn,elements,buttons,storage,sample,motion,play,haptics,buzz,advance:ms=>{clock+=ms;for(const fn of intervals)fn();},setHidden:value=>{document.hidden=value;documentHandlers.get('visibilitychange')?.();}};
 }
 
 test('启用体感后直接就绪（无需校准）：免校准规则按挥杆结构触发一次，同步灵敏度与受订阅控制的传感器数据',async()=>{
  const h=await phoneHarness();assert.equal(h.conn.sent[0].type,'input_settings');
  h.conn.receive({type:'practice_subscription',active:true,stream:true,busyUntil:0});assert.equal(h.buttons[0].disabled,true);
- await h.elements.get('enable').onclick();const ready=h.conn.sent.find(m=>m.type==='calibrated');assert.ok(ready,'启用体感即就绪');assert.equal(ready.mode,'auto');assert.equal(ready.axis,'auto');
+ await h.elements.get('enable').onclick();const ready=h.conn.sent.find(m=>m.type==='calibrated');assert.ok(ready,'启用体感即就绪');assert.ok(h.haptics.played.includes('ready'),'启用体感：就绪震动');assert.equal(ready.mode,'auto');assert.equal(ready.axis,'auto');
  for(let i=0;i<10;i++)h.sample(0,16);assert.ok(h.conn.sent.some(m=>m.type==='sensor_sample'&&m.sample.axis==='auto'));assert.ok(h.elements.get('instruction').innerHTML.includes('试挥'));assert.match(h.elements.get('detector-status').textContent,/免校准规则/);
  h.elements.get('phone-practice-arm').onclick();assert.equal(h.conn.sent.at(-1).type,'practice_arm');assert.equal(h.conn.sent.at(-1).armed,true);
- h.conn.receive({type:'practice_subscription',active:true,stream:true,armed:true,busyMs:0});assert.match(h.elements.get('phone-practice-mode').textContent,/已准备/);
+ h.conn.receive({type:'practice_subscription',active:true,stream:true,armed:true,busyMs:0});assert.match(h.elements.get('phone-practice-mode').textContent,/已准备/);assert.equal(h.haptics.played.at(-1),'armed');
  const settings={...INPUT_DEFAULTS,powerGain:1.3,directionGain:.7};h.conn.receive({type:'input_settings_request',settings,requestId:'test-tune'});
  assert.equal(h.conn.sent.at(-1).requestId,'test-tune');assert.equal(JSON.parse(h.storage.get('swinglink-input-settings')).powerGain,1.3);
  h.play(synthRecording({label:'swing',level:5,seed:77}));
- const shots=h.conn.sent.filter(m=>m.type==='test_swing');assert.equal(shots.length,1,'一次挥杆只触发一次');const shot=shots[0];assert.equal(shot.detector,'rule');assert.equal(shot.path[0],'RULE');assert.ok(shot.power>0&&shot.power<=1);assert.ok(shot.backswingMs>100&&shot.downswingMs>40,`上杆 ${shot.backswingMs} 下挥 ${shot.downswingMs}`);assert.equal(h.conn.sent.some(m=>m.type==='swing'),false);
+ const shots=h.conn.sent.filter(m=>m.type==='test_swing');assert.equal(shots.length,1,'一次挥杆只触发一次');assert.equal(h.haptics.played.filter(n=>n==='impact').length,1,'已准备的击球：一记重击');const shot=shots[0];assert.equal(shot.detector,'rule');assert.equal(shot.path[0],'RULE');assert.ok(shot.power>0&&shot.power<=1);assert.ok(shot.backswingMs>100&&shot.downswingMs>40,`上杆 ${shot.backswingMs} 下挥 ${shot.downswingMs}`);assert.equal(h.conn.sent.some(m=>m.type==='swing'),false);
  assert.ok(h.conn.sent.some(m=>m.type==='ml_sample'&&m.source==='play'&&m.detector==='rule'),'每一杆都入库');
  h.conn.receive({type:'practice_ack',seq:shot.seq,travel:150,targetError:3,lateral:2,club:'7 号铁杆',feedback:['方向进入目标走廊。','保持节奏。']});assert.equal(h.elements.get('phone-training-distance').textContent,'150.0 米');
- h.conn.receive({type:'practice_subscription',active:true,stream:true,armed:false,busyMs:6000});assert.equal(h.elements.get('phone-practice-arm').disabled,true);
+ h.conn.receive({type:'practice_subscription',active:true,stream:true,armed:false,busyMs:6000});assert.equal(h.elements.get('phone-practice-arm').disabled,true);assert.ok(!h.haptics.played.includes('disarm'),'击球后自动取消准备不再震');
  h.conn.receive({type:'practice_rehearsal_ack',rehearsal:true,seq:shot.seq,travel:130,targetError:20,lateral:0,club:'7 号铁杆',feedback:['试挥参考。']});assert.match(h.elements.get('phone-training-label').textContent,/球未击出/);
  h.conn.receive({type:'practice_subscription',active:false,stream:false,busyUntil:0});assert.equal(h.buttons[0].disabled,false);const count=h.conn.sent.filter(m=>m.type==='sensor_sample').length;for(let i=0;i<60;i++)h.sample(0);assert.equal(h.conn.sent.filter(m=>m.type==='sensor_sample').length,count);
  h.storage.set('swinglink-habit-peak::swing','[900,950]');h.elements.get('habit-reset').onclick();assert.equal(h.storage.get('swinglink-habit-peak::swing'),'[]');
@@ -177,4 +179,25 @@ test('手机遥控（0.22）：正式球局显示方向与镜头面板；按钮�
  h.conn.receive({type:'round_subscription',active:true,stream:false,canControl:false,armed:false,playerName:'同伴'});assert.equal(h.elements.get('prp-aim-left').disabled,true);assert.equal(h.elements.get('prp-cam-left').disabled,true);
  const before=h.conn.sent.length;h.elements.get('prp-cam-up').click();h.elements.get('prp-aim-right').click();assert.equal(h.conn.sent.length,before,'轮到同伴时不发送');
  h.conn.receive({type:'round_subscription',active:false,stream:false,canControl:false});assert.equal(h.elements.get('phone-round-pad').classList.contains('hidden'),true);
+});
+
+test('手机震动（0.26）：开局 / 轮到你、准备与取消、罚杆与进洞只震自己的球、瞄准刻度与到头、断线与恢复、出错、电脑换游戏',async()=>{
+ const h=await phoneHarness(),last=()=>h.haptics.played.at(-1),wait=ms=>{for(let t=0;t<ms;t+=100)h.sample(0,100);};await h.elements.get('enable').onclick();
+ h.conn.receive({type:'player_identity',player:{id:'me',name:'小明',style:'sage',number:1}});h.conn.receive({type:'input_lock',locked:false});
+ h.conn.receive({type:'room_state',state:{stateVersion:1,phase:'playing',armed:false,multiplayer:true,aim:0,shotHistory:[]}});
+ wait(500);h.conn.receive({type:'round_subscription',active:true,stream:true,canControl:false,armed:false,playerName:'同伴'});assert.equal(last(),'confirm','加入球局，先等同伴');
+ wait(500);h.conn.receive({type:'round_subscription',active:true,stream:true,canControl:true,armed:false,playerName:'小明'});assert.equal(last(),'turn','轮到你');
+ wait(600);h.conn.receive({type:'room_state',state:{stateVersion:2,phase:'playing',armed:true,multiplayer:true,aim:0,shotHistory:[]}});assert.equal(last(),'armed');
+ wait(400);h.conn.receive({type:'room_state',state:{stateVersion:3,phase:'playing',armed:false,multiplayer:true,aim:0,shotHistory:[]}});assert.equal(last(),'disarm');
+ wait(400);h.conn.receive({type:'room_state',state:{stateVersion:4,phase:'animating',armed:false,multiplayer:true,aim:0,shotHistory:[]}});
+ h.conn.receive({type:'room_state',state:{stateVersion:5,phase:'playing',armed:false,multiplayer:true,aim:0,shotHistory:[{deviceId:'me',holed:false,penalty:'water'}]}});assert.equal(last(),'penalty');
+ wait(1000);h.conn.receive({type:'room_state',state:{stateVersion:6,phase:'animating',armed:false,multiplayer:true,aim:0,shotHistory:[]}});
+ h.conn.receive({type:'room_state',state:{stateVersion:7,phase:'hole_complete',armed:false,multiplayer:true,aim:0,shotHistory:[{deviceId:'me',holed:true}]}});assert.equal(last(),'success','自己的球进洞');
+ const n=h.haptics.played.length;wait(1000);h.conn.receive({type:'room_state',state:{stateVersion:8,phase:'animating',armed:false,multiplayer:true,aim:0,shotHistory:[]}});h.conn.receive({type:'room_state',state:{stateVersion:9,phase:'playing',armed:false,multiplayer:true,aim:79,shotHistory:[{deviceId:'other',holed:true}]}});assert.equal(h.haptics.played.length,n,'同伴的球不震');
+ wait(600);h.elements.get('prp-aim-right').click();assert.equal(last(),'limit','到 80° 时提示到头');assert.equal(h.elements.get('prp-aim-right').dataset.haptic,'self');
+ wait(600);h.elements.get('prp-aim-left').click();assert.equal(last(),'tick');
+ wait(600);h.conn.dispatchEvent(new Event('offline'));assert.equal(last(),'offline');wait(400);h.conn.receive({type:'ready'});assert.equal(last(),'online');
+ wait(2000);h.conn.receive({type:'error',message:'请等待球完全停稳。'});assert.equal(last(),'error');
+ wait(1000);h.conn.receive({type:'screen_view',game:'golf',view:'game'});const m=h.haptics.played.length;h.conn.receive({type:'screen_view',game:'golf',view:'game'});assert.equal(h.haptics.played.length,m);h.conn.receive({type:'screen_view',game:'fishing',view:'fishing'});assert.equal(last(),'switch','电脑换游戏，手机变身');
+ assert.equal(h.elements.get('golf-hp-level').value,'normal');
 });

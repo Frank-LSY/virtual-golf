@@ -1,4 +1,5 @@
 import {MazeChannel} from './maze-channel.js';
+import {FishingChannel} from './fishing-channel.js';
 import {sendAudio} from './audio-response.js';
 import {roundAnimationMs} from '../shared/travel.js';
 import {MAX_PLAYERS} from '../shared/players.js';
@@ -25,7 +26,7 @@ const dataDir=process.env.SWINGLINK_DATA_DIR||path.join(ROOT,'.local');
 const certDir=process.env.SWINGLINK_CERT_DIR||path.join(ROOT,'certs');
 const addresses=Object.entries(networkInterfaces()).flatMap(([name,items])=>items.filter(n=>n.family==='IPv4'&&!n.internal&&!/virtual|vEthernet|WSL|docker/i.test(name)).map(n=>n.address));
 const secure=existsSync(path.join(certDir,'server-key.pem'))&&existsSync(path.join(certDir,'server.pem'));
-let caName='挥杆之间 本地证书';try{caName=new X509Certificate(await readFile(path.join(certDir,'rootCA.pem'))).subject.split('\n').find(s=>s.startsWith('CN='))?.slice(3)||caName;}catch{}
+let caName='体感派对 本地证书';try{caName=new X509Certificate(await readFile(path.join(certDir,'rootCA.pem'))).subject.split('\n').find(s=>s.startsWith('CN='))?.slice(3)||caName;}catch{}
 let saved;try{saved=JSON.parse(await readFile(path.join(dataDir,'game.json'),'utf8'));}catch{}
 let profileData,practiceData;try{profileData=JSON.parse(await readFile(path.join(dataDir,'players.json'),'utf8'));}catch{}try{practiceData=JSON.parse(await readFile(path.join(dataDir,'practice.json'),'utf8'));}catch{}
 let rounds=[];try{rounds=JSON.parse(await readFile(path.join(dataDir,'rounds.json'),'utf8'));}catch{}
@@ -37,6 +38,7 @@ function send(ws,data){if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(
 function broadcast(data){for(const c of clients)send(c,data);}
 function controller(){const phones=[...clients].filter(c=>c.role==='phone');return {connected:phones.length>0,calibrated:phones.some(c=>c.calibrated),count:phones.length,phones:players.snapshot(clients)};}
 const maze=new MazeChannel(clients,send,{players});
+const fishing=new FishingChannel(clients,send,{players});
 let screenView={game:'hub',view:'hub'};
 const mazeTimer=setInterval(()=>maze.tick(),100);
 const training=new TrainingChannel(clients,send,{players,saved:practiceData,persist:()=>persistExtra('practice',training.saved())});
@@ -49,7 +51,7 @@ async function handler(req,res){
  try{
   const url=new URL(req.url,'http://localhost');
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Cache-Control','no-store');
-  if(url.pathname==='/api/health'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({ok:true,app:'swinglink',version:'0.24.0'}));}
+  if(url.pathname==='/api/health'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({ok:true,app:'swinglink',version:'0.26.0'}));}
   if(url.pathname==='/api/config'){
    const host=addresses[0]||'localhost',phoneUrl=`${secure?'https':'http'}://${host}:${secure?tlsPort:port}/phone?token=${token}`;
    res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({token,secure,caName,phoneUrl,addresses,port,tlsPort,qr:await QRCode.toString(phoneUrl,{type:'svg',margin:1,color:{dark:'#244d3e',light:'#ffffff'}})}));
@@ -85,15 +87,16 @@ function attach(server){
      if(ws.role)throw Error('已经连接。');
      if(!['screen','phone'].includes(m.role)||typeof m.clientId!=='string'||m.clientId.length>100||m.protocolVersion!==1)throw Error('请刷新页面后重新连接。');
      for(const old of clients)if(old!==ws&&old.role===m.role&&old.clientId===m.clientId){clients.delete(old);old.close(4001,'同一手柄已重新接入');}
-     ws.role=m.role;ws.clientId=m.clientId;if(ws.role==='phone'){send(ws,{type:'player_identity',player:players.ensure(ws.clientId)});persistExtra('players',players.saved());}send(ws,{type:'ready',protocolVersion:1});send(ws,{type:'room_state',state:game.snapshot()});send(ws,{type:'input_lock',locked:game.state.phase!=='playing'});ml.connected(ws);maze.connected(ws);if(ws.role==='phone')send(ws,{type:'screen_view',...screenView});status();return;
+     ws.role=m.role;ws.clientId=m.clientId;if(ws.role==='phone'){send(ws,{type:'player_identity',player:players.ensure(ws.clientId)});persistExtra('players',players.saved());}send(ws,{type:'ready',protocolVersion:1});send(ws,{type:'room_state',state:game.snapshot()});send(ws,{type:'input_lock',locked:game.state.phase!=='playing'});ml.connected(ws);maze.connected(ws);fishing.connected(ws);if(ws.role==='phone')send(ws,{type:'screen_view',...screenView});status();return;
     }
     if(!ws.role)throw Error('请先连接。');
-    if(m.type==='player_profile'&&ws.role==='phone'){const profile=players.update(ws.clientId,m);game.updateProfile(profile);send(ws,{type:'player_identity',player:profile});ml.pushModel(ws);persistExtra('players',players.saved());status();state();maze.publish();return;}
+    if(m.type==='player_profile'&&ws.role==='phone'){const profile=players.update(ws.clientId,m);game.updateProfile(profile);send(ws,{type:'player_identity',player:profile});ml.pushModel(ws);persistExtra('players',players.saved());status();state();maze.publish();fishing.publish();return;}
     if(m.type==='calibration_progress'&&ws.role==='phone'){const now=Date.now();if(now-(ws.lastCalProgress||0)<150)return;ws.lastCalProgress=now;ws.calibrationProgress={step:String(m.step||'').slice(0,40),hint:String(m.hint||'').slice(0,180),progress:Math.max(0,Math.min(1,Number(m.progress)||0))};status();return;}
     // 电脑当前所在的游戏（大厅 / 高尔夫 / 云端滚球），转告手机，让手机顶部显示对应的游戏。
-    if(m.type==='screen_view'&&ws.role==='screen'){screenView={game:['hub','golf','skyroll'].includes(m.game)?m.game:'hub',view:String(m.view||'').slice(0,12)};for(const c of clients)if(c.role==='phone')send(c,{type:'screen_view',...screenView});return;}
+    if(m.type==='screen_view'&&ws.role==='screen'){screenView={game:['hub','golf','skyroll','fishing'].includes(m.game)?m.game:'hub',view:String(m.view||'').slice(0,12)};for(const c of clients)if(c.role==='phone')send(c,{type:'screen_view',...screenView});return;}
+    if(fishing.handle(ws,m))return;
     if(maze.handle(ws,m))return;
-    if(maze.controls(ws)&&['swing','test_swing','round_arm','practice_arm','round_aim','round_camera'].includes(m.type))return;
+    if((maze.controls(ws)||fishing.controls(ws))&&['swing','test_swing','round_arm','practice_arm','round_aim','round_camera'].includes(m.type))return;
     if(ml.handle(ws,m))return;
     if(training.handle(ws,m)){if(round.sync())state();return;}
     if(round.handle(ws,m))return;
@@ -111,14 +114,14 @@ function attach(server){
     else throw Error('无法识别此操作。');
    }catch(e){send(ws,{type:'error',message:e instanceof SyntaxError?'消息格式无效，请刷新页面后重试。':e.message});}
   });
-  ws.on('close',()=>{clients.delete(ws);ml.disconnected(ws);maze.disconnected(ws);status();});ws.on('error',()=>{});
+  ws.on('close',()=>{clients.delete(ws);ml.disconnected(ws);maze.disconnected(ws);fishing.disconnected(ws);status();});ws.on('error',()=>{});
  });
  return wss;
 }
 function listenError(error){console.error(error.code==='EADDRINUSE'?'启动失败：端口已被占用。请先关闭旧版游戏的启动窗口，再重新打开。':'本地服务无法启动，请检查网络与文件权限。错误代码：'+error.code);shutdown(1);}
-const server=http.createServer(handler);server.on('error',listenError);attach(server);server.listen(port,'0.0.0.0',()=>console.log(`挥杆之间 · 本机地址： http://localhost:${port}`));
+const server=http.createServer(handler);server.on('error',listenError);attach(server);server.listen(port,'0.0.0.0',()=>console.log(`体感派对 · 本机地址： http://localhost:${port}`));
 let tlsServer;
 if(secure){tlsServer=https.createServer({key:await readFile(path.join(certDir,'server-key.pem')),cert:await readFile(path.join(certDir,'server.pem'))},handler);tlsServer.on('error',listenError);attach(tlsServer);tlsServer.listen(tlsPort,'0.0.0.0',()=>console.log(`手机手柄 · https://${addresses[0]||'localhost'}:${tlsPort}/phone`));}
 heartbeat=setInterval(()=>{for(const c of clients){if(!c.alive){c.terminate();clients.delete(c);continue;}c.alive=false;c.ping();}},15000);
-function shutdown(code=0){clearInterval(heartbeat);clearInterval(mazeTimer);clearTimeout(timer);ml.cancel();for(const c of clients)c.close();server.close();tlsServer?.close();Promise.all([writing,ml.store.flush()]).finally(()=>process.exit(code));}
+function shutdown(code=0){clearInterval(heartbeat);clearInterval(mazeTimer);fishing.stopTimer();clearTimeout(timer);ml.cancel();for(const c of clients)c.close();server.close();tlsServer?.close();Promise.all([writing,ml.store.flush()]).finally(()=>process.exit(code));}
 process.on('SIGINT',()=>shutdown());process.on('SIGTERM',()=>shutdown());

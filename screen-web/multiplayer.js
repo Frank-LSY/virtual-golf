@@ -8,7 +8,7 @@ export class Multiplayer {
   $('player-count').onchange=()=>{this.playerCount=Number($('player-count').value);this.edited=false;this.update(this.phones);};
   $('mode-solo').onclick=()=>this.mode(false);$('mode-multi').onclick=()=>this.mode(true);
   $('round-export').onclick=()=>conn.send({type:'round_records'});
-  conn.addEventListener('message',({detail:m})=>{if(m.type==='round_records'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({'球局记录':[...m.rounds,m.current].map(roundExport)},null,2)],{type:'application/json'}));a.download='挥杆之间-球局记录.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}});
+  conn.addEventListener('message',({detail:m})=>{if(m.type==='round_records'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({'球局记录':[...m.rounds,m.current].map(roundExport)},null,2)],{type:'application/json'}));a.download='体感派对-球局记录.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}});
  }
  mode(multi){this.multi=multi;this.render();}
  update(phones){this.phones=phones||[];if(!this.edited)this.ids=new Set(this.phones.filter(p=>p.connected).slice(0,this.playerCount).map(p=>p.id));this.render();}

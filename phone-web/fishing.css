@@ -1,0 +1,50 @@
+/* 体感钓鱼 · 手机鱼竿（竖屏为主） */
+body.fish-phone-active #phone-main{display:block;max-width:560px;margin:0 auto;padding:10px 16px 24px;min-height:0}
+body.fish-phone-active #phone-main>:not(#fish-controller){display:none!important}
+body.fish-phone-active .hub-note{display:none!important}
+#fish-controller{font-family:var(--toon-font,"PingFang SC",sans-serif);color:var(--ink,#22264a);text-align:left}
+#fish-controller .hidden{display:none!important}
+#fish-controller button{font:900 15px var(--toon-font,sans-serif);min-height:46px;border:3px solid var(--ol-c,#22264a);border-radius:14px;background:#fff;color:var(--ink,#22264a);box-shadow:0 3px 0 var(--ol-c,#22264a);padding:10px 14px;cursor:pointer;touch-action:manipulation}
+#fish-controller button:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 var(--ol-c,#22264a)}
+#fish-controller button:disabled{opacity:.45}
+#fish-controller button.selected,#fish-controller .fc-primary{background:#2bb3a3;color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.5)}
+.fc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.fc-head span{font:900 13px var(--toon-font,sans-serif);padding:5px 12px;border:2.5px solid var(--ol-c,#22264a);border-radius:999px;background:#2bb3a3;color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.5);box-shadow:0 3px 0 var(--ol-c,#22264a)}
+.fc-head b{font:800 14px var(--toon-font,sans-serif);color:var(--ink-2,#3d4270);text-align:right}
+.fc-card{display:grid;gap:10px;background:#fff;border:3px solid var(--ol-c,#22264a);border-radius:20px;box-shadow:0 5px 0 var(--ol-c,#22264a);padding:16px}
+.fc-card b{font:900 19px var(--toon-font,sans-serif)}
+.fc-card p{margin:0;font:700 15px/1.6 var(--toon-font,sans-serif);color:var(--ink-2,#3d4270)}
+.fc-main{display:grid;gap:10px}
+.fc-who{display:flex;align-items:center;gap:10px}
+.fc-badge{font:900 15px var(--toon-font,sans-serif);padding:4px 12px;border:2.5px solid var(--ol-c,#22264a);border-radius:999px;background:#2bb3a3;color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.55)}
+.fc-who b{font:900 16px var(--toon-font,sans-serif);flex:1}
+.fc-score{font:900 15px var(--toon-font,sans-serif);padding:4px 10px;border:2.5px solid var(--ol-c,#22264a);border-radius:12px;background:var(--sun-l,#fff1b8)}
+.fc-mode{display:flex;gap:8px}.fc-mode button{flex:1;font-size:13px!important}
+.fc-notice{margin:0;min-height:44px;font:800 15px/1.5 var(--toon-font,sans-serif);color:var(--ink-2,#3d4270);background:#fff;border:2.5px solid var(--ol-c,#22264a);border-radius:14px;padding:8px 12px}
+.fc-live{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center}
+.fc-rod{position:relative;width:96px;height:96px;border-radius:50%;border:3px solid var(--ol-c,#22264a);background:radial-gradient(circle,#fff 0,#d6f3ee 75%);overflow:hidden}
+.fc-rod i{position:absolute;left:10px;right:50%;top:calc(50% - 3px);height:6px;border-radius:3px;background:#8a5a2b;transform-origin:100% 50%;transition:transform .08s}
+.fc-rod em{position:absolute;left:calc(50% - 7px);bottom:10px;width:14px;height:14px;border-radius:50%;background:#ff5d5d;border:2px solid var(--ol-c,#22264a);transition:transform .08s}
+.fc-meters{display:grid;gap:6px}
+.fc-meter{display:grid;gap:3px}.fc-meter small{font:800 12px var(--toon-font,sans-serif);color:var(--muted,#7a7fa8)}
+.fc-meter>div{height:14px;border:2.5px solid var(--ol-c,#22264a);border-radius:999px;background:#eef0fb;overflow:hidden;position:relative}
+.fc-meter>div::before,.fc-meter>div::after{content:"";position:absolute;top:0;bottom:0;width:2px;background:rgba(34,38,74,.35)}
+#fc-tension>div::before{left:25%}#fc-tension>div::after{left:70%}
+.fc-meter i{display:block;height:100%;width:0;transition:width .12s;background:#3ddc97}
+.fc-meter i[data-level="warn"]{background:#ffb43b}.fc-meter i[data-level="danger"]{background:#ff3b3b}.fc-meter i[data-level="slack"],.fc-meter i[data-level="low"]{background:#8ab6ff}
+.fc-stamina i{background:#ff9440}
+.fc-tip{margin:0;font:900 14px var(--toon-font,sans-serif);min-height:20px;color:#1f7d72}
+.fc-pad{position:relative;aspect-ratio:1.4;border:3px solid var(--ol-c,#22264a);border-radius:22px;background:linear-gradient(#e6fbf7,#c8eee7);touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden}
+.fc-pad i{position:absolute;background:rgba(34,38,74,.15)}.fc-pad-x{left:8%;right:8%;top:50%;height:2px}.fc-pad-y{top:8%;bottom:8%;left:50%;width:2px}
+.fc-pad b{position:absolute;left:calc(50% - 26px);top:calc(50% - 26px);width:52px;height:52px;border-radius:50%;border:3px solid var(--ol-c,#22264a);background:conic-gradient(#ff5d5d 0 50%,#fff 0);box-shadow:0 4px 0 var(--ol-c,#22264a)}
+.fc-pad span{position:absolute;left:0;right:0;bottom:8px;text-align:center;font:800 12px var(--toon-font,sans-serif);color:var(--muted,#7a7fa8)}
+#fish-controller .fc-big{width:100%;min-height:clamp(96px,18vh,150px);font-size:24px!important;border-radius:22px!important;background:#ffd23f;box-shadow:0 6px 0 var(--ol-c,#22264a)}
+#fish-controller .fc-big.armed{background:#ff9440;animation:fc-pulse .8s ease-in-out infinite}
+#fish-controller .fc-hook{background:#fff}
+#fish-controller .fc-hook.now{background:#ff5d5d;color:#fff;animation:fc-pulse .35s ease-in-out infinite}
+@keyframes fc-pulse{50%{transform:scale(1.03)}}
+#fish-controller.bite .fc-notice{background:#ffe1e1}
+.fc-lobby,.fc-row{display:flex;gap:8px;flex-wrap:wrap}.fc-lobby button,.fc-row button{flex:1}
+.fc-more{font:800 13px var(--toon-font,sans-serif);color:var(--ink-2,#3d4270)}.fc-more summary{cursor:pointer;padding:6px 0}
+.fc-check{display:flex;gap:8px;align-items:center;margin:6px 0}.fc-small{font:700 12px/1.5 var(--toon-font,sans-serif);color:var(--muted,#7a7fa8);margin:6px 0 0}
+@media (orientation:landscape) and (max-height:520px){.fc-big{min-height:70px!important}.fc-pad{aspect-ratio:2.2}.fc-live{grid-template-columns:70px 1fr}.fc-rod{width:70px;height:70px}}

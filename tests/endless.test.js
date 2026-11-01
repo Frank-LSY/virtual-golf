@@ -74,7 +74,7 @@ test('自动驾驶能跑过各种机关：只被崩塌追上，不会自己掉�
 });
 
 test('赛段主题：进程取距离与时间里更靠后的一个，依次经过四段；颜色在段尾平滑过渡；配乐章节随段落切换', ()=>{
- assert.equal(STAGES.length,4);assert.deepEqual(STAGES.map(s=>s.chapter),[0,1,2,2]);assert.equal(VERSUS_COLORS.length,4);
+ assert.equal(STAGES.length,4);assert.deepEqual(STAGES.map(s=>s.chapter),[0,1,2,3],'加时赛用自己的配乐');assert.equal(VERSUS_COLORS.length,4);
  assert.equal(progressOf(0,0),0);assert.ok(Math.abs(progressOf(80,0)-.5)<1e-9);assert.ok(Math.abs(progressOf(0,17.5)-.5)<1e-9);assert.equal(Math.floor(progressOf(200,10)),1);assert.equal(Math.floor(progressOf(10,75)),2);
  const late=ENDLESS.grace+(ENDLESS.collapse.max-ENDLESS.collapse.base)/ENDLESS.collapse.ramp;assert.equal(progressOf(0,late+1),3,'崩塌进入加时，一定是最后一段');assert.equal(progressOf(5000,0),3);
  assert.deepEqual(stageBlend(.5),{index:0,next:1,blend:0});assert.ok(stageBlend(.9).blend>.4&&stageBlend(.9).blend<.6);assert.equal(stageBlend(3).index,3);

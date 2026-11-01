@@ -7,14 +7,15 @@ export const ENDLESS_KEY='swinglink-skyroll-endless';
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
 const clock=s=>`${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`;
 const RANK=['','冠军','第 2 名','第 3 名','第 4 名'];
+const VERSUS_FEEL=new Set(['wall','bump','sweep','clash','boost','fall']);
 const REASONS={manual:'按“继续”后倒数 2 秒再出发。',blur:'电脑窗口失去焦点，比赛已暂停。',hidden:'电脑页面离开前台，比赛已暂停。',controller_offline:'有手机断开了连接。',stream_gap:'有手机的手柄数据中断了，请保持手机页面在前台。',phone_hidden:'有手机离开了前台。',recenter:'有手机正在重新校准握姿。'};
 export function loadEndless(storage){try{const r=JSON.parse(storage.getItem(ENDLESS_KEY));return r&&typeof r==='object'?r:{};}catch{return {};}}
 // 纪录：最远距离（单人或对战都算）、对战场数。
 export function recordEndless(records,game){const best=[...game.players].sort((a,b)=>b.best-a.best)[0],distance=Math.round(best?.best||0),old=records.best?.distance??0,newBest=distance>old;records.plays=(records.plays||0)+1;if(!game.solo)records.matches=(records.matches||0)+1;if(newBest)records.best={distance,name:best.name,date:new Date().toISOString().slice(0,10),players:game.players.length};return {newBest,distance,record:records.best};}
 
 export class VersusRoom {
- constructor(root,conn,{sfx=null,toast=()=>{},pair=()=>{},onExit=()=>{},onWin=()=>{},onPhase=()=>{},onTempo=()=>{},storage=globalThis.localStorage}={}){
-  this.root=root;this.conn=conn;this.sfx=sfx;this.toast=toast;this.pair=pair;this.onExit=onExit;this.onWin=onWin;this.onPhase=onPhase;this.onTempo=onTempo;this.tempo=1;this.storage=storage;this.records=loadEndless(storage);
+ constructor(root,conn,{sfx=null,toast=()=>{},pair=()=>{},onExit=()=>{},onWin=()=>{},onPhase=()=>{},onIntensity=()=>{},storage=globalThis.localStorage}={}){
+  this.root=root;this.conn=conn;this.sfx=sfx;this.toast=toast;this.pair=pair;this.onExit=onExit;this.onWin=onWin;this.onPhase=onPhase;this.onIntensity=onIntensity;this.heat=0;this.storage=storage;this.records=loadEndless(storage);
   this.active=false;this.host=true;this.online=false;this.roster=[null,null,null,null];this.allReady=false;this.game=null;this.inputs=new Map();this.keys=new Set();this.round=0;this.lastState=0;this.lastUI=0;this.toastUntil=0;this.result=null;
   root.innerHTML=`<section class="vs-lobby" id="vs-lobby" aria-label="多人对战大厅">
    <div class="vs-hero"><div class="vs-hero-copy"><span class="toon-badge sky">SKYROLL · 多人对战</span><h1 class="toon-title">无尽云路</h1><p>最多 4 人，每人一台手机当手柄。身后的赛道会一格格塌下去，而且越塌越快；球会互相碰撞，可以把对手撞下去。<b>掉下去就出局，最后留在赛道上的人获胜。</b></p>
@@ -35,29 +36,32 @@ export class VersusRoom {
   document.addEventListener('keydown',e=>{if(!this.active||!this.host||e.target.matches('input,select,textarea')||document.querySelector('dialog[open]'))return;const key=e.key.toLowerCase();if(this.game&&['arrowleft','arrowright','arrowup','arrowdown','w','a','s','d'].includes(key)){e.preventDefault();this.keys.add(key);}if((key==='p'||key==='escape')&&!e.repeat&&this.game){e.preventDefault();this.togglePause();}if(key==='enter'&&!e.repeat){if(!this.game&&this.canStart())this.start();else if(this.game?.phase==='over')this.act('rematch');}});
   document.addEventListener('keyup',e=>this.keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{this.keys.clear();if(this.active)this.pause('blur');});document.addEventListener('visibilitychange',()=>{if(document.hidden){this.keys.clear();if(this.active)this.pause('hidden');}});
   this.renderLobby();this.last=performance.now();
-  const frame=now=>{const dt=Math.max(0,(now-this.last)/1000);this.last=now;if(this.active&&this.game&&this.scene){if(dt>.35&&this.game.phase==='playing')this.pause('blur');const events=this.game.advance(Math.min(dt,.1),this.inputMap(now));for(const e of events)this.onEvent(e);this.scene.draw(this.game,now/1000);this.sound();if(now-this.lastUI>100||events.length){this.renderHUD();this.lastUI=now;}if(now-this.lastState>250||events.some(e=>['go','over','fall','resume'].includes(e.kind))){this.sendState();this.lastState=now;}}requestAnimationFrame(frame);};requestAnimationFrame(frame);
+  const frame=now=>{const dt=Math.max(0,(now-this.last)/1000);this.last=now;if(this.active&&this.game&&this.scene){if(dt>.35&&this.game.phase==='playing')this.pause('blur');const events=this.game.advance(Math.min(dt,.1),this.inputMap(now));for(const e of events)this.onEvent(e);this.sendFeel(events);this.scene.draw(this.game,now/1000);this.sound();if(now-this.lastUI>100||events.length){this.renderHUD();this.lastUI=now;}if(now-this.lastState>250||events.some(e=>['go','over','fall','resume'].includes(e.kind))){this.sendState();this.lastState=now;}}requestAnimationFrame(frame);};requestAnimationFrame(frame);
  }
  get players(){return this.roster.filter(Boolean);}
  canStart(){return this.host&&this.players.length>0&&this.allReady&&(!this.game||this.game.phase==='over');}
- show(active){this.active=active;this.keys.clear();if(!active){if(this.game&&!['over'].includes(this.game.phase))this.pause('hidden');this.sfx?.stop();this.setTempo(1);}else{this.renderLobby();this.renderHUD();this.sendState();if(this.game)this.$('vs-canvas').focus({preventScroll:true});}}
+ show(active){this.active=active;this.keys.clear();if(!active){if(this.game&&!['over'].includes(this.game.phase))this.pause('hidden');this.sfx?.stop();this.setHeat(0);}else{this.renderLobby();this.renderHUD();this.sendState();if(this.game)this.$('vs-canvas').focus({preventScroll:true});}}
  ensureScene(){if(!this.scene&&!this.graphicsError)try{this.scene=new VersusScene(this.$('vs-canvas'));}catch{this.graphicsError=true;}return !!this.scene;}
  // ---------- 流程 ----------
  start(){
   if(!this.canStart())return;if(!this.ensureScene()){this.toast('多人对战需要 WebGL：请启用浏览器硬件加速。');return;}
   const list=this.players.map(s=>({id:s.id,slot:s.slot,name:s.name,color:VERSUS_COLORS[s.slot].color,kind:s.kind}));this.round++;this.result=null;
   this.game=new VersusGame(list,{seed:(Date.now()^Math.floor(Math.random()*1e9))>>>0});this.kinds=new Map(list.map(p=>[p.id,p.kind]));this.inputs.clear();this.keys.clear();this.outShown=new Set();
-  this.views();this.$('vs-lobby').classList.add('hidden');this.$('vs-stage').classList.remove('hidden');this.$('vs-canvas').focus({preventScroll:true});this.sfx?.play('countdown');this.setTempo(1);this.onPhase('play',STAGES[0].chapter);this.renderHUD();this.sendState();
+  this.views();this.$('vs-lobby').classList.add('hidden');this.$('vs-stage').classList.remove('hidden');this.$('vs-canvas').focus({preventScroll:true});this.sfx?.play('countdown');this.setHeat(0);this.onPhase('play',STAGES[0].chapter);this.renderHUD();this.sendState();
  }
- lobby(){this.game=null;this.result=null;this.$('vs-stage').classList.add('hidden');this.$('vs-lobby').classList.remove('hidden');this.sfx?.stop();this.setTempo(1);this.onPhase('lobby',0);this.renderLobby();this.sendState();}
- // 配乐：大厅用地图曲，比赛中按赛段换章节曲（启程群岛 → 机关云港 → 极光高空），加时赛再加快。
+ lobby(){this.game=null;this.result=null;this.$('vs-stage').classList.add('hidden');this.$('vs-lobby').classList.remove('hidden');this.sfx?.stop();this.setHeat(0);this.onPhase('lobby',0);this.renderLobby();this.sendState();}
+ // 配乐：大厅用地图曲，比赛中按赛段换章节曲（启程群岛 → 机关云港 → 极光高空 → 星海加时），切换都落在小节线上。
  music(){return this.game?['sky-play',STAGES[this.game.stage]?.chapter??0]:['sky-map',0];}
- setTempo(rate){if(Math.abs(rate-this.tempo)<.004)return;this.tempo=rate;this.onTempo(rate);}
+ // 加时“紧张层”的强度（0–1）：崩塌越快越满。不再加速播放。
+ setHeat(x){if(Math.abs(x-this.heat)<.02)return;this.heat=x;this.onIntensity(x);}
  pause(reason='manual'){if(!this.game||!['playing','countdown'].includes(this.game.phase))return;this.game.pause(reason);this.inputs.clear();this.renderHUD();this.sendState();}
  waiting(){if(!this.game)return [];return this.game.players.filter(p=>p.phase==='playing'&&this.kinds.get(p.id)==='phone').map(p=>this.roster.find(s=>s?.id===p.id)).filter(s=>!s||!s.connected||!s.ready);}
  resume(){if(this.game?.phase!=='paused')return;const wait=this.waiting();if(wait.length){this.flash(`等待 ${wait.map(s=>s?`${s.slot+1}P`:'手机').join('、')} 重新就绪（保持手机前台，完成归零或使用摇杆）。`,5000);this.renderHUD();return;}this.keys.clear();this.inputs.clear();this.game.resume();this.renderHUD();this.sendState();}
  togglePause(){if(!this.game)return;if(this.game.phase==='paused')this.resume();else this.pause('manual');}
  act(action){if(action==='resume')this.resume();if(action==='rematch'){if(this.allReady&&this.players.length){this.game=null;this.start();}else{this.lobby();this.flash('有人还没就绪，回到大厅等一下。',4000);}}if(action==='lobby')this.lobby();if(action==='map'){this.lobby();this.onExit();}}
  inputMap(now){const out=new Map();if(!this.game)return out;for(const p of this.game.players){if(this.kinds.get(p.id)==='keyboard'){out.set(p.id,vector(Number(this.keys.has('d')||this.keys.has('arrowright'))-Number(this.keys.has('a')||this.keys.has('arrowleft')),Number(this.keys.has('s')||this.keys.has('arrowdown'))-Number(this.keys.has('w')||this.keys.has('arrowup'))));continue;}const v=this.inputs.get(p.id);out.set(p.id,v&&now-v.at<550?v:{x:0,y:0});}return out;}
+ // 0.26 手机震动：碰撞类事件按球手转发给对应手机（碰球两边都震）。电脑键盘玩家没有手机，跳过。
+ sendFeel(events){if(!this.host||!this.online||!this.game)return;const slot=id=>this.game.players.find(p=>p.id===id)?.slot,list=[];for(const e of events){if(!VERSUS_FEEL.has(e.kind))continue;const ids=e.kind==='clash'?e.ids||[]:[e.id];for(const id of ids){const s=slot(id);if(s!==undefined&&this.kinds.get(id)==='phone')list.push({kind:e.kind,slot:s,strength:Number.isFinite(e.strength)?Math.round(Math.min(1,e.strength*(e.kind==='clash'?1.4:1))*100)/100:1});}}if(list.length)this.conn.send({type:'maze_feel',events:list.slice(0,16)});}
  onEvent(e){
   const g=this.game,name=id=>{const p=g.players.find(p=>p.id===id);return p?`${p.slot+1}P ${p.name}`:'';};
   if(['wall','bump','sweep','boost'].includes(e.kind))this.sfx?.play(e.kind,e.strength);
@@ -68,7 +72,7 @@ export class VersusRoom {
   if(e.kind==='fall'){this.sfx?.play('fall');const p=g.players.find(p=>p.id===e.id);if(!g.solo&&p)this.flash(`${name(e.id)} 掉下去了${p.rank?` · ${RANK[p.rank]}`:''}`,3000);}
   if(e.kind==='win'&&!g.solo){this.flash(`${name(e.id)} 获胜！`,3000);}
   if(e.kind==='stage'){const st=STAGES[e.index];this.sfx?.play('checkpoint');this.flash(e.index===STAGES.length-1?`加时赛 · ${st.name}：崩塌会越来越快！`:`第 ${e.index+1} 段 · ${st.name}`,3200);this.onPhase('play',st.chapter);}
-  if(e.kind==='over'){this.setTempo(1);this.result=recordEndless(this.records,g);try{this.storage.setItem(ENDLESS_KEY,JSON.stringify(this.records));}catch{}this.onWin(this.result);this.renderLobby();}
+  if(e.kind==='over'){this.setHeat(0);this.result=recordEndless(this.records,g);try{this.storage.setItem(ENDLESS_KEY,JSON.stringify(this.records));}catch{}this.onWin(this.result);this.renderLobby();}
   this.scene?.event(e,g);
  }
  sound(){const g=this.game,alive=g.players.filter(p=>p.phase==='playing');let fast=null,speed=0;for(const p of alive){const v=Math.hypot(p.ball.vx,p.ball.vz);if(v>speed){speed=v;fast=p;}}this.sfx?.roll(speed,fast?.surface||'normal',g.phase==='playing'&&!!fast);}
@@ -92,9 +96,9 @@ export class VersusRoom {
  renderHUD(){
   const g=this.game;this.$('vs-pause').disabled=!g||['over'].includes(g?.phase);if(!g){this.$('vs-overlay').classList.remove('visible');return;}
   const alive=g.players.filter(p=>p.phase==='playing').length;this.$('vs-time').textContent=clock(g.elapsed);this.$('vs-alive').textContent=g.solo?(alive?'在跑':'出局'):`${alive} / ${g.players.length}`;this.$('vs-speed').textContent=g.collapsing?`${g.speed.toFixed(1)} 米/秒`:'即将开始';this.$('vs-speed-chip').classList.toggle('hot',g.speed>ENDLESS.collapse.max+.05);this.$('vs-pause').textContent=g.phase==='paused'?'继续 →':'暂停';
-  // 赛段主题色：顶栏赛段名、赛场描边随进程过渡；加时赛里崩塌越快，配乐越快。
+  // 赛段主题色：顶栏赛段名、赛场描边随进程过渡；加时赛里崩塌越快，配乐的紧张层推得越满。
   const sb=stageBlend(g.progress||0),accent=this.mixColor(STAGES[sb.index].accent,STAGES[sb.next].accent,sb.blend);this.$('vs-stage').style.setProperty('--vs-theme',accent);this.$('vs-stage-name').textContent=STAGES[g.stage].name;
-  this.setTempo(g.phase==='playing'&&g.stage===STAGES.length-1?1.03+Math.max(0,Math.min(.07,(g.speed-ENDLESS.collapse.max)*.04)):1);
+  this.setHeat(g.phase==='playing'&&g.stage===STAGES.length-1?.35+.65*Math.max(0,Math.min(1,(g.speed-ENDLESS.collapse.max)/1.75)):0);
   for(const el of this.root.querySelectorAll('.vs-view[data-slot]')){const p=g.players.find(p=>p.slot===Number(el.dataset.slot));if(!p)continue;const gap=p.s-g.front,danger=g.collapsing&&p.phase==='playing'&&gap<ENDLESS.warn+1;el.querySelector('.vs-dist').textContent=`${Math.round(p.best)} 米`;el.querySelector('.vs-gap em').textContent=p.phase!=='playing'?'—':g.collapsing?`崩塌在身后 ${Math.max(0,gap).toFixed(0)} 米`:'崩塌还没开始';el.querySelector('.vs-gap i').style.width=`${g.collapsing&&p.phase==='playing'?Math.max(0,Math.min(100,gap/30*100)):100}%`;el.classList.toggle('danger',danger);el.classList.toggle('out',p.phase!=='playing');el.classList.toggle('winner',g.winner===p&&g.phase!=='countdown');
    const st=el.querySelector('.vs-state'),text=g.winner===p&&!g.solo?'<b>胜利！</b>':p.phase==='falling'?'<b>掉下去了！</b>':p.phase==='out'?`<b>${g.solo?'出局':`出局 · ${RANK[p.rank]||''}`}</b><small>${g.solo?'':'正在观战领先的人'}</small>`:'';if(st.innerHTML!==text)st.innerHTML=text;}
   const hint=performance.now()<this.toastUntil;this.$('vs-toast').textContent=hint?this.toastText:'';this.$('vs-toast').classList.toggle('visible',hint);

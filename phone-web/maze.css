@@ -19,3 +19,12 @@ body.maze-phone-active{background:#edf7f9;color:#325e73}body.maze-phone-active #
 .mc-vs-actions button{flex:1 1 40%}
 #maze-controller #mc-leave{flex:0 1 auto;font-size:12px!important;box-shadow:none}
 @media(orientation:landscape) and (max-height:500px){.mc-versus{padding:8px 10px;gap:6px}.mc-vs-text{font-size:13px;min-height:0}}
+/* 0.26 倾斜控制只用横屏：竖着拿时整屏提示转过来 */
+.mc-rotate{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;background:rgba(239,246,255,.97);color:#22264a}
+.mc-rotate.hidden{display:none}
+.mc-rotate b{font-size:22px;font-weight:900}
+.mc-rotate p{margin:0;font-size:14px;line-height:1.8;color:#4a5280}
+.mc-rotate-phone{display:block;width:48px;height:84px;margin-bottom:8px;border:4px solid #22264a;border-radius:11px;background:linear-gradient(180deg,#8fd3ff,#efe6ff);box-shadow:0 4px 0 #22264a;animation:mc-turn 2s ease-in-out infinite}
+@keyframes mc-turn{0%,25%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+#maze-controller .mc-rotate button{margin-top:8px;min-width:180px}
+@media (prefers-reduced-motion:reduce){.mc-rotate-phone{animation:none;transform:rotate(-90deg)}}

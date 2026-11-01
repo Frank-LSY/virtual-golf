@@ -18,6 +18,9 @@ try{
  const screen=await connect('screen','maze-pc'),phone=await connect('phone','maze-phone'),other=await connect('phone','other-phone');
  send(screen,{type:'maze_view',active:true});await wait(screen,m=>m.type==='maze_host'&&m.host);await wait(phone,m=>m.type==='maze_subscription'&&m.active);assert.equal((await wait(other,m=>m.type==='maze_subscription')).active,false);
  send(phone,{type:'maze_ready',ready:true,source:'joystick'});await wait(screen,m=>m.type==='maze_controller'&&m.ready);send(screen,{type:'maze_input_mode',phone:true});send(phone,{type:'maze_input',x:.6,y:-.2,seq:1});assert.equal((await wait(screen,m=>m.type==='maze_input')).x,.6);
+ // 0.26 震动：电脑转发的物理事件只发给当前手柄手机；力度裁剪到 0–1，未知事件忽略。
+ send(screen,{type:'maze_feel',events:[{kind:'wall',strength:3},{kind:'hack'},{kind:'checkpoint'}]});let feel=await wait(phone,m=>m.type==='maze_feel');assert.deepEqual([feel.kind,feel.strength],['wall',1]);feel=await wait(phone,m=>m.type==='maze_feel');assert.equal(feel.kind,'checkpoint');
+ send(screen,{type:'maze_feel',events:'x'});assert.match((await wait(screen,m=>m.type==='error')).message,/滚球事件无效/);
  send(other,{type:'maze_input',x:1,y:0,seq:1});assert.match((await wait(other,m=>m.type==='error')).message,/不是当前/);
  send(screen,{type:'maze_state',phase:'playing',level:2,elapsed:12.5,falls:3,checkpoint:1,checkpointCount:3});const state=await wait(phone,m=>m.type==='maze_game_state');assert.equal(state.falls,3);assert.equal(state.checkpoint,1);assert.equal(state.checkpointCount,3);
  send(phone,{type:'maze_pause'});await wait(screen,m=>m.type==='maze_pause'&&m.reason==='phone_hidden');send(phone,{type:'maze_command',action:'retry'});await wait(screen,m=>m.type==='maze_command'&&m.action==='retry');
@@ -30,7 +33,7 @@ try{
  send(screen,{type:'maze_state',phase:'playing',level:10,elapsed:1,falls:0});assert.match((await wait(screen,m=>m.type==='error')).message,/滚球状态无效/);
  send(screen,{type:'screen_view',game:'skyroll',view:'maze'});assert.equal((await wait(phone,m=>m.type==='screen_view'&&m.game==='skyroll')).view,'maze');send(screen,{type:'screen_view',game:'bogus'});assert.equal((await wait(other,m=>m.type==='screen_view'&&m.game==='hub')).game,'hub');
  const late=await connect('phone','late-phone');assert.equal((await wait(late,m=>m.type==='screen_view')).game,'hub');
- const soundtrack=await fetch(base+'/screen-web/assets/music/soundtrack.json').then(r=>r.json());assert.equal(Object.keys(soundtrack.cues).length,10);const cue=await fetch(base+soundtrack.cues['sky-isles'].src);assert.equal(cue.status,200);assert.equal(cue.headers.get('content-type'),'audio/mpeg');
+ const soundtrack=await fetch(base+'/screen-web/assets/music/soundtrack.json').then(r=>r.json());assert.equal(Object.keys(soundtrack.cues).length,13);for(const src of [soundtrack.cues['sky-overtime'].layers.hot.src,soundtrack.cues['sky-overtime'].lead.src])assert.equal((await fetch(base+src)).status,200,src);const cue=await fetch(base+soundtrack.cues['sky-isles'].src);assert.equal(cue.status,200);assert.equal(cue.headers.get('content-type'),'audio/mpeg');
  // 0.24：多人对战（无尽云路）——最多 4 个位置、各自就绪与输入、电脑状态转发、比赛中锁定、断线保留位置、断流自动恢复。
  for(const file of ['/shared/maze/endless.js','/screen-web/versus.js','/screen-web/versus-renderer.js','/screen-web/versus.css'])assert.equal((await fetch(base+file)).status,200,file);
  const v3=await connect('phone','vs-phone-3'),v4=await connect('phone','vs-phone-4'),v5=await connect('phone','vs-phone-5');
@@ -50,6 +53,8 @@ try{
  send(screen,{type:'maze_versus_state',phase:'playing',elapsed:4.2,speed:1.6,stage:1,solo:false,winner:null,round:1,players});
  for(const [ws,slot] of [[phone,0],[late,1],[v3,2],[v5,null]]){const st=await wait(ws,m=>m.type==='maze_versus_state'&&m.phase==='playing');assert.equal(st.you,slot);assert.equal(st.players.length,4);assert.equal(st.stage,1);}
  assert.equal((await wait(v5,m=>m.type==='maze_subscription'&&m.locked)).joined,false);
+ // 对战震动：按位置转给对应手机（碰球两边都收到），没加入的手机收不到。
+ send(screen,{type:'maze_feel',events:[{kind:'clash',slot:0,strength:.7},{kind:'clash',slot:2,strength:.7},{kind:'bump',slot:9}]});assert.equal((await wait(phone,m=>m.type==='maze_feel')).kind,'clash');assert.equal((await wait(v3,m=>m.type==='maze_feel')).strength,.7);await new Promise(r=>setTimeout(r,120));assert.ok(!late.queue.some(m=>m.type==='maze_feel')&&!v5.queue.some(m=>m.type==='maze_feel'));
  send(v5,{type:'maze_join',join:true});assert.match((await wait(v5,m=>m.type==='error')).message,/本局进行中/);send(late,{type:'maze_join',join:false});assert.match((await wait(late,m=>m.type==='error')).message,/不能退出/);
  send(screen,{type:'maze_versus_state',phase:'playing',elapsed:1,players:[{slot:0,alive:true,rank:9,distance:1}]});assert.match((await wait(screen,m=>m.type==='error')).message,/对战状态无效/);
  v3.close();const offline=await wait(screen,m=>m.type==='maze_pause'&&m.reason==='controller_offline'&&m.slot===2);assert.equal(offline.phoneId,'vs-phone-3');roster=await wait(screen,m=>m.type==='maze_roster'&&m.slots[2]&&!m.slots[2].connected);

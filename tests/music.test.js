@@ -116,6 +116,52 @@ test('无缝循环：按清单循环点播放、淡入；停下时淡出并记�
  const stopped=new LoopTrack(sys,{id:'x',src:'y',loopStart:0,loopEnd:10},{get:()=>new Promise(r=>setTimeout(()=>r(buffer),5))});const p=stopped.start();stopped.stop();assert.equal(await p,false,'还在下载时就离开，不会再开始播放');
  const failing=new LoopTrack(sys,{id:'z',src:'z'},{get:async()=>{throw Error('missing');}});let errors=0;failing.onError=()=>errors++;assert.equal(await failing.start(),false);assert.equal(failing.failed,true);assert.equal(errors,1);
 });
+// 0.26 无缝切换：每首循环“知道小节线”（拍数 / 每小节拍数 / 乐段），切换落在小节线上，带过门。
+const flush=()=>new Promise(r=>setTimeout(r,0));
+const GRID={beats:64,bpb:4,sections:[{name:'intro',beat:0},{name:'A',beat:16},{name:'B',beat:32},{name:'C',beat:48}]};
+const GRID_MANIFEST={cues:{
+ hub:{id:'hub',src:'/m/hub.mp3',loopStart:.5,loopEnd:32.5,duration:33,...GRID,lead:{src:'/m/hub-in.mp3',pickup:1}},
+ 'golf-lobby':{id:'golf-lobby',src:'/m/gl.mp3',loopStart:.5,loopEnd:32.5,duration:33,...GRID,lead:{src:'/m/gl-in.mp3',pickup:1}},
+ 'sky-map':{id:'sky-map',src:'/m/sm.mp3',loopStart:.5,loopEnd:32.5,duration:33,...GRID,lead:{src:'/m/sm-in.mp3',pickup:1}},
+ 'fish-lake':{id:'fish-lake',src:'/m/fl.mp3',loopStart:.5,loopEnd:32.5,duration:33,...GRID,lead:{src:'/m/fl-in.mp3',pickup:1}},
+ 'sky-overtime':{id:'sky-overtime',src:'/m/ot.mp3',loopStart:.5,loopEnd:32.5,duration:33,...GRID,layers:{hot:{src:'/m/ot-hot.mp3'}},lead:{src:'/m/ot-in.mp3',pickup:.8}}}};
+test('小节线：算出下一个小节线；在小节线上收暗退场、记住位置；之前可以反悔；回来时从所在乐段开头进入',async()=>{
+ const c=fakeContext(),sys=new SoundSystem(()=>c),bank={get:async()=>({duration:33})},timers=[];
+ const track=new LoopTrack(sys,GRID_MANIFEST.cues.hub,bank,{timers:{setTimeout:(f,ms)=>timers.push([f,ms]),clearTimeout(){}}});
+ assert.equal(track.beat,.5);assert.equal(track.bar,2);assert.equal(await track.start(1.2),true);
+ c.advance(3.1);const at=track.nextBoundary(.3);assert.ok(Math.abs(at-4.03)<1e-9,`下一个小节线 ${at}`);
+ track.leave(at);assert.ok(track.gain.gain.events.some(e=>e[0]==='lin'&&e[1]===0&&Math.abs(e[2]-(at+.3))<1e-9),'小节线后 0.3 秒静音');assert.ok(track.filter.frequency.events.some(e=>e[0]==='exp'&&e[1]===900),'收暗');
+ assert.ok(Math.abs(track.position-4.5)<1e-9,'记住小节线时的位置');assert.equal(track.src,null);
+ c.advance(.5);assert.equal(track.stay(),true,'切换点之前可以反悔');assert.ok(track.src,'同一个声源接着放');assert.equal(track.playing,true);
+ const at2=track.nextBoundary(.3);track.leave(at2);c.advance(2);assert.equal(track.stay(),false,'过了切换点就不能反悔');timers.at(-1)[0]();
+ track.position=.5+20*.5;assert.ok(Math.abs(track.entry()-(.5+16*.5))<1e-9,'从所在乐段（A）开头进入');track.position=.5;assert.equal(track.entry(),.5);
+ const plain=new LoopTrack(sys,{id:'x',src:'x',loopStart:.5,loopEnd:40.5},bank);assert.equal(plain.musical,false);await plain.start();assert.equal(plain.nextBoundary(),null);
+});
+test('无缝切换：等旧曲的小节线，新曲的过门提前响起、重音落在小节线上，新曲从乐段开头进入；切换点前切回原场景则原样接着放',async()=>{
+ const c=fakeContext(),sys=new SoundSystem(()=>c),settings=new SoundSettings(memoryStorage()),timers=[];
+ const bank={get:async src=>({duration:src.includes('-in')?3:33,src})};
+ const d=new MusicDirector(sys,settings,{manifest:GRID_MANIFEST,bank,timers:{setTimeout:(f,ms)=>timers.push([f,ms]),clearTimeout(){}}});await d.ready;d.unlock();await flush();
+ const hub=d.players.get('hub');assert.ok(hub.src,'大厅曲开始');c.advance(3.1);
+ d.setScene('golf-lobby');assert.equal(d.status().playing,'golf-lobby');assert.ok(d.pending);await flush();await flush();
+ const p=d.pending,gl=d.players.get('golf-lobby');assert.ok(Math.abs(p.at-6.03)<1e-9,`切在留得出完整过门的下一个小节线 ${p.at}`);assert.ok(Math.abs(gl.src.started-p.at)<1e-9,'新曲正好在小节线开始');assert.ok(Math.abs(gl.startOffset-.5)<1e-9,'第一次从头进入');
+ assert.ok(Math.abs(p.lead.started-(p.at-1))<1e-9,'过门提前 1 拍（pickup）响起');assert.equal(p.lead.buffer.src,'/m/gl-in.mp3');assert.ok(hub.leaving,'旧曲在小节线上退场');
+ // 切换点之前切回大厅：取消新曲与过门，旧曲撤销退场。
+ c.advance(1.4);d.setScene('hub');assert.equal(d.pending,null);assert.equal(d.status().playing,'hub');assert.ok(hub.src&&!hub.leaving,'原样接着放');assert.notEqual(gl.src,p.lead);assert.ok(p.lead.end!==undefined,'过门停下');assert.equal(gl.src,null,'新曲的预定进入取消');
+ // 再切到地图，切换点前又改成钓鱼：直接改去钓鱼，旧曲仍是大厅。
+ d.setScene('sky-map');await flush();await flush();c.advance(.1);d.setScene('fish-lobby');assert.equal(d.pending.to,'fish-lake');assert.equal(d.pending.from.id,'hub');await flush();await flush();
+ const q=d.pending;c.advance(q.at-c.currentTime+.05);for(const [f] of timers)f();assert.equal(d.pending,null);assert.equal(d.current.id,'fish-lake');
+ // 回到大厅：从大厅停下位置所在乐段开头接上（停在第 7 拍 → 前奏开头）。
+ c.advance(6);d.setScene('hub');await flush();await flush();assert.ok(Math.abs(hub.startOffset-.5)<1e-9);
+ // 静音：取消切换并淡出。
+ c.advance(.1);d.setScene('sky-map');await flush();await flush();settings.update({muted:true});d.sync();assert.equal(d.pending,null);assert.equal(d.current,null);
+});
+test('加时紧张层：与主轨同时开始，强度随崩塌推上；没有叠层的曲目忽略强度；对战第 4 段用《星海加时》',async()=>{
+ const c=fakeContext(),sys=new SoundSystem(()=>c),settings=new SoundSettings(memoryStorage());
+ const d=new MusicDirector(sys,settings,{manifest:GRID_MANIFEST,bank:{get:async src=>({duration:33,src})},timers:{setTimeout(){},clearTimeout(){}}});await d.ready;
+ assert.equal(CHAPTER_CUES[3],'sky-overtime');d.setIntensity(.4);d.setScene('sky-play',3);d.unlock();await flush();
+ const ot=d.players.get('sky-overtime');assert.equal(ot.layers.length,1);assert.equal(ot.layers[0].src.started,ot.src.started,'叠层逐个采样对齐');assert.equal(ot.layers[0].src.loopEnd,32.5);assert.equal(ot.layers[0].gain.gain.value,.4);
+ d.setIntensity(.9);assert.equal(ot.layers[0].gain.gain.events.at(-1)[1],.9);d.setScene('hub');d.setIntensity(.2);assert.equal(d.intensity,.2);
+});
 test('短曲：只在音乐可听时播放，并让当前循环让路',async()=>{
  const c=fakeContext();c.decodeAudioData=async()=>({duration:5});const sys=new SoundSystem(()=>c),settings=new SoundSettings(memoryStorage());
  const bank=new BufferBank(sys,{fetcher:async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(8)})});const ducks=[];
@@ -123,14 +169,17 @@ test('短曲：只在音乐可听时播放，并让当前循环让路',async()=>
  assert.equal(await d.sting('sting-win'),false,'首次操作前不播放');d.unlock();assert.equal(await d.sting('sting-win'),true);assert.equal(ducks[0][0],.15);
  settings.update({muted:true});assert.equal(await d.sting('sting-hole'),false);settings.update({muted:false});assert.equal(await d.sting('nope'),false);
 });
-test('配乐清单：十段曲目都存在、循环点合理、曲名与面板一致，每个场景默认都有一段变奏',async()=>{
+test('配乐清单：十三段曲目都存在、循环点合理、曲名与面板一致，每个场景默认都有一段变奏；循环带小节信息与过门，加时带紧张层',async()=>{
  const manifest=JSON.parse(await readFile(new URL('../screen-web/assets/music/soundtrack.json',import.meta.url),'utf8'));
  for(const [id,c] of Object.entries(manifest.cues)){
   const file=await stat(new URL('..'+c.src,import.meta.url));assert.ok(file.size>50000,`${id} 文件存在`);
-  if(id.startsWith('sting'))assert.equal(c.loopEnd,undefined);else{assert.ok(c.loopEnd-c.loopStart>30&&c.loopEnd<=c.duration,`${id} 循环点`);}
+  if(id.startsWith('sting'))assert.equal(c.loopEnd,undefined);else{assert.ok(c.loopEnd-c.loopStart>30&&c.loopEnd<=c.duration,`${id} 循环点`);
+   assert.ok(Math.abs((c.loopEnd-c.loopStart)-c.beats*60/c.bpm)<.002,`${id} 拍数与循环长度一致`);assert.ok([3,4].includes(c.bpb)&&c.beats%c.bpb===0,`${id} 整小节`);assert.equal(c.sections[0].beat,0);assert.ok(c.sections.every((s,i,a)=>s.beat%c.bpb===0&&(i===0||s.beat>a[i-1].beat)),`${id} 乐段从小节线开始`);
+   const lead=await stat(new URL('..'+c.lead.src,import.meta.url));assert.ok(lead.size>20000,`${id} 过门`);assert.ok(Math.abs(c.lead.pickup-(c.bpb===3?3:2)*60/c.bpm)<.002,`${id} 过门引子长度`);assert.ok(Math.abs(c.lead.loudness+20)<.6);}
   assert.equal(MUSIC_CHOICES[id]?.title??c.title,c.title,`${id} 曲名一致`);assert.ok(Math.abs(c.loudness-(id.startsWith('sting')?-16:-18))<.6,`${id} 响度`);
  }
  for(const [scene,info] of Object.entries(SCENES)){const ids=info.auto==='chapter'?CHAPTER_CUES:[info.auto];for(const id of ids)assert.ok(manifest.cues[id],`${scene} → ${id}`);}
+ assert.equal(Object.keys(manifest.cues).length,13);const ot=manifest.cues['sky-overtime'];assert.equal(ot.title,'星海加时');assert.equal(ot.bpm,152);assert.ok((await stat(new URL('..'+ot.layers.hot.src,import.meta.url))).size>300000,'紧张层');assert.ok(ot.layers.hot.loudness<ot.loudness,'紧张层比主轨轻');
 });
 
 test('Butterfly Waltz：经音乐母线循环播放，被浏览器拦截不算损坏，淡出后暂停并保留进度',async()=>{

@@ -1,5 +1,6 @@
 import {LEVELS} from '../shared/maze/levels.js';
 import {ENDLESS,VERSUS_COLORS} from '../shared/maze/endless.js';
+const FEEL_KINDS=new Set(['wall','bump','sweep','clash','board','boost','checkpoint','fall']);
 // A separate continuous-input channel. Golf never consumes maze packets.
 // 单人：电脑选一台手机当手柄（原有逻辑）。
 // 多人对战（0.24）：电脑切到 versus 模式后，所有连着的手机都显示“加入对战”；最多 4 个位置（含一个可选的键盘玩家）。
@@ -92,6 +93,17 @@ export class MazeChannel {
       if(m.type==='maze_rezero'){
         if(this.versus()){for(const s of this.slots){const p=s?.kind==='phone'&&this.socket(s.id);if(p){p.mazeReady=false;this.send(p,{type:'maze_rezero'});}}this.publish();return true;}
         const p=this.phone();if(p){p.mazeReady=false;this.send(p,{type:'maze_rezero'});}this.pause('recenter');this.publish();return true;
+      }
+      // 0.26 手机震动：电脑转发的物理事件（撞墙、弹板、碰球、坠落……）只发给对应的手机；无效条目直接忽略。
+      if(m.type==='maze_feel'){
+        if(!Array.isArray(m.events)||m.events.length>16)throw Error('滚球事件无效。');
+        for(const e of m.events){
+          if(!FEEL_KINDS.has(e?.kind))continue;const strength=Number.isFinite(e.strength)?Math.max(0,Math.min(1,e.strength)):1;let p=null;
+          if(this.versus()){if(!Number.isInteger(e.slot)||e.slot<0||e.slot>=ENDLESS.maxPlayers)continue;const slot=this.slots[e.slot];p=slot?.kind==='phone'?this.socket(slot.id):null;}
+          else if(this.usingPhone)p=this.phone();
+          if(p)this.send(p,{type:'maze_feel',kind:e.kind,strength:Math.round(strength*100)/100});
+        }
+        return true;
       }
       if(m.type==='maze_state'){
         const valid=['ready','playing','paused','countdown','falling','won','complete'].includes(m.phase);

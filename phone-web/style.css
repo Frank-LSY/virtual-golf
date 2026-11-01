@@ -1,4 +1,4 @@
-/* 挥杆之间 · 手机球杆界面（0.14.0）：与大屏同一套晴空、草地、阳光配色，大号状态便于挥杆间隙一眼确认。全部使用本机字体。 */
+/* 体感派对（原名挥杆之间）· 手机球杆界面（0.14.0）：与大屏同一套晴空、草地、阳光配色，大号状态便于挥杆间隙一眼确认。全部使用本机字体。 */
 :root{--ink:#12372a;--ink-2:#36574a;--muted:#6c8277;--faint:#9db0a5;--paper:#f3f8ee;--paper-2:#e9f2e2;--line:#e0e9db;--line-2:#cfdccb;--grass:#25a05a;--grass-deep:#18784a;--grass-soft:#e2f5e7;--lime:#c8f05a;--sun:#ffc83d;--sun-deep:#e9a400;--sun-soft:#fff3cc;--sky:#3fa9f5;--sky-soft:#e3f3fe;--flag:#ff6a4d;--flag-soft:#ffe4dc;--shadow-s:0 2px 8px rgba(14,48,32,.08);--shadow:0 10px 30px rgba(14,48,32,.14);
  --font:"HarmonyOS Sans SC","MiSans","PingFang SC","Microsoft YaHei UI","Microsoft YaHei","Noto Sans SC",system-ui,-apple-system,sans-serif;--font-num:ui-rounded,"SF Pro Rounded","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
  font-family:var(--font);color:var(--ink);background:var(--paper);font-synthesis:none;-webkit-font-smoothing:antialiased}

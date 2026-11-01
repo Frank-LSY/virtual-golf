@@ -10,7 +10,7 @@ const ips=[...new Set(['127.0.0.1',...Object.entries(networkInterfaces()).filter
 const openssl=process.env.OPENSSL_PATH||(process.platform==='darwin'?'/usr/bin/openssl':'openssl');
 try{execFileSync(openssl,['version'],{stdio:'ignore'});}catch{console.error('找不到证书生成工具。请安装 OpenSSL，或通过 OPENSSL_PATH 指定其位置，然后重新配置。');process.exit(1);}
 // 使用配置文件声明扩展，兼容 macOS 自带的 LibreSSL，不依赖 -addext。
-writeFileSync(path.join(dir,'openssl.cnf'),'[req]\nprompt=no\nutf8=yes\ndistinguished_name=dn\n[dn]\nCN=挥杆之间 本地证书\n[ca_ext]\nbasicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign,cRLSign\nsubjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid:always,issuer\n');
+writeFileSync(path.join(dir,'openssl.cnf'),'[req]\nprompt=no\nutf8=yes\ndistinguished_name=dn\n[dn]\nCN=体感派对 本地证书\n[ca_ext]\nbasicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign,cRLSign\nsubjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid:always,issuer\n');
 const run=args=>execFileSync(openssl,args,{cwd:dir,stdio:'pipe',env:{...process.env,OPENSSL_CONF:path.join(dir,'openssl.cnf')}});
 try{
  if(!existsSync(path.join(dir,'rootCA-key.pem'))||!existsSync(path.join(dir,'rootCA.pem'))){
@@ -18,7 +18,7 @@ try{
  }
  run(['x509','-in','rootCA.pem','-outform','DER','-out','rootCA.cer']);
  writeFileSync(path.join(dir,'server.ext'),'basicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=DNS:localhost,'+ips.map(ip=>'IP:'+ip).join(',')+'\n');
- writeFileSync(path.join(dir,'server.cnf'),'[req]\nprompt=no\nutf8=yes\ndistinguished_name=dn\n[dn]\nCN=挥杆之间 本地游戏\n');
+ writeFileSync(path.join(dir,'server.cnf'),'[req]\nprompt=no\nutf8=yes\ndistinguished_name=dn\n[dn]\nCN=体感派对 本地游戏\n');
  run(['req','-newkey','rsa:2048','-nodes','-utf8','-keyout','server-key.pem','-out','server.csr','-config','server.cnf']);
  run(['x509','-req','-in','server.csr','-CA','rootCA.pem','-CAkey','rootCA-key.pem','-CAcreateserial','-out','server.pem','-days','365','-sha256','-extfile','server.ext']);
  for(const file of ['rootCA-key.pem','server-key.pem'])chmodSync(path.join(dir,file),0o600);

@@ -29,7 +29,7 @@ export const STAGES=Object.freeze([
  Object.freeze({name:'晨光云海',chapter:0,distance:0,time:0,sky:['#5ab8ff','#c4e8ff','#fff1d6'],fog:'#bfe6ff',accent:'#3fb6ff',hemi:1.9,sun:'#fff3dc'}),
  Object.freeze({name:'落日港湾',chapter:1,distance:160,time:35,sky:['#ff8f5a','#ffd3a0','#fff1dc'],fog:'#ffd3a8',accent:'#ff9f43',hemi:1.85,sun:'#ffd8a8'}),
  Object.freeze({name:'极光夜空',chapter:2,distance:420,time:70,sky:['#5b4bd6','#b9a6ff','#ffd6f0'],fog:'#c7b8ff',accent:'#7b6cf6',hemi:1.75,sun:'#e8e0ff'}),
- Object.freeze({name:'星海加时',chapter:2,distance:760,time:null,sky:['#1d1650','#4a2d8f','#ff7aa8'],fog:'#7656c4',accent:'#ff5fa2',hemi:1.55,sun:'#ffd0f0'})
+ Object.freeze({name:'星海加时',chapter:3,distance:760,time:null,sky:['#1d1650','#4a2d8f','#ff7aa8'],fog:'#7656c4',accent:'#ff5fa2',hemi:1.55,sun:'#ffd0f0'})
 ]);
 const DIR=Object.freeze({N:{x:0,z:-1},E:{x:1,z:0},W:{x:-1,z:0}});
 const RIGHT=d=>({x:-d.z,z:d.x});

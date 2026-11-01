@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / '.local' / 'mac-runtime'
 OUT = ROOT / 'releases'
 VERSION = 'v22.23.4'
-APP = '挥杆之间-Mac'
+APP = '体感派对-Mac'
 APP_VERSION = json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))['version']
 OUT.mkdir(exist_ok=True)
 checksums = {}
@@ -31,7 +31,7 @@ for folder in ['screen-web', 'phone-web', 'shared', 'game-service', 'local-gatew
         if file.suffix.lower() in ['.exe', '.dll', '.cmd', '.ps1', '.node']:
             raise RuntimeError('依赖中发现平台专用文件，请检查：' + str(file))
         files.append((file, file.relative_to(ROOT).as_posix()))
-for name in ['package.json', 'package-lock.json', 'README.md', 'Mac使用说明.html', '启动挥杆之间.command', '配置手机连接.command', 'scripts/mac-common.sh', 'scripts/start-local.js', 'scripts/setup-https.js', 'docs/PRD.md', 'docs/TECH.md', 'docs/ASSETS.md', 'docs/IMPLEMENTATION.md', 'docs/ENVIRONMENT-PROMPTS.md', 'docs/COURSE-DESIGN.md']:
+for name in ['package.json', 'package-lock.json', 'README.md', 'Mac使用说明.html', '启动体感派对.command', '配置手机连接.command', 'scripts/mac-common.sh', 'scripts/start-local.js', 'scripts/setup-https.js', 'docs/PRD.md', 'docs/TECH.md', 'docs/ASSETS.md', 'docs/IMPLEMENTATION.md', 'docs/ENVIRONMENT-PROMPTS.md', 'docs/COURSE-DESIGN.md']:
     files.append((ROOT / name, name))
 
 def put(z, name, data, executable=False):
@@ -53,7 +53,7 @@ for arch, label, cpu in [('arm64', 'Apple芯片', 0x0100000c), ('x64', 'Intel芯
         license_text = tar.extractfile(prefix + 'LICENSE').read()
     magic, cpu_type = struct.unpack('<II', node[:8])
     assert magic == 0xfeedfacf and cpu_type == cpu, '运行环境架构不匹配'
-    target = OUT / f'挥杆之间-{APP_VERSION}-Mac-{label}.zip'
+    target = OUT / f'体感派对-{APP_VERSION}-Mac-{label}.zip'
     with zipfile.ZipFile(target, 'w') as z:
         for file, name in files:
             content = file.read_bytes()
@@ -63,16 +63,16 @@ for arch, label, cpu in [('arm64', 'Apple芯片', 0x0100000c), ('x64', 'Intel芯
             put(z, name, content, executable)
         put(z, 'runtime/node', node, True)
         put(z, 'runtime/LICENSE.txt', license_text)
-        manifest = {'应用':'挥杆之间','版本':APP_VERSION,'平台':'macOS','架构':arch,'运行环境版本':VERSION,'官方来源':f'https://nodejs.org/dist/{VERSION}/{archive.name}','官方下载校验和':actual,'运行文件校验和':hashlib.sha256(node).hexdigest(),'说明':'未进行 Mac 真机运行验证；本包未签名或公证。'}
+        manifest = {'应用':'体感派对','版本':APP_VERSION,'平台':'macOS','架构':arch,'运行环境版本':VERSION,'官方来源':f'https://nodejs.org/dist/{VERSION}/{archive.name}','官方下载校验和':actual,'运行文件校验和':hashlib.sha256(node).hexdigest(),'说明':'未进行 Mac 真机运行验证；本包未签名或公证。'}
         put(z, 'runtime/来源与校验.json', json.dumps(manifest,ensure_ascii=False,indent=2).encode())
     with zipfile.ZipFile(target) as z:
         assert z.testzip() is None
         names = z.namelist()
         assert not any('/certs/' in n or '/.local/' in n or n.endswith('key.pem') for n in names)
-        for name in ['runtime/node', '启动挥杆之间.command', '配置手机连接.command', 'scripts/mac-common.sh']:
+        for name in ['runtime/node', '启动体感派对.command', '配置手机连接.command', 'scripts/mac-common.sh']:
             info = z.getinfo(APP + '/' + name)
             assert (info.external_attr >> 16) & 0o111 == 0o111
-        for name in ['启动挥杆之间.command', '配置手机连接.command', 'scripts/mac-common.sh']:
+        for name in ['启动体感派对.command', '配置手机连接.command', 'scripts/mac-common.sh']:
             data = z.read(APP + '/' + name)
             assert data.startswith(b'#!/bin/bash\n') and b'\r' not in data
         assert hashlib.sha256(z.read(APP+'/runtime/node')).hexdigest() == manifest['运行文件校验和']

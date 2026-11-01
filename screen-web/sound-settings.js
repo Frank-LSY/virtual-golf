@@ -8,9 +8,12 @@ export const SCENES=Object.freeze({
  'golf-practice':{name:'高尔夫 · 练习室',auto:'golf-practice'},
  'golf-round':{name:'高尔夫 · 正式球局',auto:'golf-round'},
  'sky-map':{name:'云端滚球 · 地图',auto:'sky-map'},
- 'sky-play':{name:'云端滚球 · 关卡',auto:'chapter'}
+ 'sky-play':{name:'云端滚球 · 关卡',auto:'chapter'},
+ 'fish-lobby':{name:'体感钓鱼 · 大厅',auto:'fish-lake'},
+ 'fish-play':{name:'体感钓鱼 · 比赛',auto:'fish-match'}
 });
-export const CHAPTER_CUES=Object.freeze(['sky-isles','sky-harbor','sky-aurora']);
+// 0.26：第 4 段是多人对战加时专用的《星海加时》（单人关卡只用前三章）。
+export const CHAPTER_CUES=Object.freeze(['sky-isles','sky-harbor','sky-aurora','sky-overtime']);
 // 曲目信息与 soundtrack.json 一致（测试会核对），这里保存一份，界面在清单加载前也能显示曲名。
 export const MUSIC_CHOICES=Object.freeze({
  auto:{title:'主题变奏',detail:'按场景自动选择',kind:'auto'},
@@ -22,6 +25,9 @@ export const MUSIC_CHOICES=Object.freeze({
  'sky-isles':{title:'启程群岛',detail:'主题 · 进行曲变奏',kind:'cue'},
  'sky-harbor':{title:'机关云港',detail:'主题 · 发条机关变奏',kind:'cue'},
  'sky-aurora':{title:'极光高空',detail:'主题 · 史诗管弦变奏',kind:'cue'},
+ 'sky-overtime':{title:'星海加时',detail:'主题 · 追逐变奏（加时专用）',kind:'cue'},
+ 'fish-lake':{title:'湖畔船歌',detail:'主题 · 船歌变奏',kind:'cue'},
+ 'fish-match':{title:'湖畔对决',detail:'主题 · 乡村快步变奏',kind:'cue'},
  waltz:{title:'Butterfly Waltz',detail:'Brian Crain · 钢琴圆舞曲（旧版配乐）',kind:'file'},
  off:{title:'不播放',detail:'这个场景保持安静',kind:'off'}
 });

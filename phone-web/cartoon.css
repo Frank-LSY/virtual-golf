@@ -1,4 +1,4 @@
-/* 挥杆之间 · 手机端 0.21 卡通风格：与电脑同一套粗描边、立体按钮；顶部标签显示电脑当前所在的游戏。
+/* 体感派对（原名挥杆之间）· 手机端 0.21 卡通风格：与电脑同一套粗描边、立体按钮；顶部标签显示电脑当前所在的游戏。
    高尔夫（球杆）用草绿，云端滚球（手柄）用天蓝，游戏大厅用阳光黄。 */
 :root{--ol-c:#22264a;--pop:0 4px 0 #22264a;--pop-s:0 3px 0 #22264a;--ink:#22264a;--ink-2:#3c4170;--muted:#6b6f93;--golf:#36c26b;--golf-d:#1f9c4f;--golf-l:#dcf8cf;--sky-c:#3fb6ff;--sky-d:#1c86d9;--sky-l:#d8f1ff;--sun-c:#ffd23f;--sun-l:#fff1b8;--coral:#ff6b6b;
  --toon-font:"HarmonyOS Sans SC","MiSans","PingFang SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif}
@@ -87,3 +87,16 @@ h1,h2{font-family:var(--toon-font);font-weight:900}
 .personal-chip[data-status="invite"]{background:var(--sun-c);cursor:pointer}
 #phone-main[data-active="1"] #title,#phone-main[data-active="1"] .phone-eyebrow{display:none}
 #phone-main[data-active="1"] #instruction{margin:6px 0 0;font-weight:800}
+/* 0.26 震动设置（高尔夫“更多设置”、滚球手柄、鱼竿共用） */
+.hp-panel{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:4px 0 8px;padding:10px 12px;border:2.5px solid var(--ol-c);border-radius:14px;background:#fff;text-align:left;font:700 13px/1.4 var(--toon-font);color:var(--ink)}
+.hp-panel .hp-row{display:flex;align-items:center;gap:8px;margin:0}
+.hp-panel select{min-height:36px;border:2px solid var(--ol-c);border-radius:10px;padding:4px 8px;font:800 13px var(--toon-font);background:var(--sun-l);color:var(--ink)}
+.hp-panel .hp-check{display:flex;align-items:center;gap:6px;margin:0;font-weight:700}
+.hp-panel .hp-check input{width:18px;height:18px;accent-color:var(--golf-d)}
+.hp-panel button{min-height:36px!important;padding:6px 14px!important;border:2px solid var(--ol-c)!important;border-radius:10px!important;background:var(--sky-l)!important;color:var(--ink)!important;font:800 13px var(--toon-font)!important}
+.hp-panel button:disabled{opacity:.45}
+.hp-panel .hp-note{flex-basis:100%;margin:0;font:500 11px/1.6 var(--toon-font);color:var(--muted)}
+.hp-golf{margin:2px 0 6px}
+#maze-controller .mc-more,#fish-controller .fc-more{margin-top:10px}
+#maze-controller .mc-more summary{font-size:12px;color:#6b8f9c;cursor:pointer;padding:6px 0}
+.hp-panel .hp-row span{white-space:nowrap}

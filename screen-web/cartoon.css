@@ -1,4 +1,4 @@
-/* 挥杆之间 · 0.21 卡通游戏风格（两个游戏共用的设计系统）
+/* 体感派对（原名挥杆之间）· 0.21 卡通游戏风格（两个游戏共用的设计系统）
    粗描边、立体按钮、饱和配色；高尔夫用草绿，云端滚球用天蓝，游戏大厅用阳光黄。
    这一层最后加载：先定义组件，再覆盖高尔夫原有页面，让两个游戏看起来属于同一套界面。 */
 :root{
@@ -64,7 +64,9 @@ body[data-game="skyroll"]{background:radial-gradient(circle at 85% 12%,rgba(255,
 .nav-game.nav-sky.active{background:var(--sky-c);color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.5)}
 .sub-nav{display:flex;align-items:center;gap:2px;padding-left:8px;margin-left:4px;border-left:2.5px dashed #d8d6ea}
 body[data-game="hub"] .sub-nav{display:none}
-body[data-game="golf"] .sub-nav [data-game="skyroll"],body[data-game="skyroll"] .sub-nav [data-game="golf"]{display:none}
+body[data-game="golf"] .sub-nav [data-game="skyroll"],body[data-game="skyroll"] .sub-nav [data-game="golf"],body[data-game="fishing"] .sub-nav [data-game="golf"],body[data-game="fishing"] .sub-nav [data-game="skyroll"]{display:none}
+.nav-game.nav-fish.active{background:#2bb3a3;color:#fff;text-shadow:0 1px 0 rgba(34,38,74,.5)}
+body[data-game="fishing"]{background:radial-gradient(rgba(34,38,74,.07) 1.6px,transparent 1.7px) 0 0/22px 22px,linear-gradient(180deg,#bff0f7 0,#e8fbf6 60%,#f6fff1 100%)}
 .header .nav-link{font:800 14px var(--toon-font);padding:8px 14px;border-radius:999px;color:var(--ink-2)}
 .header .nav-link:hover{background:var(--accent-l)}
 .header .nav-link.active{background:var(--ink);color:#fff}
@@ -86,7 +88,7 @@ body[data-game="golf"] .sub-nav [data-game="skyroll"],body[data-game="skyroll"] 
 .hub-phone-ico{width:48px;height:48px;border-radius:14px;border:var(--ol) solid var(--ol-c);background:var(--sun-l);display:grid;place-items:center;flex:none}
 .hub-phone.connected .hub-phone-ico{background:var(--golf-l)}
 .hub-phone-ico svg{width:24px;height:24px}
-.hub-games{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+.hub-games{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
 .game-card{display:flex;flex-direction:column;text-align:left;background:#fff;border:4px solid var(--ol-c);border-radius:30px;box-shadow:var(--pop-l);overflow:hidden;cursor:pointer;transition:transform .16s,box-shadow .16s}
 .game-card:hover{transform:translateY(-6px) rotate(-.6deg);box-shadow:0 14px 0 var(--ol-c)}
 .game-card.sky:hover{transform:translateY(-6px) rotate(.6deg)}
@@ -210,3 +212,20 @@ body.in-round .header{height:auto;padding:0}
 /* 人物视角也显示镜头工具条（▲▼ 俯仰只在这里与俯视中出现）。 */
 .game-canvas .scene-view-tools button[data-action=up],.game-canvas .scene-view-tools button[data-action=down]{min-width:30px}
 .preview .scene-view-tools button[data-action=up],.preview .scene-view-tools button[data-action=down]{display:none}
+
+/* 0.25 体感钓鱼：大厅卡片与导航 */
+.game-card.fish:hover{transform:translateY(-6px) rotate(.4deg)}
+.btn-fish{background:#2bb3a3;color:#fff;text-shadow:0 2px 0 rgba(34,38,74,.45)}
+.fish-art{background:linear-gradient(180deg,#8fd8ff 0,#c9efff 46%,#3aa7cf 47%,#2b8fb8 100%)}
+.fish-art .far{position:absolute;left:-10%;right:-10%;top:34%;height:42px;background:#7cc36a;border:var(--ol) solid var(--ol-c);border-radius:50% 50% 0 0}
+.fish-art .reed{position:absolute;bottom:30%;width:6px;height:70px;background:#8fb847;border:2px solid var(--ol-c);border-radius:3px;transform-origin:bottom;animation:flag-wave 3s ease-in-out infinite}
+.fish-art .r1{left:12%}.fish-art .r2{left:16%;height:54px;animation-delay:.6s}
+.fish-art .ring{position:absolute;left:calc(58% - 34px);top:62%;width:68px;height:20px;border:3px solid #fff;border-radius:50%;opacity:.8;animation:fish-ring 2s ease-out infinite}
+.fish-art .bob{position:absolute;left:calc(58% - 9px);top:calc(62% - 4px);width:18px;height:18px;border-radius:50%;background:linear-gradient(#ff5d5d 0 50%,#fff 50%);border:2.5px solid var(--ol-c);animation:fish-bob 1.6s ease-in-out infinite}
+.fish-art .line{position:absolute;left:20%;top:8%;width:42%;height:56%;border-top:2px solid #fff;border-right:2px solid #fff;border-radius:0 70% 0 0;opacity:.85}
+.fish-art .fishy{position:absolute;left:40%;top:76%;width:46px;height:16px;border-radius:50%;background:rgba(18,58,82,.45);animation:drift 5s ease-in-out infinite}
+@keyframes fish-bob{50%{transform:translateY(5px)}}
+@keyframes fish-ring{from{transform:scale(.6);opacity:.9}to{transform:scale(1.4);opacity:0}}
+body[data-game="fishing"]{--accent:#2bb3a3;--accent-d:#1d8a7d;--accent-l:#c8f3ec}
+@media (max-width:1100px){.hub-games{grid-template-columns:1fr 1fr}}
+@media (max-width:760px){.hub-games{grid-template-columns:1fr}}

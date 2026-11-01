@@ -11,7 +11,41 @@
    "duration": 50.656,
    "loudness": -18.0,
    "loopStart": 0.5,
-   "loopEnd": 50.1559
+   "loopEnd": 50.1559,
+   "lead": {
+    "src": "/screen-web/assets/music/hub-in.mp3",
+    "pickup": 1.0345,
+    "duration": 3.635,
+    "loudness": -20.0
+   },
+   "beats": 96,
+   "bpb": 4,
+   "sections": [
+    {
+     "name": "intro",
+     "beat": 0
+    },
+    {
+     "name": "A",
+     "beat": 16
+    },
+    {
+     "name": "A'",
+     "beat": 32
+    },
+    {
+     "name": "B",
+     "beat": 48
+    },
+    {
+     "name": "A''",
+     "beat": 64
+    },
+    {
+     "name": "tag",
+     "beat": 80
+    }
+   ]
   },
   "golf-lobby": {
    "id": "golf-lobby",
@@ -23,7 +57,41 @@
    "duration": 53.174,
    "loudness": -18.0,
    "loopStart": 0.5,
-   "loopEnd": 52.6738
+   "loopEnd": 52.6738,
+   "lead": {
+    "src": "/screen-web/assets/music/golf-lobby-in.mp3",
+    "pickup": 1.3043,
+    "duration": 3.905,
+    "loudness": -20.0
+   },
+   "beats": 80,
+   "bpb": 4,
+   "sections": [
+    {
+     "name": "intro",
+     "beat": 0
+    },
+    {
+     "name": "A",
+     "beat": 8
+    },
+    {
+     "name": "A'",
+     "beat": 24
+    },
+    {
+     "name": "B",
+     "beat": 40
+    },
+    {
+     "name": "A''",
+     "beat": 56
+    },
+    {
+     "name": "tag",
+     "beat": 72
+    }
+   ]
   },
   "golf-practice": {
    "id": "golf-practice",
@@ -35,7 +103,37 @@
    "duration": 49.0,
    "loudness": -18.0,
    "loopStart": 0.5,
-   "loopEnd": 48.5
+   "loopEnd": 48.5,
+   "lead": {
+    "src": "/screen-web/assets/music/golf-practice-in.mp3",
+    "pickup": 1.2,
+    "duration": 3.8,
+    "loudness": -20.0
+   },
+   "beats": 80,
+   "bpb": 4,
+   "sections": [
+    {
+     "name": "groove",
+     "beat": 0
+    },
+    {
+     "name": "A",
+     "beat": 16
+    },
+    {
+     "name": "A'",
+     "beat": 32
+    },
+    {
+     "name": "B",
+     "beat": 48
+    },
+    {
+     "name": "A''",
+     "beat": 64
+    }
+   ]
   },
   "golf-round": {
    "id": "golf-round",
@@ -47,7 +145,37 @@
    "duration": 46.0,
    "loudness": -18.0,
    "loopStart": 0.5,
-   "loopEnd": 45.5003
+   "loopEnd": 45.5003,
+   "lead": {
+    "src": "/screen-web/assets/music/golf-round-in.mp3",
+    "pickup": 1.25,
+    "duration": 3.85,
+    "loudness": -20.0
+   },
+   "beats": 108,
+   "bpb": 3,
+   "sections": [
+    {
+     "name": "intro",
+     "beat": 0
+    },
+    {
+     "name": "A",
+     "beat": 12
+    },
+    {
+     "name": "A'",
+     "beat": 36
+    },
+    {
+     "name": "B",
+     "beat": 60
+    },
+    {
+     "name": "A''",
+     "beat": 84
+    }
+   ]
   },
   "sky-map": {
    "id": "sky-map",
@@ -59,7 +187,41 @@
    "duration": 51.0,
    "loudness": -18.0,
    "loopStart": 0.5,
-   "loopEnd": 50.4998
+   "loopEnd": 50.4998,
+   "lead": {
+    "src": "/screen-web/assets/music/sky-map-in.mp3",
+    "pickup": 1.25,
+    "duration": 3.85,
+    "loudness": -20.0
+   },
+   "beats": 80,
+   "bpb": 4,
+   "sections": [
+    {
+     "name": "intro",
+     "beat": 0
+    },
+    {
+     "name": "A",
+     "beat": 8
+    },
+    {
+     "name": "A'",
+     "beat": 24
+    },
+    {
+     "name": "B",
+     "beat": 40
+    },
+    {
+     "name": "A''",
+     "beat": 56
+    },
+    {
+     "name": "tag",
+     "beat": 72
+    }
+   ]
   },
   "sky-isles": {
    "id": "sky-isles",
@@ -71,7 +233,49 @@
    "duration": 54.333,
    "loudness": -18.0,
    "loopStart": 0.5,
-   "loopEnd": 53.8333
+   "loopEnd": 53.8333,
+   "lead": {
+    "src": "/screen-web/assets/music/sky-isles-in.mp3",
+    "pickup": 0.9524,
+    "duration": 3.552,
+    "loudness": -20.0
+   },
+   "beats": 112,
+   "bpb": 4,
+   "sections": [
+    {
+     "name": "intro",
+     "beat": 0
+    },
+    {
+     "name": "A",
+     "beat": 8
+    },
+    {
+     "name": "A'",
+     "beat": 24
+    },
+    {
+     "name": "B",
+     "beat": 40
+    },
+    {
+     "name": "A''",
+     "beat": 56
+    },
+    {
+     "name": "break",
+     "beat": 72
+    },
+    {
+     "name": "C",
+     "beat": 88
+    },
+    {
+     "name": "tag",
+     "beat": 104
+    }
+   ]
   },
   "sky-harbor": {
    "id": "sky-harbor",
@@ -83,7 +287,45 @@
    "duration": 50.412,
    "loudness": -18.0,
    "loopStart": 0.5,
-   "loopEnd": 49.9121
+   "loopEnd": 49.9121,
+   "lead": {
+    "src": "/screen-web/assets/music/sky-harbor-in.mp3",
+    "pickup": 0.8824,
+    "duration": 3.482,
+    "loudness": -20.0
+   },
+   "beats": 112,
+   "bpb": 4,
+   "sections": [
+    {
+     "name": "intro",
+     "beat": 0
+    },
+    {
+     "name": "A",
+     "beat": 16
+    },
+    {
+     "name": "A'",
+     "beat": 32
+    },
+    {
+     "name": "B",
+     "beat": 48
+    },
+    {
+     "name": "A''",
+     "beat": 64
+    },
+    {
+     "name": "break",
+     "beat": 80
+    },
+    {
+     "name": "C",
+     "beat": 96
+    }
+   ]
   },
   "sky-aurora": {
    "id": "sky-aurora",
@@ -95,7 +337,193 @@
    "duration": 49.0,
    "loudness": -18.0,
    "loopStart": 0.5,
-   "loopEnd": 48.5
+   "loopEnd": 48.5,
+   "lead": {
+    "src": "/screen-web/assets/music/sky-aurora-in.mp3",
+    "pickup": 0.8571,
+    "duration": 3.458,
+    "loudness": -20.0
+   },
+   "beats": 112,
+   "bpb": 4,
+   "sections": [
+    {
+     "name": "intro",
+     "beat": 0
+    },
+    {
+     "name": "A",
+     "beat": 16
+    },
+    {
+     "name": "A'",
+     "beat": 32
+    },
+    {
+     "name": "B",
+     "beat": 48
+    },
+    {
+     "name": "A''",
+     "beat": 64
+    },
+    {
+     "name": "rise",
+     "beat": 80
+    },
+    {
+     "name": "C",
+     "beat": 96
+    }
+   ]
+  },
+  "fish-lake": {
+   "id": "fish-lake",
+   "title": "湖畔船歌",
+   "detail": "主题 · 船歌变奏",
+   "key": "D 大调",
+   "bpm": 76,
+   "src": "/screen-web/assets/music/fish-lake.mp3",
+   "duration": 64.158,
+   "loudness": -18.0,
+   "loopStart": 0.5,
+   "loopEnd": 63.6583,
+   "lead": {
+    "src": "/screen-web/assets/music/fish-lake-in.mp3",
+    "pickup": 1.5789,
+    "duration": 4.179,
+    "loudness": -20.0
+   },
+   "beats": 80,
+   "bpb": 4,
+   "sections": [
+    {
+     "name": "intro",
+     "beat": 0
+    },
+    {
+     "name": "A",
+     "beat": 8
+    },
+    {
+     "name": "A'",
+     "beat": 24
+    },
+    {
+     "name": "B",
+     "beat": 40
+    },
+    {
+     "name": "A''",
+     "beat": 56
+    },
+    {
+     "name": "tag",
+     "beat": 72
+    }
+   ]
+  },
+  "fish-match": {
+   "id": "fish-match",
+   "title": "湖畔对决",
+   "detail": "主题 · 乡村快步变奏",
+   "key": "A 大调",
+   "bpm": 118,
+   "src": "/screen-web/assets/music/fish-match.mp3",
+   "duration": 45.746,
+   "loudness": -18.0,
+   "loopStart": 0.5,
+   "loopEnd": 45.2463,
+   "lead": {
+    "src": "/screen-web/assets/music/fish-match-in.mp3",
+    "pickup": 1.0169,
+    "duration": 3.617,
+    "loudness": -20.0
+   },
+   "beats": 88,
+   "bpb": 4,
+   "sections": [
+    {
+     "name": "intro",
+     "beat": 0
+    },
+    {
+     "name": "A",
+     "beat": 8
+    },
+    {
+     "name": "A'",
+     "beat": 24
+    },
+    {
+     "name": "B",
+     "beat": 40
+    },
+    {
+     "name": "A''",
+     "beat": 56
+    },
+    {
+     "name": "break",
+     "beat": 72
+    },
+    {
+     "name": "tag",
+     "beat": 80
+    }
+   ]
+  },
+  "sky-overtime": {
+   "id": "sky-overtime",
+   "title": "星海加时",
+   "detail": "主题 · 追逐变奏（加时专用）",
+   "key": "F 小调",
+   "bpm": 152,
+   "src": "/screen-web/assets/music/sky-overtime.mp3",
+   "duration": 38.895,
+   "loudness": -18.0,
+   "loopStart": 0.5,
+   "loopEnd": 38.395,
+   "beats": 96,
+   "bpb": 4,
+   "sections": [
+    {
+     "name": "intro",
+     "beat": 0
+    },
+    {
+     "name": "A",
+     "beat": 16
+    },
+    {
+     "name": "A'",
+     "beat": 32
+    },
+    {
+     "name": "B",
+     "beat": 48
+    },
+    {
+     "name": "A''",
+     "beat": 64
+    },
+    {
+     "name": "break",
+     "beat": 80
+    }
+   ],
+   "layers": {
+    "hot": {
+     "src": "/screen-web/assets/music/sky-overtime-hot.mp3",
+     "loudness": -21.7
+    }
+   },
+   "lead": {
+    "src": "/screen-web/assets/music/sky-overtime-in.mp3",
+    "pickup": 0.7895,
+    "duration": 3.389,
+    "loudness": -20.0
+   }
   },
   "sting-win": {
    "id": "sting-win",

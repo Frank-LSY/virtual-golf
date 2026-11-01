@@ -1,4 +1,4 @@
-"""Ten cues, one theme. Every loop states the SwingLink theme; instrumentation, key, meter and feel
+"""Thirteen loops (+ stings and lead-ins), one theme. Every loop states the SwingLink theme; instrumentation, key, meter and feel
 change per scene (in the spirit of a game whose menu/battle music are variations of one tune)."""
 from score import Key, Score, THEME, MOTIF, H, line_events, place, harmony_timeline, voicing, bass_note
 from parts import *
@@ -15,6 +15,8 @@ I = {
  'bassoon': (70, 0.2, 'lead2'), 'bassoon_b': (70, 0.2, 'bass'), 'horn': (60, -0.35, 'lead'), 'horns': (60, -0.35, 'counter'),
  'trumpet': (56, 0.25, 'lead'), 'trumpet2': (56, 0.3, 'lead2'), 'trombone': (57, 0.4, 'bass'), 'tuba': (58, 0.45, 'bass'),
  'brass': (61, 0.15, 'chords'), 'choir': (52, 0, 'pad'), 'drums': (0, 0, 'drums'), 'perc': (0, 0, 'perc'), 'cymbal': (0, 0, 'cymbal'),
+ # 0.26 加时“紧张层”与过门用的声部
+ 'hats': (0, 0.2, 'perc'), 'toms': (0, -0.15, 'drums'), 'pizz_hi': (45, -0.35, 'arp'), 'stabs': (61, 0.25, 'chords'), 'timp8': (47, 0.1, 'timp'), 'strings_hi': (48, 0.3, 'counter'),
 }
 
 def shift(bars, deg):
@@ -71,7 +73,7 @@ def hub():
     place(s, 'celesta', line_events([MOTIF, [(7, 8)], MOTIF, [(8, 8)]], k, g, 0, 66))
     pad(s, 'slowstr', hT, k, 53, 70, 54); oompah(s, 'pizzbass', 'pizz', hT, k, 36, 57, 69, 62)
     place(s, 'flute2', line_events([[(9, 8)], [(9, 8)], [(10, 8)], [(11, 8)]], k, g, 0, 58))
-    return dict(score=s, beats=total, title='云上序曲', detail='主题 · 管弦全编制', key='F 大调', bpm=116)
+    return dict(sections=at, lead=dict(key=k, style='bright'), score=s, beats=total, title='云上序曲', detail='主题 · 管弦全编制', key='F 大调', bpm=116)
 
 # ---------- 2 高尔夫大厅：《草坪漫步》摇摆田园变奏 ----------
 def golf_lobby():
@@ -95,7 +97,7 @@ def golf_lobby():
     for name in ("A'", "A''"):
         t = at[name][0] + 13; place(s, 'glock', line_events([[(7, 2), (9, 2), (11, 4)]], k, t, 1, 56))
     for bar in range(0, total // 4, 2): s.add('perc', bar * 4, 1, TRI, 44)
-    return dict(score=s, beats=total, title='草坪漫步', detail='主题 · 摇摆田园变奏', key='G 大调', bpm=92)
+    return dict(sections=at, lead=dict(key=k, style='gentle'), score=s, beats=total, title='草坪漫步', detail='主题 · 摇摆田园变奏', key='G 大调', bpm=92)
 
 # ---------- 3 练习室：《练习场节拍》极简律动变奏 ----------
 def golf_practice():
@@ -114,7 +116,7 @@ def golf_practice():
         t = at[name][0]; bars = THEME[name]
         place(s, 'marimba', line_events([bars[0], [(None, 8)], bars[2] if name == 'B' else [(None, 8)], [(None, 8)]], k, t, 0, 80))
         place(s, 'celesta_s', line_events([[(None, 8)], [(None, 8)], [(None, 8)], bars[3]], k, t, 1, 50))
-    return dict(roles={'pizzbass': 'chords'}, score=s, beats=total, title='练习场节拍', detail='主题 · 极简律动变奏', key='C 大调', bpm=100)
+    return dict(sections=at, lead=dict(key=k, style='gentle'), roles={'pizzbass': 'chords'}, score=s, beats=total, title='练习场节拍', detail='主题 · 极简律动变奏', key='C 大调', bpm=100)
 
 # ---------- 4 正式球局：《果岭圆舞曲》3/4 圆舞曲变奏 ----------
 WALTZ = {0: [1, 1, 1, 1.5, .5, 1], 1: [2, 1, 3], 2: [1, 1, 1, 1, 1, 1], 3: [2, 1, 3]}
@@ -153,7 +155,7 @@ def golf_round():
     c = at["A''"][0]; place(s, 'strings_lead', waltz_line("A''", k, c, 0, 88)); place(s, 'flute', waltz_line("A''", k, c, 0, 70))
     place(s, 'glock', [(t, d, m + 12, v - 30) for t, d, m, v in waltz_line("A''", k, c, 0, 88) if abs(t % 3) < 1e-6])
     for bar in range(0, total // 3, 4): s.add('perc', bar * 3, 1, TRI, 40)
-    return dict(roles={'contrabass': 'pad'}, score=s, beats=total, title='果岭圆舞曲', detail='主题 · 3/4 圆舞曲变奏', key='D 大调', bpm=144)
+    return dict(sections=at, lead=dict(key=k, style='bright'), roles={'contrabass': 'pad'}, score=s, beats=total, title='果岭圆舞曲', detail='主题 · 3/4 圆舞曲变奏', key='D 大调', bpm=144)
 
 # ---------- 5 滚球地图：《云端地图》梦幻变奏 ----------
 def sky_map():
@@ -171,7 +173,7 @@ def sky_map():
     for name in ('A', "A'", 'B', "A''"):
         roll(s, 'timp', bass_note(k, 4, 41, 53), at[name][0] + 14, 2, 24, 62); s.add('cymbal', at[name][0] + 15, 2, 49, 36)
         s.add('perc', at[name][0], 2, TRI, 44)
-    return dict(score=s, beats=total, title='云端地图', detail='主题 · 梦幻竖琴变奏', key='降 E 大调', bpm=96)
+    return dict(sections=at, lead=dict(key=k, style='gentle'), score=s, beats=total, title='云端地图', detail='主题 · 梦幻竖琴变奏', key='降 E 大调', bpm=96)
 
 # ---------- 6 第一章：《启程群岛》进行曲变奏 ----------
 def sky_isles():
@@ -196,7 +198,7 @@ def sky_isles():
     melody(s, 'strings_lead', ["A''"], k, c, 0, 92); melody(s, 'trumpet2', ["A''"], k, c, 0, 70); melody(s, 'piccolo', ["A''"], k, c, 1, 60, stacc=True)
     pad(s, 'brass', hC, k, 53, 65, 58, swell=False)
     for t in (at['A'][0], at["A''"][0], c): s.add('cymbal', t, 3, 49, 74)
-    return dict(score=s, beats=total, title='启程群岛', detail='主题 · 进行曲变奏', key='F 大调', bpm=126)
+    return dict(sections=at, lead=dict(key=k, style='bright'), score=s, beats=total, title='启程群岛', detail='主题 · 进行曲变奏', key='F 大调', bpm=126)
 
 # ---------- 7 第二章：《机关云港》发条变奏（D 多利亚）----------
 def sky_harbor():
@@ -225,7 +227,7 @@ def sky_harbor():
     for x in range(4): place(s, 'xylo', line_events([MOTIF[:4] + [(None, 4)]], k, br + 4 * x, 0, 70)); place(s, 'brass', [(br + 4 * x + 3.5, 0.4, n, 72) for n in voicing(k, hBr[x][2], '', 55, 67)])
     melody(s, 'trumpet', ["A''"], k, c, 0, 86); melody(s, 'strings_lead', ["A''"], k, c, 0, 88); melody(s, 'glock', ["A''"], k, c, 1, 54)
     for t in (at['A'][0], at["A''"][0], c): s.add('cymbal', t, 3, 49, 70)
-    return dict(score=s, beats=total, title='机关云港', detail='主题 · 发条机关变奏', key='D 多利亚', bpm=136)
+    return dict(sections=at, lead=dict(key=k, style='epic'), score=s, beats=total, title='机关云港', detail='主题 · 发条机关变奏', key='D 多利亚', bpm=136)
 
 # ---------- 8 第三章：《极光高空》史诗变奏 ----------
 def sky_aurora():
@@ -254,7 +256,7 @@ def sky_aurora():
     melody(s, 'strings_lead', ["A''"], k, c, 1, 92); melody(s, 'horn', ["A''"], k, c, -1, 96); melody(s, 'trumpet', ["A''"], k, c, 0, 80)
     pad(s, 'choir', harmony_timeline(["A''"], c), k, 55, 72, 60)
     for t in (at['A'][0], at["A''"][0], c, at['B'][0]): s.add('cymbal', t, 3, 49, 82)
-    return dict(score=s, beats=total, title='极光高空', detail='主题 · 史诗管弦变奏', key='降 A 大调', bpm=140)
+    return dict(sections=at, lead=dict(key=k, style='epic'), score=s, beats=total, title='极光高空', detail='主题 · 史诗管弦变奏', key='降 A 大调', bpm=140)
 
 # ---------- 短曲 ----------
 def sting_win():
@@ -279,6 +281,119 @@ def sting_hole():
     s.add('perc', 2, 1, TRI, 70); s.add('contrabass', 2, 3, bass_note(k, 0, 31, 43), 70)
     return dict(roles={'contrabass': 'pad'}, score=s, beats=7, title='进洞', detail='进洞短曲', key='G 大调', bpm=132, sting=True)
 
+# ---------- 11 体感钓鱼大厅 / 练习：《湖畔船歌》船歌变奏（三连音摇曳，像小船在水上晃） ----------
+def fish_lake():
+    k = Key('D', 4); s = Score(76, seed=111)
+    at, total = lay([('intro', 2), ('A', 4), ("A'", 4), ('B', 4), ("A''", 4), ('tag', 2)])
+    i0 = at['intro'][0]; hI = [(i0, 4, 0, ''), (i0 + 4, 4, 4, '')]; hT = [(at['tag'][0], 4, 3, ''), (at['tag'][0] + 4, 4, 4, '7')]
+    allh = hI + harmony_timeline(['A', "A'", 'B', "A''"], at['A'][0]) + hT
+    arpeggio(s, 'nylon', allh, k, 47, 1 / 3, (0, 2, 4, 3, 4, 2), 60)
+    roots(s, 'contrabass', allh, k, 33, 52)
+    pad(s, 'slowstr', allh, k, 50, 66, 44)
+    hits(s, 'perc', 0, total // 4, {SHK: [(x / 3, -16 + (6 if x % 3 == 0 else 0)) for x in range(12)]}, vel=40)
+    melody(s, 'flute', ['A'], k, at['A'][0], 0, 80)
+    melody(s, 'clarinet', ["A'"], k, at["A'"][0], 0, 80); guide_tones(s, 'flute2', harmony_timeline(["A'"], at["A'"][0]), k, 64, 76, 52)
+    b = at['B'][0]; hB = harmony_timeline(['B'], b)
+    melody(s, 'oboe', ['B'], k, b, 0, 80); arpeggio(s, 'harp', hB, k, 59, 1 / 3, (0, 1, 2, 3, 4, 5), 50, span=3)
+    c = at["A''"][0]
+    melody(s, 'flute', ["A''"], k, c, 0, 84); melody(s, 'strings_lead', ["A''"], k, c, -1, 66)
+    for name in ('A', "A''"): s.add('perc', at[name][0], 2, TRI, 40)
+    place(s, 'celesta_s', line_events([MOTIF, [(None, 8)]], k, at['tag'][0], 1, 50))
+    return dict(sections=at, lead=dict(key=k, style='gentle'), score=s, beats=total, title='湖畔船歌', detail='主题 · 船歌变奏', key='D 大调', bpm=76)
+
+# ---------- 12 体感钓鱼比赛：《湖畔对决》乡村快步变奏 ----------
+def fish_match():
+    k = Key('A', 4); s = Score(118, swing=0.18, seed=121)
+    at, total = lay([('intro', 2), ('A', 4), ("A'", 4), ('B', 4), ("A''", 4), ('break', 2), ('tag', 2)])
+    i0 = at['intro'][0]; hI = [(i0, 4, 0, ''), (i0 + 4, 4, 4, '7')]
+    br = at['break'][0]; hBr = [(br, 4, 3, ''), (br + 4, 4, 4, '7')]; hT = [(at['tag'][0], 4, 0, ''), (at['tag'][0] + 4, 4, 4, '7')]
+    allh = hI + harmony_timeline(['A', "A'", 'B', "A''"], at['A'][0]) + hBr + hT
+    oompah(s, 'pizzbass', 'nylon', allh, k, 33, 57, 69, 70)
+    hits(s, 'perc', 0, total // 4, {WBH: [(1, -4), (3, -4)], SHK: [(x / 2, -16 + (6 if x % 2 else 0)) for x in range(8)]}, vel=54)
+    hits(s, 'drums', 0, total // 4, {BD: [(0, 0), (2, -6)]}, vel=56)
+    place(s, 'marimba', line_events([MOTIF, [(None, 8)]], k, i0, 0, 78))
+    melody(s, 'marimba', ['A'], k, at['A'][0], 0, 84); melody(s, 'clarinet2', ['A'], k, at['A'][0], -1, 58, stacc=True)
+    melody(s, 'xylo', ["A'"], k, at["A'"][0], 0, 72); melody(s, 'clarinet', ["A'"], k, at["A'"][0], 0, 74, stacc=True)
+    b = at['B'][0]; melody(s, 'flute', ['B'], k, b, 0, 82); pad(s, 'strings', harmony_timeline(['B'], b), k, 52, 66, 50, swell=False)
+    c = at["A''"][0]; melody(s, 'flute', ["A''"], k, c, 0, 84); melody(s, 'marimba', ["A''"], k, c, 0, 80); melody(s, 'glock', ["A''"], k, c, 1, 52)
+    for x in range(2): place(s, 'xylo', line_events([MOTIF[:3] + [(None, 4)]], k, br + x * 4, x, 70))
+    for t in (at['A'][0], c): s.add('cymbal', t, 3, 49, 62)
+    return dict(sections=at, lead=dict(key=k, style='bright'), score=s, beats=total, title='湖畔对决', detail='主题 · 乡村快步变奏', key='A 大调', bpm=118)
+
+
+# ---------- 13 多人对战加时：《星海加时》追逐变奏（F 小调，152 bpm）----------
+# 0.26：加时不再把第三章加速播放（会变调失真），而是单独写一段更急的追逐变奏；另外渲染一条完全对齐的“紧张层”
+# （十六分音符踩镲、高音拨弦、铜管反拍、定音鼓八分音、过门军鼓），崩塌越快，紧张层推得越满。
+HOT = {'hats', 'toms', 'pizz_hi', 'stabs', 'timp8', 'strings_hi'}
+def sky_overtime():
+    k = Key('F', 4, 'minor'); s = Score(152, seed=131)
+    at, total = lay([('intro', 4), ('A', 4), ("A'", 4), ('B', 4), ("A''", 4), ('break', 4)])
+    i0 = at['intro'][0]; hI = [(i0 + 4 * j, 4, r, '7' if r == 4 else '') for j, r in enumerate([0, 5, 3, 4])]
+    br = at['break'][0]; hBr = [(br + 4 * j, 4, r, '7' if r == 4 else '') for j, r in enumerate([5, 6, 0, 4])]
+    allh = hI + harmony_timeline(['A', "A'", 'B', "A''"], at['A'][0]) + hBr
+    # 底层：颤弓弦乐、八分音符大提琴、长号与低音提琴、底鼓 + 军鼓 2/4 拍
+    pad(s, 'trem', allh, k, 50, 67, 58)
+    for t, d, root, kind in allh:
+        r = bass_note(k, root, 31, 43)
+        for x in range(int(d * 2)): s.add('cellos', t + x / 2, 0.42, r + (12 if x % 4 == 3 else 0), 72 + (10 if x % 2 == 0 else 0))
+        s.add('contrabass', t, d * 0.95, r, 64); s.add('trombone', t, d * 0.9, bass_note(k, root, 38, 50), 60)
+        s.add('timp', t, 0.5, bass_note(k, root, 41, 53), 86)
+    hits(s, 'drums', 0, total // 4, {BD: [(0, 8), (1.5, -2), (2, 2), (3.5, -4)], SN: [(1, -2), (3, -2)]}, vel=66)
+    # 前奏：低音铜管吹主题头，定音鼓滚奏推进
+    place(s, 'horns', line_events([MOTIF, [(4, 8)], MOTIF, [(4, 4), (6, 4)]], k, i0, -1, 82))
+    roll(s, 'timp', bass_note(k, 4, 41, 53), i0 + 12, 4, 30, 100); s.add('cymbal', i0 + 15, 2, 49, 60)
+    # A：圆号领奏；A'：小号接过，圆号对位；B：高音弦乐 + 合唱；A''：全奏
+    melody(s, 'horn', ['A'], k, at['A'][0], -1, 94)
+    melody(s, 'trumpet', ["A'"], k, at["A'"][0], 0, 86); guide_tones(s, 'horns', harmony_timeline(["A'"], at["A'"][0]), k, 53, 65, 70)
+    melody(s, 'strings_lead', ['B'], k, at['B'][0], 1, 90); pad(s, 'choir', harmony_timeline(['B'], at['B'][0]), k, 55, 72, 60)
+    place(s, 'horns', line_events(shift(THEME['B'], -2), k, at['B'][0], -1, 70))
+    c = at["A''"][0]; melody(s, 'strings_lead', ["A''"], k, c, 1, 94); melody(s, 'horn', ["A''"], k, c, -1, 96); melody(s, 'trumpet', ["A''"], k, c, 0, 82)
+    melody(s, 'glock', ["A''"], k, c, 1, 58); pad(s, 'choir', harmony_timeline(["A''"], c), k, 55, 72, 62)
+    # 间奏：主题头逐次升高，军鼓渐强，回到开头
+    for x in range(4): place(s, 'horns', line_events([[(d + x if d is not None else None, e) for d, e in MOTIF]], k, br + 4 * x, -1, 78 + 4 * x))
+    roll(s, 'drums', SN, br + 14, 2, 40, 96, 8); s.add('cymbal', br + 15.5, 1, 49, 70)
+    for t in (at['A'][0], at['B'][0], c): s.add('cymbal', t, 3, 49, 84)
+    # 紧张层（单独一条，和底层逐个采样对齐）
+    hits(s, 'hats', 0, total // 4, {HH: [(x / 4, -14 + (10 if x % 2 == 0 else 0) + (6 if x % 4 == 0 else 0)) for x in range(16)], OH: [(3.5, -8)]}, vel=60)
+    ostinato16(s, 'pizz_hi', allh, k, 62, 64, (0, 4, 7, 4))
+    for t, d, root, kind in allh:
+        v = voicing(k, root, kind, 55, 67)
+        for x in (1.5, 3.5):
+            if x < d:
+                for n in v: s.add('stabs', t + x, 0.3, n, 74)
+        for x in range(int(d * 2)): s.add('timp8', t + x / 2, 0.3, bass_note(k, root, 41, 53), 70 + (12 if x % 2 == 0 else 0))
+    for name in ('intro', 'A', "A'", 'B', "A''", 'break'):
+        e = at[name][0] + 15
+        for j, (drum, beat) in enumerate([(TOM_M, 0), (TOM_M, .25), (TOM_L, .5), (TOM_L, .75)]): s.add('toms', e + beat, 0.25, drum, 84 + 4 * j)
+    melody(s, 'strings_hi', ["A''"], k, c, 2, 66, stacc=True)
+    return dict(sections=at, lead=dict(key=k, style='epic'), layers={'hot': HOT}, score=s, beats=total, title='星海加时', detail='主题 · 追逐变奏（加时专用）', key='F 小调', bpm=152)
+
+# ---------- 过门（0.26）：每段循环配一小段“进场”，用新曲的调与速度写成 ----------
+# 拍 0 起是 2 拍（3/4 曲子是 1 小节）的渐强引子，落在拍 PB 上的重音和新曲的第一拍对齐；旧曲在引子期间收暗淡出。
+def lead_in(cue_id):
+    cue = CUES[cue_id](); lead = cue['lead']; k = lead['key']; style = lead['style']; base = cue['score']
+    s = Score(base.bpm, beats_per_bar=base.bpb, seed=base.seed_value + 7); pb = 3 if base.bpb == 3 else 2
+    tonic = voicing(k, 0, '', 55, 69); low = bass_note(k, 0, 33, 45)
+    if style == 'gentle':
+        gliss(s, 'harp', k, 0, pb, -3, 7, 50); roll(s, 'cymbal', 51, 0, pb, 16, 46, 10)
+        s.add('glock', pb - 1, 0.5, k(4 + 7), 54); s.add('glock', pb - 0.5, 0.5, k(6 + 7), 58)
+        s.add('perc', pb, 1.5, TRI, 62); s.add('contrabass', pb, 2, low, 58)
+        for n in tonic: s.add('harp', pb, 2, n, 56)
+    elif style == 'bright':
+        roll(s, 'drums', SN, 0, pb, 28, 88, 8); gliss(s, 'harp', k, 0, pb, 0, 10, 56)
+        s.add('cymbal', pb, 2, 49, 82); s.add('drums', pb, 0.5, BD, 88); s.add('timp', pb, 1, bass_note(k, 0, 41, 53), 92)
+        for n in tonic: s.add('pizz', pb, 0.5, n, 76); s.add('brass', pb, 0.6, n, 70)
+        s.add('contrabass', pb, 1.5, low, 70)
+    else:
+        roll(s, 'timp', bass_note(k, 4, 41, 53), 0, pb, 30, 104, 10); roll(s, 'cymbal', 51, 0, pb, 20, 70, 12)
+        for j, d in enumerate([-3, -2, -1]): s.add('trombone', pb * j / 3, pb / 3 * .95, k(d - 7), 66 + 8 * j)
+        s.add('cymbal', pb, 2.5, 49, 96); s.add('drums', pb, 0.5, BD, 96); s.add('timp', pb, 1.2, bass_note(k, 0, 41, 53), 112)
+        for n in tonic: s.add('brass', pb, 1, n, 84); s.add('strings', pb, 1.5, n, 74)
+        s.add('contrabass', pb, 2, low, 76)
+    return dict(score=s, beats=pb, pickup=pb, title=cue['title'] + ' · 进场', detail='过门', key=cue['key'], bpm=base.bpm, sting=True, lead=True,
+                roles={'harp': 'arp', 'trombone': 'counter', 'strings': 'pad'})
+
 CUES = {'hub': hub, 'golf-lobby': golf_lobby, 'golf-practice': golf_practice, 'golf-round': golf_round,
         'sky-map': sky_map, 'sky-isles': sky_isles, 'sky-harbor': sky_harbor, 'sky-aurora': sky_aurora,
+        'fish-lake': fish_lake, 'fish-match': fish_match, 'sky-overtime': sky_overtime,
         'sting-win': sting_win, 'sting-hole': sting_hole}

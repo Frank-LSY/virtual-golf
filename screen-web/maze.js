@@ -6,6 +6,7 @@ import {RollingScene} from './maze-renderer.js';
 import {VersusRoom} from './versus.js';
 const timeText=s=>`${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}.${Math.floor(s*10%10)}`;
 const shortTime=s=>`${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`;
+const SOLO_FEEL=new Set(['wall','bump','sweep','board','boost','checkpoint','fall']);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
 export const RECORDS_KEY='swinglink-skyroll-records';
 const REASONS={manual:'停稳看看前路，再继续出发。',hidden:'游戏离开前台，已暂停运动与计时。',blur:'窗口失去焦点，已自动暂停。',controller_offline:'手机已断开，小球停在原处。',controller_change:'控制方式已更换，准备好后再继续。',stream_gap:'手柄数据中断，请保持手机页面在前台。',phone_hidden:'手机离开前台，已自动暂停。',recenter:'正在设置自然握姿，准备好后继续。',tab:'回到这一关后，可以继续当前进度。'};
@@ -20,7 +21,7 @@ const starHTML=(n,size='')=>`<span class="stars ${size}" aria-label="${n} 星">$
 const ICON={boost:'»',bumper:'●',sweeper:'✣',mover:'▭',ice:'❄',fluff:'☁',block:'■',narrow:'═',fork:'⑂',slope:'⟋'};
 
 export class MazeRoom {
- constructor(root,conn,{pair=()=>{},sfx=null,onView=()=>{},onWin=()=>{},onTempo=()=>{},toast=()=>{},storage=globalThis.localStorage}={}){
+ constructor(root,conn,{pair=()=>{},sfx=null,onView=()=>{},onWin=()=>{},onIntensity=()=>{},toast=()=>{},storage=globalThis.localStorage}={}){
   this.root=root;this.conn=conn;this.pair=pair;this.sfx=sfx;this.onView=onView;this.onWin=onWin;this.toast=toast;this.storage=storage;this.records=loadRecords(storage);
   this.game=new RollingGame();this.active=false;this.view='map';this.host=true;this.online=false;this.phone={x:0,y:0,at:0};this.source='keyboard';this.sourceChosen=false;this.controller={};this.keys=new Set();this.hint='';this.hintUntil=0;this.hints=new Set();this.lastState=0;this.lastUI=0;this.lastWin=null;
   root.innerHTML=`<section class="sky-map" id="sky-map" aria-label="云端滚球地图">
@@ -42,7 +43,7 @@ export class MazeRoom {
   <section class="maze-control-card" id="maze-control-panel" aria-label="滚球手柄设置"><div class="roll-settings-head"><b>选择控制方式</b><button id="maze-settings-close" aria-label="关闭手柄设置">×</button></div><div class="maze-input-switch"><button id="maze-keyboard" class="selected">⌨ 键盘</button><button id="maze-use-phone">◉ 手机手柄</button></div><p>手机：横着端平，远端压低前进，近端压低刹车；左右轻倾转向。<br>电脑：WASD / 方向键，反方向就是刹车。</p><div class="maze-tilt-view"><span>前进</span><i id="maze-tilt-dot"></i><small>刹车 / 后退</small></div><label>选择手机<select id="maze-phone"><option value="">等待手机连接</option></select></label><p id="maze-phone-status">扫码连接手机，或直接用键盘开始。</p><button id="maze-connect" class="btn btn-sky">连接手机 ↗</button><button id="maze-zero" class="btn btn-ghost">↺ 重新校准握姿</button></section>`;
   this.$=id=>root.querySelector('#'+id);
   root.querySelectorAll('[data-maze-level]').forEach(button=>button.onclick=()=>this.start(Number(button.dataset.mazeLevel)));
-  this.versus=new VersusRoom(this.$('sky-versus'),conn,{sfx,toast,pair,storage,onTempo,onExit:()=>this.openMap(),onWin:r=>onWin({versus:r}),onPhase:(kind,chapter)=>{if(this.view==='versus')this.onView(kind==='lobby'?'versus-lobby':'versus',chapter??0);}});
+  this.versus=new VersusRoom(this.$('sky-versus'),conn,{sfx,toast,pair,storage,onIntensity,onExit:()=>this.openMap(),onWin:r=>onWin({versus:r}),onPhase:(kind,chapter)=>{if(this.view==='versus')this.onView(kind==='lobby'?'versus-lobby':'versus',chapter??0);}});
   this.$('sky-versus-open').onclick=()=>this.openVersus();this.$('sky-versus-banner').onclick=()=>this.openVersus();
   this.$('sky-continue').onclick=()=>this.start(this.nextLevel());this.$('sky-pad-open').onclick=()=>this.settings(true);this.$('sky-back').onclick=()=>this.openMap();
   this.$('maze-keyboard').onclick=()=>this.setSource('keyboard');this.$('maze-use-phone').onclick=()=>{if(!this.controller.ready){this.pause('manual');this.pair();this.showHint('手机启用倾斜控制，或选择虚拟摇杆。',7000);return;}this.setSource('phone');};
@@ -55,8 +56,10 @@ export class MazeRoom {
   document.addEventListener('keyup',e=>this.keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{this.keys.clear();if(this.active)this.pause('blur');});document.addEventListener('visibilitychange',()=>{if(document.hidden){this.keys.clear();if(this.active)this.pause('hidden');}});
   conn.addEventListener('message',({detail:m})=>this.message(m));conn.addEventListener('offline',()=>{this.online=false;this.phone={x:0,y:0,at:0};if(this.active&&this.source==='phone')this.pause('controller_offline');});
   this.game.phase='ready';this.last=performance.now();this.renderMap();this.renderUI();
-  const frame=now=>{const delta=Math.max(0,(now-this.last)/1000);this.last=now;if(this.active&&this.view==='play'&&this.renderer){if(delta>.35&&this.game.phase==='playing')this.pause('blur');const input=this.input(now),events=this.game.advance(Math.min(delta,.1),input);for(const e of events)this.onEvent(e);this.contextHint(input,now);this.renderer.draw(this.game,input,now/1000);this.$('maze-tilt-dot').style.transform=`translate(${input.x*29}px,${input.y*29}px)`;const speed=Math.hypot(this.game.ball.vx,this.game.ball.vz);this.sfx?.roll(speed,this.game.surface,this.game.phase==='playing');this.$('maze-speed').textContent=speed.toFixed(1);this.$('maze-speed-fill').style.width=Math.min(100,speed/PHYSICS.boostSpeed*100)+'%';this.$('maze-speed-fill').classList.toggle('boost',speed>PHYSICS.maxSpeed+.1);if(now-this.lastUI>100||events.some(e=>e.kind==='win')){this.renderUI();this.lastUI=now;}if(now-this.lastState>250){this.sendState();this.lastState=now;}}else if(this.view!=='versus')this.sfx?.stop();requestAnimationFrame(frame);};requestAnimationFrame(frame);
+  const frame=now=>{const delta=Math.max(0,(now-this.last)/1000);this.last=now;if(this.active&&this.view==='play'&&this.renderer){if(delta>.35&&this.game.phase==='playing')this.pause('blur');const input=this.input(now),events=this.game.advance(Math.min(delta,.1),input);for(const e of events)this.onEvent(e);this.sendFeel(events);this.contextHint(input,now);this.renderer.draw(this.game,input,now/1000);this.$('maze-tilt-dot').style.transform=`translate(${input.x*29}px,${input.y*29}px)`;const speed=Math.hypot(this.game.ball.vx,this.game.ball.vz);this.sfx?.roll(speed,this.game.surface,this.game.phase==='playing');this.$('maze-speed').textContent=speed.toFixed(1);this.$('maze-speed-fill').style.width=Math.min(100,speed/PHYSICS.boostSpeed*100)+'%';this.$('maze-speed-fill').classList.toggle('boost',speed>PHYSICS.maxSpeed+.1);if(now-this.lastUI>100||events.some(e=>e.kind==='win')){this.renderUI();this.lastUI=now;}if(now-this.lastState>250){this.sendState();this.lastState=now;}}else if(this.view!=='versus')this.sfx?.stop();requestAnimationFrame(frame);};requestAnimationFrame(frame);
  }
+ // 0.26 手机震动：用手机当手柄时，把撞墙 / 弹板 / 扫杆 / 移动平台 / 加速带 / 检查点 / 坠落事件（带力度）转发给手机。
+ sendFeel(events){if(this.source!=='phone'||!this.host||!this.online)return;const list=events.filter(e=>SOLO_FEEL.has(e.kind)).slice(0,8).map(e=>({kind:e.kind,strength:Number.isFinite(e.strength)?Math.round(e.strength*100)/100:1}));if(list.length)this.conn.send({type:'maze_feel',events:list});}
  onEvent(e){
   this.sfx?.play(e.kind,e.strength);this.renderer?.event(e,this.game);
   if(e.kind==='fall')this.showHint('从最近检查点再来。窄路前先减速，留一点修正余量。',4500);

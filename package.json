@@ -1,6 +1,6 @@
 {
-  "name": "swinglink",
-  "version": "0.24.0",
+  "name": "motion-party",
+  "version": "0.26.0",
   "private": true,
   "type": "module",
   "description": "本地三维高尔夫与 iPhone 体感球杆",
@@ -15,7 +15,8 @@
     "test:courses": "node tests/course-gateway.integration.js",
     "test:multiplayer": "node tests/multiplayer.integration.js",
     "test:ml": "node tests/ml.integration.js",
-    "test:maze": "node tests/maze.integration.js"
+    "test:maze": "node tests/maze.integration.js",
+    "test:fishing": "node tests/fishing.integration.js"
   },
   "engines": {
     "node": ">=20"
