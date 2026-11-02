@@ -25,8 +25,8 @@
  <main id="lobby" class="lobby hidden">
   <section class="hero">
    <div class="hero-copy"><p class="eyebrow"><span class="tiny-line"></span> 让球场近一点，让心情松一点</p><h1>放下琐事。<br>挥出<em>好心情。</em></h1><p class="hero-description">一片安静的球场，一张崭新的计分卡。<br>手机就是球杆，下一杆由你掌握。</p>
-    <div class="round-options" role="group" aria-label="本局洞数"><button data-mode="3"><strong>3 洞</strong><span>轻松来一局</span></button><button data-mode="9" class="selected"><strong>9 洞</strong><span>慢慢享受全程</span></button></div>
-    <button id="start-button" class="primary start-button">即刻开球 <span data-icon="arrow"></span></button><p class="small-note"><span data-icon="mouse"></span> 手机体感或键盘，随你挥杆。</p>
+    <button id="resume-button" class="resume-button" hidden><span class="start-label">继续上一局<small id="resume-detail"></small></span><span aria-hidden="true">↩</span></button><div class="round-options" role="group" aria-label="本局洞数"><button data-mode="3"><strong>3 洞</strong><span>轻松来一局</span></button><button data-mode="9" class="selected"><strong>9 洞</strong><span>慢慢享受全程</span></button></div>
+    <button id="start-button" class="primary start-button"><span class="start-label">即刻开球<small id="start-course"></small></span> <span data-icon="arrow"></span></button><p class="small-note"><button type="button" class="link-button" id="lobby-change-course">换一座球场 ↓</button><span data-icon="mouse"></span> 手机体感或键盘，随你挥杆。</p>
    </div>
    <div id="preview" class="preview"><div class="preview-top"><span class="preview-label"><i></i> 你的下一片球道</span><span class="weather"><span data-icon="sun"></span> 今天，适合挥杆</span></div><div class="preview-bottom"><div><span class="eyebrow" id="preview-collection">公园球场 · 阳光正好</span><h2 id="preview-name">晴空公园</h2></div><span class="round-badge">9<span>精心设计<br>球洞</span></span></div><div class="orbit-hint">拖动查看球场 <span>↔</span></div></div>
   </section>
@@ -37,7 +37,7 @@
   <div id="game-canvas" class="game-canvas"></div>
   <div id="guide-label" class="guide-label" hidden aria-hidden="true"><i class="guide-arrow"></i><b id="guide-carry">—</b><small id="guide-total"></small><small id="guide-drift" class="guide-drift" hidden></small></div>
   <section class="hud-hole hud-panel" aria-label="当前球洞">
-   <button id="clubhouse-button" class="hud-back" aria-label="返回球场大厅" title="返回大厅"><span data-icon="back"></span></button>
+   <button id="clubhouse-button" class="hud-back" aria-label="暂离本局，回到球场大厅" title="暂离本局（成绩保留，可在球场大厅继续）"><span data-icon="back"></span></button>
    <div class="hud-hole-badge"><small>第</small><b id="hole-number">01</b><small>洞</small></div>
    <div class="hud-hole-text"><p id="game-course" class="hud-course">晴空公园</p><h2 id="hole-name">晨光初现</h2><p id="hole-meta">标准杆 3 · 135 米</p></div>
    <button id="score-button" class="hud-score" title="查看计分卡"><span id="score-total">平杆</span><small>计分卡</small></button>

@@ -110,6 +110,7 @@ function attach(server){
     else if(m.type==='aim'){game.setAim(m.aim);state();}
     else if(m.type==='next_hole'||m.type==='return_clubhouse'){game.advance(m.type==='next_hole'?'next':'clubhouse');state();}
     else if(m.type==='lobby'){game.lobby();state();}
+    else if(m.type==='resume_round'){game.resume();state();}
     else throw Error('无法识别此操作。');
    }catch(e){send(ws,{type:'error',message:e instanceof SyntaxError?'消息格式无效，请刷新页面后重试。':e.message});}
   });

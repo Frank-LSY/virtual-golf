@@ -37,12 +37,14 @@ try{logs=JSON.parse(localStorage.getItem('swinglink-logs'))||[];if(!Array.isArra
 $('phone-club').innerHTML='<option value="auto">自动推荐</option>'+CLUBS.map(c=>`<option value="${c.id}">${c.name} · ${c.range} 米</option>`).join('');
 $('phone-club').onchange=()=>{haptics.play('select');if(online&&roundActive&&roundCanControl&&gamePhase==='playing')conn.send({type:'round_club',clubId:$('phone-club').value,stateVersion});};
 // 0.22 手机遥控：调整击球方向（每次 1°，按住连续调整）、切换与转动大屏镜头。手机挥杆仍保留“未准备 = 试挥”。
-let roundAim=0,aimLocalUntil=0;
+let roundAim=0,aimLocalUntil=0,movingUntil=0;
+// 握着手机挥杆时手掌容易碰到屏幕：手机在转动（最近 0.7 秒角速度超过 90°/秒）时，忽略方向、视角和准备按钮的触摸。
+function swinging(){return performance.now()<movingUntil;}
 function aimText(v){return v===0?'正前方':`${Math.abs(v)}° ${v<0?'左':'右'}`;}
 function canAim(){return online&&roundActive&&roundCanControl&&!practiceActive&&gamePhase==='playing';}
 function canCamera(){return online&&roundActive&&roundStream&&!practiceActive;}
-function nudgeAim(step){if(!canAim())return false;const next=step===0?0:Math.max(-80,Math.min(80,roundAim+step));if(next===roundAim&&step!==0){haptics.play('limit');return false;}haptics.play(step===0?'select':Math.abs(next)===80?'limit':'tick');roundAim=next;aimLocalUntil=Date.now()+450;$('prp-aim-value').textContent=aimText(roundAim);conn.send({type:'round_aim',aim:roundAim});return true;}
-function cameraSend(action){if(!canCamera())return false;haptics.play(action==='reset'||action.startsWith('view-')?'select':'tick');conn.send({type:'round_camera',action});return true;}
+function nudgeAim(step){if(!canAim()||swinging())return false;const next=step===0?0:Math.max(-80,Math.min(80,roundAim+step));if(next===roundAim&&step!==0){haptics.play('limit');return false;}haptics.play(step===0?'select':Math.abs(next)===80?'limit':'tick');roundAim=next;aimLocalUntil=Date.now()+450;$('prp-aim-value').textContent=aimText(roundAim);conn.send({type:'round_aim',aim:roundAim});return true;}
+function cameraSend(action){if(!canCamera()||swinging())return false;haptics.play(action==='reset'||action.startsWith('view-')?'select':'tick');conn.send({type:'round_camera',action});return true;}
 // 按住重复：先触发一次，350 毫秒后每 120 毫秒重复，松手或移出按钮即停止。
 function holdRepeat(id,fn){const b=$(id);b.dataset.haptic='self';let timer=null,held=false;const stop=()=>{held=false;clearTimeout(timer);timer=null;};const loop=()=>{if(!held)return;fn(true);timer=setTimeout(loop,120);};b.onpointerdown=e=>{e?.preventDefault?.();held=true;fn(false);timer=setTimeout(loop,350);};b.onpointerup=stop;b.onpointerleave=stop;b.onpointercancel=stop;b.onclick=e=>{if(!e||e.detail===0)fn(false);};}
 holdRepeat('prp-aim-left',repeat=>nudgeAim(repeat?-2:-1));holdRepeat('prp-aim-right',repeat=>nudgeAim(repeat?2:1));$('prp-aim-reset').dataset.haptic='self';$('prp-aim-reset').onclick=()=>nudgeAim(0);
@@ -86,20 +88,20 @@ function renderReady(){if(stage!=='ready')return;const inactive=practiceActive&&
  $('phone-round-pad').classList.toggle('hidden',!roundActive||practiceActive);for(const id of ['prp-aim-left','prp-aim-right','prp-aim-reset'])$(id).disabled=!canAim();for(const id of ['prp-cam-up','prp-cam-down','prp-cam-left','prp-cam-right','prp-cam-in','prp-cam-out','prp-cam-reset','prp-view-follow','prp-view-overview','prp-view-cup'])$(id).disabled=!canCamera();$('prp-aim-value').textContent=aimText(roundAim);
  // 0.23：文字只说“现在该做什么”，其余解释收进“更多设置”。
  $('title').innerHTML=gamePhase==='transferring'&&!practiceActive?'换洞中':inactive?'轮到同伴':!online?'正在恢复连接':practiceBusy||waiting?(gamePhase==='animating'||practiceBusy?'看球飞行':'等待开局'):active?(armed?'挥杆击球':'准备击球'):'随时挥杆';
- $('instruction').innerHTML=gamePhase==='transferring'&&!practiceActive?'到站后再准备下一杆。':inactive?'稍作放松，轮到你时会提示。':practiceBusy?'等球停稳。':waiting?'在电脑上开始或继续本局。':active?(armed?'下一次挥动就会击球。':'现在挥杆是试挥，不计杆数。'):'轻轻上杆，顺势挥出。';
+ $('instruction').innerHTML=gamePhase==='transferring'&&!practiceActive?'到站后再准备下一杆。':inactive?'稍作放松，轮到你时屏幕会闪一下。':practiceBusy?'等球停稳。':waiting?'在电脑上开始或继续本局。':active?(armed?'下一次挥动就会击球。':'现在挥杆是试挥，不计杆数。'):'轻轻上杆，顺势挥出。';
  $('orb-label').textContent=gamePhase==='transferring'&&!practiceActive?'球车接驳中 · 暂停击球':inactive?'等待轮到这台手机':!online?'正在重新连接':practiceBusy||waiting?'等待球局就绪':active&&!armed?'试挥模式 · 不击球':'已准备 · 下一挥击球';
- const orbWaiting=(gamePhase==='transferring'&&!practiceActive)||inactive||!online||practiceBusy||waiting;if(!orbWaiting)$('orb-label').innerHTML=$('orb-label').textContent+`<br><small>${activeDetector==='model'?'模式识别':'免校准规则'}</small>`;
+ const orbWaiting=(gamePhase==='transferring'&&!practiceActive)||inactive||!online||practiceBusy||waiting;
  $('orb').classList.toggle('waiting',orbWaiting);$('orb').classList.toggle('armed',!orbWaiting&&active&&armed);$('phone-main').dataset.state=orbWaiting?'waiting':active&&armed?'armed':'ready';
  $('phone-practice-arm').classList.toggle('hidden',!active);$('phone-practice-mode').classList.toggle('hidden',true);$('arm-main').textContent=armed?'已准备 · 挥杆！':'准备击球';$('arm-sub').textContent=armed?'点这里取消':'现在挥杆是试挥，不计杆数';$('phone-practice-arm').classList.toggle('cancel',!!armed);$('phone-main').dataset.active=active&&!orbWaiting?'1':'0';renderAdapt();renderPersonal();$('phone-practice-arm').disabled=!online||practiceBusy||waiting||inactive;$('phone-practice-mode').textContent=armed?'已准备 · 体感视角持续生效':'试挥模式 · 体感视角持续生效，不计杆数';
 }
-$('phone-practice-arm').onclick=()=>{if(practiceActive&&!practiceSelected||roundActive&&!roundCanControl)return;conn.send({type:practiceActive?'practice_arm':'round_arm',armed:!(practiceActive?practiceArmed:roundArmed)});};
+$('phone-practice-arm').onclick=()=>{if(swinging())return;if(practiceActive&&!practiceSelected||roundActive&&!roundCanControl)return;conn.send({type:practiceActive?'practice_arm':'round_arm',armed:!(practiceActive?practiceArmed:roundArmed)});};
 
 // ---------- 传感器 ----------
 function onMotion(e){
  if(mazeActive||fishActive)return;
  const time=performance.now(),rr=e.rotationRate;if(!rr||!['alpha','beta','gamma'].some(k=>Number.isFinite(rr[k])))return;
  latestRaw={alpha:rr.alpha||0,beta:rr.beta||0,gamma:rr.gamma||0};lastSample=time;sampleCount++;sampleStart||=time;
- const acc=e.accelerationIncludingGravity||{},ax=Number.isFinite(acc.x)?acc.x:0,ay=Number.isFinite(acc.y)?acc.y:0,az=Number.isFinite(acc.z)?acc.z:0,g=[latestRaw.alpha,latestRaw.beta,latestRaw.gamma];recorder.push(time,g,[ax,ay,az]);mlLastW=Math.hypot(...g);mlLastA=Math.hypot(ax,ay,az);arcState=arcLive.push(time,g,[ax,ay,az]);
+ const acc=e.accelerationIncludingGravity||{},ax=Number.isFinite(acc.x)?acc.x:0,ay=Number.isFinite(acc.y)?acc.y:0,az=Number.isFinite(acc.z)?acc.z:0,g=[latestRaw.alpha,latestRaw.beta,latestRaw.gamma];recorder.push(time,g,[ax,ay,az]);mlLastW=Math.hypot(...g);if(mlLastW>90)movingUntil=time+700;mlLastA=Math.hypot(ax,ay,az);arcState=arcLive.push(time,g,[ax,ay,az]);
  if(time-sampleStart>=1000){hz=sampleCount/((time-sampleStart)/1000);sampleStart=time;sampleCount=0;if(online&&Math.abs(hz-mlHzSent)>5){conn.send({type:'ml_motion',ready:true,hz:Math.round(hz),device:{name:currentDevice()}});mlHzSent=hz;}}
  // 小人跟随：动作中每 40 毫秒、站位时每 80 毫秒发送一次姿势（u：0 站位、1 完整上杆、-1 收杆）。
  if((stream||roundStream)&&online&&!document.hidden){const u=poseNow(),moving=arcState.mode!=='address'&&arcState.mode!=='idle'||Math.abs(u)>.01;if(time-lastTelemetry>=(moving?40:80)){conn.send({type:'sensor_sample',sample:{...latestRaw,axis:'auto',detector:activeDetector,state:lastDecision?.kind||'idle',stage,tilt:lastRoll??0,hz,peakMax:ruleRef('swing'),t:Math.round(time),u:Math.round(u*1000)/1000,arc:arcState.arc,phase:arcState.mode}});lastTelemetry=time;}}
@@ -132,14 +134,14 @@ function fireModel(r){
  const d=r.decision,label=d.label,{power,learned,source}=streamPower(label,r.prediction.s,mlProfile,{peak:r.peak,fallbackProfile:mlFallback,gain:settings.powerGain}),roll=r.timing.roll,{dir,zero}=rollDirection(roll,label);remember('roll',label,roll);lastRoll=roll;
  const swing={peak:Math.round(r.peak),power:round3(power),dir:round3(dir)},ml={label,confidence:round3(d.confidence),s:round3(r.prediction.s),learned,source,roll:Number.isFinite(roll)?roll:null,rollZero:zero===null?null:Math.round(zero*10)/10,modelId:mlModel.id,threshold:det.threshold,ms:Math.round(r.ms*10)/10};
  const {m}=sendSwing(swing,{path:['MODEL',label],backswingMs:validMs(r.timing.backswingMs),downswingMs:validMs(r.timing.downswingMs),detector:'model',ml,kin:swingKin(r,label)});
- $('shot-status').textContent=`模式识别：${CLASS_NAMES[label]} ${Math.round(d.confidence*100)}% · ${{personal:'力度来自你的个人映射',population:'力度暂用全体球手的总体映射',peak:'力度按角速度估算'}[source]}${rollText(roll,zero)}`;
+ $('shot-status').textContent=`识别为${CLASS_NAMES[label]}${source==='personal'?' · 力度按你的手感':''}${rollText(roll,zero)}`;
  capture(r,swing,m,{detector:'model',stream:{...ml,power:swing.power}});
 }
 function fireRule(r){
  const label=r.decision.label,power=rulePower(label,r.peak),roll=r.timing.roll,{dir,zero}=rollDirection(roll,label);remember('peak',label,r.peak);remember('roll',label,roll);lastRoll=roll;
  const swing={peak:Math.round(r.peak),power:round3(power),dir:round3(dir)},rule={label,ref:Math.round(ruleRef(label)),roll:Number.isFinite(roll)?roll:null,rollZero:zero===null?null:Math.round(zero*10)/10};
  const {m}=sendSwing(swing,{path:['RULE',label],backswingMs:validMs(r.timing.backswingMs),downswingMs:validMs(r.timing.downswingMs),detector:'rule',ml:null,kin:swingKin(r,label)});
- $('shot-status').textContent=`免校准规则：${label==='putt'?'推杆':'挥杆'} · 满力参考 ${rule.ref}°/秒${rollText(roll,zero)}`;
+ $('shot-status').textContent=`识别为${label==='putt'?'推杆':'挥杆'}${rollText(roll,zero)}`;
  capture(r,swing,m,{detector:'rule',rule:{triggered:true,power:swing.power,dir:swing.dir,peak:swing.peak,axis:'auto'}});
 }
 function playContext(){return {mode:playMode,scope:practiceActive?'practice':roundActive?'round':'free',clubId:practiceActive?(lastPracticeClub||''):($('phone-club').value==='auto'?(lastRoundClub||''):$('phone-club').value),armed:!!(practiceActive?practiceArmed:roundArmed)};}
@@ -178,8 +180,8 @@ setInterval(()=>{if(enabled&&!document.hidden&&performance.now()-lastSample>1800
 conn.addEventListener('message',({detail:m})=>{
  // 电脑当前所在的游戏：顶部标签与配色跟着变；在大厅时提示“选好游戏后手机会自动切换”。
  if(m.type==='screen_view'){if(lastGame&&m.game!==lastGame)haptics.play('switch');lastGame=m.game;const names={hub:'游戏大厅',golf:'高尔夫 · 球杆',skyroll:'云端滚球 · 手柄',fishing:'体感钓鱼 · 鱼竿'};document.body.dataset.game=m.game;$('game-strip').dataset.game=m.game;$('game-strip').textContent=names[m.game]||'游戏大厅';$('hub-note').classList.toggle('show',m.game==='hub');}
- if(m.type==='maze_subscription'){mazeActive=m.active===true;det.reset();arcLive.reset();if(mazeActive){wakeLock?.release();wakeLock=null;}}
- if(m.type==='fish_subscription'){fishActive=m.active===true;det.reset();arcLive.reset();if(fishActive){wakeLock?.release();wakeLock=null;}}
+ if(m.type==='maze_subscription'){mazeActive=m.active===true;det.reset();arcLive.reset();if(mazeActive){wakeLock?.release();wakeLock=null;}else if(enabled&&!fishActive&&!wakeLock)keepAwake();}
+ if(m.type==='fish_subscription'){fishActive=m.active===true;det.reset();arcLive.reset();if(fishActive){wakeLock?.release();wakeLock=null;}else if(enabled&&!mazeActive&&!wakeLock)keepAwake();}
  if(m.type==='player_identity'){identity=m.player;$('player-name').value=identity.name;$('player-style').value=identity.style;if(!$('ml-record-person').value)$('ml-record-person').value=identity.name||'';renderOwner();renderRecord();renderAdapt();}
  if(m.type==='calibration_request'){$('shot-status').textContent='现在不需要校准：启用体感后直接挥杆；想让识别更贴合你，可以做一次快速适应。';}
  if(m.type==='ready'){if(hadOnline&&!online)haptics.play('online');hadOnline=true;online=true;$('connection').textContent='● 已连接';$('connection').classList.add('online');conn.send({type:'input_settings',settings});if(stage==='ready')conn.send({type:'calibrated',...readyInfo()});statusSent='';refreshDetector();renderReady();}
@@ -199,12 +201,14 @@ conn.addEventListener('message',({detail:m})=>{
  if(m.type==='ml_settings'){mlSettings={...mlSettings,...(m.settings||{})};mlShadow=mlSettings.shadow!==false;refreshDetector();}
  if(m.type==='ml_personal')setPersonal(m);
  if(m.type==='ml_profile'){if(m.personal)setPersonal(m.personal);mlProfile=m.profile||null;mlFallback=m.fallback||mlFallback;det.profile=mlProfile;refreshMotionCal();refreshDetector();renderAdapt();}
-});conn.addEventListener('offline',()=>{if(online)haptics.play('offline');online=false;locked=true;$('connection').textContent='正在重新连接…';$('connection').classList.remove('online');det.reset();renderReady();});
+});conn.addEventListener('offline',()=>{if(online)haptics.play('offline');online=false;locked=true;$('connection').textContent=conn.stopped?'已在别处接入':'正在重新连接…';if(conn.stopped)showReplaced();$('connection').classList.remove('online');det.reset();renderReady();});
 let lastPracticeClub='',lastRoundClub='';conn.connect();
 // 准备 / 取消准备：这次准备已经用来击球（服务器随后自动取消准备）时，不再震“取消”。
 function armedFeel(was,now,mine){if(!mine||was===now)return;if(now){armUsed=false;haptics.play('armed');}else{if(!armUsed)haptics.play('disarm');armUsed=false;}}
 // 开局 / 轮到你：多人轮流时，轮到这台手机会震一段明显的节奏（手机可能放在口袋里）。
-function turnFeel(wasActive,wasControl,active,control){if(!active)return;if(!wasActive)haptics.play(control?(multiplayer?'turn':'go'):'confirm');else if(control&&!wasControl)haptics.play('turn');}
+function showReplaced(){try{if(document.getElementById('replaced-card'))return;const el=document.createElement('div');el.id='replaced-card';el.className='replaced-card';el.setAttribute('role','alertdialog');el.innerHTML='<b>这台手机已在另一个页面接入</b><p>同一台手机只能保留一个手柄页面。关掉另一个页面，或者在这里继续（另一个页面会断开）。</p><button class="primary" id="replaced-resume">在此页继续</button>';document.body.append(el);el.querySelector('#replaced-resume').onclick=()=>{el.remove();$('connection').textContent='正在连接…';conn.stopped=false;conn.connect();};}catch{}}
+function turnBanner(){try{let el=document.getElementById('turn-banner');if(!el){el=document.createElement('div');el.id='turn-banner';el.className='turn-banner';el.setAttribute('role','status');el.textContent='轮到你了！';document.body.append(el);}const f=document.getElementById('flash');f?.classList.remove('go');void f?.offsetWidth;f?.classList.add('go');el.classList.remove('show');void el.offsetWidth;el.classList.add('show');clearTimeout(turnBanner.t);turnBanner.t=setTimeout(()=>el.classList.remove('show'),2600);}catch{}}
+function turnFeel(wasActive,wasControl,active,control){if(!active)return;if(multiplayer&&control&&(!wasActive||!wasControl))setTimeout(turnBanner,0);if(!wasActive)haptics.play(control?(multiplayer?'turn':'go'):'confirm');else if(control&&!wasControl)haptics.play('turn');}
 // 球停稳：自己这一杆进洞（最后一洞进洞 = 全部完成）或罚杆；进入下一洞时轻震确认。
 function shotFeel(prev,state){
  if(!roundActive||prev===state.phase)return;

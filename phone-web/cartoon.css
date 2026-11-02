@@ -100,3 +100,27 @@ h1,h2{font-family:var(--toon-font);font-weight:900}
 #maze-controller .mc-more,#fish-controller .fc-more{margin-top:10px}
 #maze-controller .mc-more summary{font-size:12px;color:#6b8f9c;cursor:pointer;padding:6px 0}
 .hp-panel .hp-row span{white-space:nowrap}
+
+/* 0.28 手机体验整理 */
+/* 防误触：不下拉刷新、不长按弹菜单、不双击放大、不误选文字；输入框 16px 以免 iPhone 聚焦时自动放大 */
+html,body{overscroll-behavior:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+body{-webkit-user-select:none;user-select:none}
+input,select,textarea{font-size:16px!important;-webkit-user-select:text;user-select:text}
+/* 关键按钮至少 44px 高，方便单手点中 */
+.detector-seg button,.prp-aim button,.prp-small,.prp-seg button,.text-button{min-height:44px}
+.identity-card summary{min-height:44px;display:flex;align-items:center}
+/* “启用体感”还没点时，按钮吸附在屏幕底部，不用先滑过整页说明 */
+#enable:not(.hidden){position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));z-index:20}
+/* 横屏：避开刘海和灵动岛 */
+@media (orientation:landscape){
+ header{padding-left:max(24px,env(safe-area-inset-left));padding-right:max(24px,env(safe-area-inset-right))}
+ main{padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right))}
+}
+/* 轮到你了 */
+.turn-banner{position:fixed;left:50%;top:calc(18px + env(safe-area-inset-top));z-index:60;transform:translate(-50%,-140%);padding:14px 26px;border-radius:999px;background:var(--sun-c,#ffd43b);color:var(--ink,#22264a);border:3px solid var(--ol-c,#22264a);font:900 22px var(--toon-font,inherit);box-shadow:0 4px 0 var(--ol-c,#22264a);pointer-events:none;transition:transform .25s ease-out}
+.turn-banner.show{transform:translate(-50%,0)}
+/* 同一手机开了两个页面 */
+.replaced-card{position:fixed;inset:auto 16px calc(16px + env(safe-area-inset-bottom));z-index:70;padding:18px;border-radius:22px;background:#fff;border:3px solid var(--ol-c,#22264a);box-shadow:0 6px 0 var(--ol-c,#22264a);text-align:left}
+.replaced-card b{display:block;font-size:18px;margin-bottom:6px}
+.replaced-card p{margin:0 0 12px;font-size:14px;line-height:1.5}
+.replaced-card .primary{width:100%}

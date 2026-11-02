@@ -229,3 +229,24 @@ body.in-round .header{height:auto;padding:0}
 body[data-game="fishing"]{--accent:#2bb3a3;--accent-d:#1d8a7d;--accent-l:#c8f3ec}
 @media (max-width:1100px){.hub-games{grid-template-columns:1fr 1fr}}
 @media (max-width:760px){.hub-games{grid-template-columns:1fr}}
+
+/* 0.28 体验整理：顶栏不折行；人物视角的镜头工具不再压住击球面板和球 */
+.brand-name,.header .nav-link,.sound-label b,.sound-label small,.connect-button{white-space:nowrap}
+@media (max-width:1320px){.header-end .local-label,.brand-name small{display:none}}
+@media (min-width:861px){.game-canvas .scene-view-tools.follow{left:16px;transform:none;bottom:calc(var(--dock-h,170px) + 28px)}}
+@media (max-width:860px){.game-canvas .scene-view-tools{bottom:calc(var(--dock-h,234px) + 84px)}}
+.start-button .start-label{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left}
+.start-button .start-label small{font-size:12px;font-weight:800;opacity:.75}
+.small-note .link-button{font:inherit;font-weight:800;color:var(--ink);text-decoration:underline;text-underline-offset:3px;margin-right:12px;padding:0;background:none;border:0;cursor:pointer}
+/* 矮屏（≤820px 高）时球局工具按钮不再只剩图标：图标下方加小字说明 */
+@media (max-height:820px){.game .tool-button{flex-direction:column;justify-content:center;gap:1px;padding:4px 2px!important;min-height:40px}.game .tool-button>span:not(.tool-icon){display:block!important;font-size:10px;line-height:1.1;white-space:nowrap;letter-spacing:0}}
+/* 继续上一局：放在“开球”上方，绿色，和新开一局区分开 */
+.resume-button{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:440px;margin-bottom:12px;padding:14px 24px;border:var(--ol) solid var(--ol-c);border-radius:18px;box-shadow:var(--pop);background:var(--golf);color:#fff;font:900 17px var(--toon-font);cursor:pointer;text-shadow:0 1px 0 rgba(34,38,74,.4)}
+.resume-button[hidden]{display:none}
+.resume-button .start-label small{opacity:.9}
+/* 本洞完成、计分卡被关掉时，“计分卡”按钮闪动提示：从这里前往下一洞 */
+.hud-score.attention{animation:score-attention 1.4s ease-in-out infinite}
+@keyframes score-attention{50%{box-shadow:0 0 0 6px rgba(255,212,59,.75)}}
+@media (prefers-reduced-motion:reduce){.hud-score.attention{animation:none;box-shadow:0 0 0 4px rgba(255,212,59,.9)}}
+.resume-button .start-label{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left}
+.resume-button .start-label small{font-size:12px;font-weight:800}

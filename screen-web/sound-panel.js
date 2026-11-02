@@ -29,9 +29,9 @@ export function initSoundPanel({settings,director,toast=()=>{},doc=document,win=
  button.onclick=()=>show(!open);$('sp-close').onclick=()=>show(false);
  doc.addEventListener('pointerdown',e=>{if(open&&!panel.contains(e.target)&&!button.contains(e.target))show(false);},true);
  doc.addEventListener('keydown',e=>{
-  if(e.key==='Escape'&&open){show(false);e.stopPropagation();return;}
+  if(e.key==='Escape'&&open){show(false);e.preventDefault();e.stopImmediatePropagation();return;}
   if(e.code==='KeyM'&&!e.repeat&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.target.matches?.('input,select,textarea')){const on=!settings.value.music.on||settings.value.muted;settings.update({muted:false,music:{on}});toast(on?`音乐已开启 · ${director.status().title}`:'音乐已关闭（按 M 重新开启）');}
- });
+ },true);
  win.addEventListener('resize',place);win.addEventListener('scroll',place,true);
 
  const toggleMusic=()=>{const v=settings.value;settings.update(v.muted?{muted:false,music:{on:true}}:{music:{on:!v.music.on}});};
