@@ -56,6 +56,8 @@ function saveLogs(){logs=logs.slice(0,50);localStorage.setItem('swinglink-logs',
 saveLogs();
 async function keepAwake(){if(!navigator.wakeLock){$('wake-status').textContent='○ 此设备不支持屏幕常亮';return;}try{wakeLock=await navigator.wakeLock.request('screen');$('wake-status').textContent='● 屏幕常亮已开启';wakeLock.addEventListener('release',()=>{$('wake-status').textContent='○ 屏幕常亮已暂停';});}catch{$('wake-status').textContent='○ 请手动保持屏幕常亮';}}
 function setStage(){$('phone-main').dataset.stage=stage;}
+// 0.28.1：还没启用体感时，大厅里说通用的话（不是高尔夫专用的握杆引导）。
+function renderIntro(){const hub=(document.body.dataset.game||'hub')==='hub';$('eyebrow').textContent=hub?'一台手机 · 三种玩法':'把手机握成球杆，让好心情开场';if(stage!=='intro')return;$('title').innerHTML=hub?'先启用体感，<br>再到电脑上选游戏。':'好挥杆，<br>从这里开始。';$('instruction').innerHTML=hub?'授权一次，三个游戏都能用。':'像握球杆一样竖着握紧手机。<br>启用体感后就能挥杆，不需要校准。';}
 
 // ---------- 个人习惯：力度参考、方向零点（按人、按动作类别保存在本机） ----------
 const habitKey=(kind,label)=>`swinglink-habit-${kind}:${identity?.name||''}:${label}`;
@@ -71,28 +73,47 @@ function rollDirection(roll,label){const h=habit('roll',label),zero=h.length?h.r
 $('habit-reset').onclick=()=>{for(const kind of ['roll','peak'])for(const c of ['swing','putt','full','partial'])try{localStorage.setItem(habitKey(kind,c),'[]');}catch{}$('shot-status').textContent='方向与力度习惯已清空，接下来几杆会重新学习。';};
 
 // ---------- 启用体感：直接就绪 ----------
+// 0.28.1：提示按平台说（安卓不再让人去找 Safari）；一次同时申请“运动”和“方向”，滚球和钓鱼就不用再单独授权。
+const IOS=/iPhone|iPad|iPod/.test(navigator?.userAgent||'')||(navigator?.platform==='MacIntel'&&navigator?.maxTouchPoints>1);
 $('enable').onclick=async()=>{
  try{
-  if(!window.isSecureContext)return fail('体感需要受信任的 HTTPS 连接。请在电脑上打开“连接手机”，按说明完成 iPhone 设置。');
-  if(typeof DeviceMotionEvent==='undefined')return fail('当前浏览器无法提供运动传感器，请用 iPhone 的 Safari 打开此页面。');
-  const permission=typeof DeviceMotionEvent.requestPermission==='function'?await DeviceMotionEvent.requestPermission():'granted';
-  if(permission!=='granted')return fail('体感权限未获允许。请在 Safari 的网站设置中允许运动与方向访问，重新加载后再试。');
+  if(!window.isSecureContext)return fail(IOS?'体感需要受信任的 HTTPS 连接。请在电脑上打开“连接手机”，按说明完成 iPhone 设置。':'体感需要受信任的 HTTPS 连接。请在电脑上打开“连接手机”，按说明设置后再试。');
+  if(typeof DeviceMotionEvent==='undefined')return fail(IOS?'当前浏览器无法提供运动传感器，请用 Safari 打开此页面。':'当前浏览器无法提供运动传感器，请换用系统浏览器或 Chrome 打开此页面。');
+  const ask=api=>typeof api?.requestPermission==='function'?Promise.resolve(api.requestPermission()).catch(()=>'denied'):Promise.resolve('granted');
+  const [permission]=await Promise.all([ask(DeviceMotionEvent),ask(window.DeviceOrientationEvent)]);
+  if(permission!=='granted')return fail(IOS?'体感权限未获允许。请在 Safari 的网站设置中允许“运动与方向访问”，重新加载后再试。':'体感权限未获允许。请在浏览器的网站设置里允许“动作与方向传感器”，重新加载后再试。');
+  try{document.body.dataset.motion='granted';}catch{}
   enabled=true;$('sensor-status').textContent='○ 正在等待体感数据';window.removeEventListener('devicemotion',onMotion);window.addEventListener('devicemotion',onMotion);keepAwake();ready();haptics.play('ready');lastSample=performance.now();if(online)conn.send({type:'ml_motion',ready:true,hz:Math.round(hz)||null,device:{name:currentDevice()}});
  }catch(e){fail(`无法启用体感。请确认已允许传感器访问，然后再点一次。`);}
 };
 function fail(text){warn(text);haptics.play('error');}
 function readyInfo(){return {version:'auto',peakMax:ruleRef('swing'),dirZero:0,axis:'auto',noise:0,mode:activeDetector==='model'?'model':'auto'};}
 function ready(){stage='ready';setStage();warn('');$('enable').classList.add('hidden');$('orb').classList.remove('hidden');conn.send({type:'calibrated',...readyInfo()});$('ready-controls').classList.remove('hidden');$('orb').classList.add('ready');det.reset();renderAdapt();renderReady();}
-function renderReady(){if(stage!=='ready')return;const inactive=practiceActive&&!practiceSelected||roundActive&&!roundCanControl;const practiceBusy=playMode==='practice'&&Date.now()<practiceBusyUntil,waiting=playMode==='play'&&locked,active=practiceActive||roundActive,armed=practiceActive?practiceArmed:roundArmed;
+function renderReady(){if(stage!=='ready')return;const practiceBusy=playMode==='practice'&&Date.now()<practiceBusyUntil,waiting=playMode==='play'&&locked,active=practiceActive||roundActive,armed=practiceActive?practiceArmed:roundArmed;
  $('phone-club-picker').classList.toggle('hidden',!roundActive||practiceActive);$('phone-club').disabled=!online||!roundCanControl||gamePhase!=='playing';
  $('phone-round-pad').classList.toggle('hidden',!roundActive||practiceActive);for(const id of ['prp-aim-left','prp-aim-right','prp-aim-reset'])$(id).disabled=!canAim();for(const id of ['prp-cam-up','prp-cam-down','prp-cam-left','prp-cam-right','prp-cam-in','prp-cam-out','prp-cam-reset','prp-view-follow','prp-view-overview','prp-view-cup'])$(id).disabled=!canCamera();$('prp-aim-value').textContent=aimText(roundAim);
- // 0.23：文字只说“现在该做什么”，其余解释收进“更多设置”。
- $('title').innerHTML=gamePhase==='transferring'&&!practiceActive?'换洞中':inactive?'轮到同伴':!online?'正在恢复连接':practiceBusy||waiting?(gamePhase==='animating'||practiceBusy?'看球飞行':'等待开局'):active?(armed?'挥杆击球':'准备击球'):'随时挥杆';
- $('instruction').innerHTML=gamePhase==='transferring'&&!practiceActive?'到站后再准备下一杆。':inactive?'稍作放松，轮到你时屏幕会闪一下。':practiceBusy?'等球停稳。':waiting?'在电脑上开始或继续本局。':active?(armed?'下一次挥动就会击球。':'现在挥杆是试挥，不计杆数。'):'轻轻上杆，顺势挥出。';
- $('orb-label').textContent=gamePhase==='transferring'&&!practiceActive?'球车接驳中 · 暂停击球':inactive?'等待轮到这台手机':!online?'正在重新连接':practiceBusy||waiting?'等待球局就绪':active&&!armed?'试挥模式 · 不击球':'已准备 · 下一挥击球';
- const orbWaiting=(gamePhase==='transferring'&&!practiceActive)||inactive||!online||practiceBusy||waiting;
+ // 0.28.1：分清“别的手机在打”和“自己的球在飞 / 本洞结束”，单人局不再显示“轮到同伴”。
+ // 球局或练习进行中，“准备击球”大按钮一直留在原位，只换文字，页面不再来回跳。
+ const transfer=gamePhase==='transferring'&&!practiceActive,others=practiceActive?!practiceSelected:roundActive&&!roundStream&&!roundCanControl,who=activeOwner||'同伴';
+ const paused=!practiceActive&&roundActive&&!others&&!roundCanControl,flying=practiceBusy||(paused&&gamePhase==='animating');
+ let title,text,main,sub,orb;
+ if(transfer)[title,text,main,sub,orb]=['换洞中','到站后再准备下一杆。','换洞中','球车到站后再准备下一杆','球车接驳中 · 暂停击球'];
+ else if(others&&practiceActive)[title,text,main,sub,orb]=['另一台手机在练习','在电脑练习室选中这台手机后就能挥杆。','另一台手机在练习','在电脑上选中这台手机后再挥杆','等待轮到这台手机'];
+ else if(others&&multiplayer)[title,text,main,sub,orb]=[`轮到${who}`,'稍作放松，轮到你时屏幕会闪一下。',`轮到${who}`,'轮到你时屏幕会闪一下','等待轮到这台手机'];
+ else if(others)[title,text,main,sub,orb]=[`${who}在打`,'这一局由另一台手机挥杆。',`${who}在打`,'这一局由另一台手机挥杆','这一局由另一台手机挥杆'];
+ else if(!online)[title,text,main,sub,orb]=['正在恢复连接','连上后再准备击球。','正在恢复连接','连上后再准备击球','正在重新连接'];
+ else if(flying)[title,text,main,sub,orb]=['看球飞行','等球停稳。','看球飞行','球停稳后再准备下一杆','等待球停稳'];
+ else if(paused&&gamePhase==='hole_complete')[title,text,main,sub,orb]=['本洞完成','在电脑上查看成绩，前往下一洞。','本洞完成','在电脑上前往下一洞','本洞完成'];
+ else if(paused&&gamePhase==='finished')[title,text,main,sub,orb]=['本局结束','在电脑上查看成绩单。','本局结束','在电脑上查看成绩单','本局结束'];
+ else if(paused||waiting&&active)[title,text,main,sub,orb]=['等待开局','在电脑上开始或继续本局。','等待开局','在电脑上开始或继续本局','等待球局就绪'];
+ else if(active)[title,text,main,sub,orb]=armed?['挥杆击球','下一次挥动就会击球。','已准备 · 挥杆！','点这里取消','已准备 · 下一挥击球']:['准备击球','现在挥杆是试挥，不计杆数。','准备击球','先点这里再挥杆 · 不点只算试挥','试挥模式 · 不击球'];
+ else if(document.body.dataset.game==='hub')[title,text,orb]=['体感已就绪','在电脑上选好游戏，这台手机会自动变成球杆、滚球手柄或鱼竿。','体感已就绪'];
+ else [title,text,orb]=['随时挥杆','轻轻上杆，顺势挥出。',waiting?'等待球局就绪':'试挥模式 · 不击球'];
+ $('title').innerHTML=title;$('instruction').innerHTML=text;$('orb-label').textContent=orb;
+ const orbWaiting=transfer||others||!online||flying||paused||waiting;
  $('orb').classList.toggle('waiting',orbWaiting);$('orb').classList.toggle('armed',!orbWaiting&&active&&armed);$('phone-main').dataset.state=orbWaiting?'waiting':active&&armed?'armed':'ready';
- $('phone-practice-arm').classList.toggle('hidden',!active);$('phone-practice-mode').classList.toggle('hidden',true);$('arm-main').textContent=armed?'已准备 · 挥杆！':'准备击球';$('arm-sub').textContent=armed?'点这里取消':'现在挥杆是试挥，不计杆数';$('phone-practice-arm').classList.toggle('cancel',!!armed);$('phone-main').dataset.active=active&&!orbWaiting?'1':'0';renderAdapt();renderPersonal();$('phone-practice-arm').disabled=!online||practiceBusy||waiting||inactive;$('phone-practice-mode').textContent=armed?'已准备 · 体感视角持续生效':'试挥模式 · 体感视角持续生效，不计杆数';
+ const arm=$('phone-practice-arm');arm.classList.toggle('hidden',!active);arm.classList.toggle('waiting',active&&orbWaiting);$('phone-practice-mode').classList.toggle('hidden',true);$('arm-main').textContent=main||'准备击球';$('arm-sub').textContent=sub||'';arm.classList.toggle('cancel',!!armed&&!orbWaiting);$('phone-main').dataset.active=active?'1':'0';renderAdapt();renderPersonal();arm.disabled=!online||practiceBusy||waiting||orbWaiting;$('phone-practice-mode').textContent=armed?'已准备 · 体感视角持续生效':'试挥模式 · 体感视角持续生效，不计杆数';
+ renderOwner();
 }
 $('phone-practice-arm').onclick=()=>{if(swinging())return;if(practiceActive&&!practiceSelected||roundActive&&!roundCanControl)return;conn.send({type:practiceActive?'practice_arm':'round_arm',armed:!(practiceActive?practiceArmed:roundArmed)});};
 
@@ -176,10 +197,10 @@ $('missed').onclick=()=>{logs.unshift({time:new Date().toISOString(),feeling:'�
 function download(format){const data=format==='json'?JSON.stringify({'识别方式':activeDetector==='model'?'模式识别':'免校准规则','灵敏度':settings,'球手':identity,'设备':currentDevice(),'握法':GRIPS[grip],'挥杆记录':logs.map(chineseLog)},null,2):chineseCsv(logs);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:format==='json'?'application/json':'text/csv;charset=utf-8'}));a.download=`挥杆记录.${format}`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 $('export-json').onclick=()=>download('json');$('export-csv').onclick=()=>download('csv');
 document.addEventListener('visibilitychange',()=>{det.reset();if(document.hidden){if(mlTrial&&!mlTrial.paused)conn.send({type:'ml_session',action:'pause'});if(practiceActive&&practiceArmed)conn.send({type:'practice_arm',armed:false});if(roundActive&&roundArmed)conn.send({type:'round_arm',armed:false});haptics.stop();wakeLock?.release();warn('页面进入后台后，体感已暂停。回到此页面后即可继续。');}else if(enabled){keepAwake();lastSample=performance.now();$('sensor-warning').dataset.stalled='true';}});
-setInterval(()=>{if(enabled&&!document.hidden&&performance.now()-lastSample>1800){if($('sensor-warning').dataset.stalled!=='true')haptics.play('warn');$('sensor-status').textContent='○ 尚未收到传感器数据';warn('传感器数据已中断。请保持 Safari 在前台，检查体感权限，或刷新页面重新连接。');$('sensor-warning').dataset.stalled='true';det.reset();}},1000);
+setInterval(()=>{if(enabled&&!document.hidden&&performance.now()-lastSample>1800){if($('sensor-warning').dataset.stalled!=='true')haptics.play('warn');$('sensor-status').textContent='○ 尚未收到传感器数据';warn('传感器数据已中断。请保持这个页面在前台，检查体感权限，或刷新页面重新连接。');$('sensor-warning').dataset.stalled='true';det.reset();}},1000);
 conn.addEventListener('message',({detail:m})=>{
  // 电脑当前所在的游戏：顶部标签与配色跟着变；在大厅时提示“选好游戏后手机会自动切换”。
- if(m.type==='screen_view'){if(lastGame&&m.game!==lastGame)haptics.play('switch');lastGame=m.game;const names={hub:'游戏大厅',golf:'高尔夫 · 球杆',skyroll:'云端滚球 · 手柄',fishing:'体感钓鱼 · 鱼竿'};document.body.dataset.game=m.game;$('game-strip').dataset.game=m.game;$('game-strip').textContent=names[m.game]||'游戏大厅';$('hub-note').classList.toggle('show',m.game==='hub');}
+ if(m.type==='screen_view'){if(lastGame&&m.game!==lastGame)haptics.play('switch');lastGame=m.game;const names={hub:'游戏大厅',golf:'高尔夫 · 球杆',skyroll:'云端滚球 · 手柄',fishing:'体感钓鱼 · 鱼竿'};document.body.dataset.game=m.game;$('game-strip').dataset.game=m.game;$('game-strip').textContent=names[m.game]||'游戏大厅';$('hub-note').classList.toggle('show',m.game==='hub');renderIntro();renderReady();}
  if(m.type==='maze_subscription'){mazeActive=m.active===true;det.reset();arcLive.reset();if(mazeActive){wakeLock?.release();wakeLock=null;}else if(enabled&&!fishActive&&!wakeLock)keepAwake();}
  if(m.type==='fish_subscription'){fishActive=m.active===true;det.reset();arcLive.reset();if(fishActive){wakeLock?.release();wakeLock=null;}else if(enabled&&!mazeActive&&!wakeLock)keepAwake();}
  if(m.type==='player_identity'){identity=m.player;$('player-name').value=identity.name;$('player-style').value=identity.style;if(!$('ml-record-person').value)$('ml-record-person').value=identity.name||'';renderOwner();renderRecord();renderAdapt();}
@@ -216,7 +237,7 @@ function shotFeel(prev,state){
  if(prev!=='animating')return;const last=state.shotHistory?.at(-1),me=identity?.id;if(!last||!me||(last.deviceId!==me&&last.inputDeviceId!==me))return;
  if(last.holed)haptics.play(state.phase==='finished'?'win':'success');else if(last.penalty)haptics.play('penalty');
 }
-function renderOwner(){$('phone-identity').textContent=identity?`手机 ${String(identity.number).padStart(2,'0')} · ${identity.name}`:'正在分配手机编号';$('turn-owner').textContent=activeOwner?`当前控制：${activeOwner}`:'每台手机对应一位球手';}
+function renderOwner(){$('phone-identity').textContent=identity?`手机 ${String(identity.number).padStart(2,'0')} · ${identity.name}`:'正在分配手机编号';$('turn-owner').textContent=roundActive&&roundStream&&!multiplayer&&!practiceActive?'当前控制：这台手机':activeOwner?`当前控制：${activeOwner}`:'每台手机对应一位球手';}
 $('save-profile').onclick=()=>{deviceName=String($('device-name').value||'').trim().slice(0,32);try{localStorage.setItem('swinglink-device-name',deviceName);}catch{}statusSent='';conn.send({type:'player_profile',name:$('player-name').value,style:$('player-style').value});refreshDetector();renderRecord();};
 
 // ---------- 识别方式 ----------
@@ -231,9 +252,9 @@ function refreshDetector(){
  detectorReason=!want?'已选择规则识别':!mlModel?'尚未训练模型，先用免校准规则':!streamOk?'当前模型需在练习室重新完整训练，先用免校准规则':'';
  det.model=next==='model'?mlModel:null;det.profile=mlProfile;det.threshold=Number(mlSettings.threshold)||STREAM.threshold;
  const changed=next!==activeDetector;activeDetector=next;if(changed){det.reset();if(stage==='ready')conn.send({type:'calibrated',...readyInfo()});}
- $('detector-model').classList.toggle('selected',want);$('detector-rule').classList.toggle('selected',!want);
+ $('detector-model').classList.toggle('selected',want);$('detector-model').classList.toggle('pending',want&&next!=='model');$('detector-rule').classList.toggle('selected',!want);
  const st=$('detector-status');st.dataset.mode=next==='model'?'model':want?'fallback':'rule';
- st.textContent=next==='model'?`模式识别 · 触发置信度 ≥ ${Math.round(det.threshold*100)}% · ${hasPowerMap()?'力度来自个人映射':mlFallback?'尚无个人力度映射，暂用总体映射':'力度先按角速度估算'}`:`免校准规则 · 力度按你最近挥杆自动定标${detectorReason&&want?' · '+detectorReason:''}`;
+ st.textContent=next==='model'?`模式识别 · 触发置信度 ≥ ${Math.round(det.threshold*100)}% · ${hasPowerMap()?'力度来自个人映射':mlFallback?'尚无个人力度映射，暂用总体映射':'力度先按角速度估算'}`:want&&detectorReason?`你选了模式识别，但${!mlModel?'还没有训练好的模型':'当前模型需要在练习室重新完整训练'}，现在先用免校准规则 · 模型就绪后自动切换`:'免校准规则 · 力度按你最近挥杆自动定标';
  if(stage==='intro')$('orb-label').textContent=next==='model'?'模式识别 · 启用体感后即可挥杆':'启用体感后即可挥杆';
  const key=`${next}|${detectorReason}|${mlModel?.id||''}|${currentDevice()}|${grip}`;if(online&&key!==statusSent){statusSent=key;conn.send({type:'ml_status',detector:next,reason:detectorReason,modelId:mlModel?.id||null,grip,device:{name:currentDevice()}});}
  renderReady();
@@ -346,6 +367,6 @@ $('ml-record-label').onchange=renderRecord;$('ml-record-level').onchange=renderR
 function startRecording(mode){if(!enabled)return warn('请先点击“启用体感”，再录入训练数据。');const label=$('ml-record-label').value||'swing',level=$('ml-record-level').value||'ladder';conn.send({type:'ml_session',action:'start',mode,label,level:label==='other'?null:(level==='ladder'?'ladder':Number(level)),count:Number($('ml-record-count').value)||10,person:String($('ml-record-person').value||identity?.name||'').trim()});}
 $('ml-record-start').onclick=()=>startRecording('collect');$('ml-record-motion').onclick=()=>startRecording('motion');
 $('device-name').value=deviceName;$('device-name').placeholder=autoDevice();
-renderPosture();renderRecord();setStage();refreshDetector();
+renderPosture();renderRecord();setStage();renderIntro();refreshDetector();
 
 export {conn};

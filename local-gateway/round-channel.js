@@ -5,7 +5,10 @@ export const CAMERA_ACTIONS=new Set(['left','right','up','down','in','out','rese
 export class RoundChannel {
  constructor(game,clients,send,training,{state,shot}){Object.assign(this,{game,clients,send,training,onState:state,onShot:shot});}
  observers(){return [...this.clients].filter(c=>c.role==='screen'&&c.roundView);}
- phone(){const id=this.game.player.deviceId;return id?[...this.clients].find(c=>c.role==='phone'&&c.clientId===id):this.training.phone();}
+ phone(){const id=this.game.player.deviceId,bound=id?[...this.clients].find(c=>c.role==='phone'&&c.clientId===id):null;
+  // 0.28.1 单人局：开局时的手机（或练习室选中的手机）离线了，就由一台在线的手机接着打，原手机回来后交还；
+  // 多人局仍只认当前球手的手机。练习室自己的选择不变（离线保留选择）。
+  if(bound||(id&&this.game.state.multiplayer))return bound||undefined;return this.training.phone()||[...this.clients].find(c=>c.role==='phone');}
  active(){return !!this.observers().length&&!this.training.observers().length&&this.game.state.phase!=='lobby';}
  sync(){
   const active=this.active(),phone=this.phone();let changed=false;

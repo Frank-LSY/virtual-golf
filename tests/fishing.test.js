@@ -28,7 +28,7 @@ test('诱鱼：节奏对路咬钩更快；没鱼的位置 5 秒内提示换位�
  const drag=t=>6*Math.sin(t*2*Math.PI/2.4),twitch=t=>{const p=t%.9;return p<.12?p/.12*7:p<.4?7*(1-(p-.12)/.28):0;},still=()=>0;
  const sd=time('shallow',drag),st=time('shallow',twitch),ss=time('shallow',still);assert.equal(sd.phase,'bite');assert.ok(sd.t>=2.5&&sd.t<=7,`小鱼缓拖 ${sd.t.toFixed(1)} 秒咬钩`);assert.ok(st.t>sd.t+1,'小鱼不爱轻抽');assert.ok(ss.t>sd.t);
  const pt=time('reeds',twitch),pd=time('reeds',drag);assert.ok(pt.t<pd.t-1,`鲈鱼轻抽 ${pt.t.toFixed(1)} 秒 / 缓拖 ${pd.t.toFixed(1)} 秒`);
- const a=new Angler({id:'a',scenario:scenario(1)});a.setPose(0,0);a.arm();a.cast({power:.15});run(a,a.flightTime+.05);assert.equal(a.zone,null);const ev=run(a,5);assert.ok(ev.some(e=>e.kind==='empty'&&e.reason==='none'));
+ const a=new Angler({id:'a',scenario:scenario(1)});a.setPose(0,0);a.arm();a.cast({power:.15});const ev=run(a,a.flightTime+.05);assert.equal(a.zone,null);ev.push(...run(a,5));const miss=ev.find(e=>e.kind==='empty'&&e.reason==='none');assert.ok(miss);assert.ok(miss.t-a.clock>-5.1&&miss.t<=a.clock-4.9,'0.28.1：落水后马上提示，不等 4 秒');assert.match(miss.hint,/浅湾|芦苇口|深水/,'提示离哪个钓区偏了');
  const c=new Angler({id:'c',scenario:scenario(1)});castInto(c,'deep');const ce=run(c,5,x=>x.setPose(0,0),{open:['shallow','reeds']});assert.ok(ce.some(e=>e.kind==='empty'&&e.reason==='closed'),'第一轮深水未开放');
  const w=new Angler({id:'w',scenario:scenario(1)}),bed=WEEDS[2],p=Math.hypot(bed.x,bed.z),ang=Math.atan2(bed.x,-bed.z)*180/Math.PI;w.setPose(0,rollFor(ang));run(w,.6,x=>x.setPose(0,rollFor(ang)));w.arm();w.cast({power:powerFor(p)});run(w,w.flightTime+.05,x=>x.setPose(0,rollFor(ang)));assert.ok(run(w,1.2).some(e=>e.kind==='empty'&&e.reason==='weeds'));
 });
@@ -103,4 +103,23 @@ test('手机鱼竿输入：静止 0.6 秒归零；竿姿相对基准；转屏或
  assert.equal(swing(8,300),null,'没有后引不抛');assert.equal(swing(40,60).reject,'weak');assert.equal(swing(40,300,{hold:1600}).reject,'slow');
  const d=new CastDetector();d.arm();let time=0,count=0;for(let rep=0;rep<2;rep++){for(let i=0;i<10;i++){if(d.sample(0,0,time)?.power!==undefined)count++;time+=16;}for(let i=1;i<=20;i++){if(d.sample(40*i/20,0,time)?.power!==undefined)count++;time+=16;}for(let i=1;i<=6;i++){if(d.sample(40-50*i/6,0,time)?.power!==undefined)count++;time+=16;}for(let i=0;i<5;i++){if(d.sample(-10,0,time)?.power!==undefined)count++;time+=16;}}
  assert.equal(count,1,'一次准备只认一次');const off=new CastDetector();assert.equal(off.sample(40,0,0),null,'没准备时不识别');
+});
+
+test('0.28.1 钓鱼网关：网络抖一下后能继续；中场断线的手机让第二轮暂停；电脑可以“不等 xP，继续”，回来后归队', async()=>{
+ const {FishingChannel}=await import('../local-gateway/fishing-channel.js');
+ let now=0;const clients=new Set(),mk=(role,id)=>{const ws={role,clientId:id,out:[]};clients.add(ws);return ws;};
+ const ch=new FishingChannel(clients,(ws,m)=>ws.out.push(m),{now:()=>now,autoTick:false});
+ const host=mk('screen','pc');ch.handle(host,{type:'fish_view',active:true});
+ const A=mk('phone','A'),B=mk('phone','B');for(const p of [A,B]){ch.connected(p);ch.handle(p,{type:'fish_join',join:true});ch.handle(p,{type:'fish_ready',ready:true,source:'touch'});}
+ let quietB=false;const run=sec=>{for(let i=0;i<sec*60;i++){now+=1000/60;if(i%2===0){ch.handle(A,{type:'fish_pose',pitch:0,roll:0});if(!quietB&&clients.has(B))ch.handle(B,{type:'fish_pose',pitch:0,roll:0});}ch.tick(now);}};
+ ch.command('start',null);run(5);assert.equal(ch.match.phase,'playing');
+ quietB=true;run(.7);quietB=false;assert.equal(ch.match.phase,'paused');assert.equal(ch.match.pauseReason,'stream_gap');
+ run(1);assert.deepEqual(ch.waiting(),[],'竿姿恢复后不用重新就绪');ch.command('resume',null);run(2);assert.equal(ch.match.phase,'playing');
+ // 第一轮结束 → 中场时 B 断线 → 第二轮倒数时暂停，不会扔下 B 开打
+ ch.match.timeLeft=.05;run(.5);for(let i=0;i<40&&ch.match.phase!=='intermission';i++)run(.5);assert.equal(ch.match.phase,'intermission');
+ clients.delete(B);ch.disconnected?.(B);run(8);assert.equal(ch.match.phase,'paused','第二轮开始前发现 B 不在');assert.deepEqual(ch.waiting(),[1]);
+ assert.throws(()=>ch.command('skip',1),/电脑/);ch.command('skip',null);run(4);assert.equal(ch.match.phase,'playing','不等 2P 继续');assert.equal(ch.match.angler('B').phase,'done');
+ const pausedAgain=ch.match.phase;run(1);assert.equal(ch.match.phase,pausedAgain,'B 不在也不会再暂停');
+ // B 回来就绪后归队
+ clients.add(B);ch.connected(B);ch.handle(B,{type:'fish_ready',ready:true,source:'touch'});run(.2);assert.equal(ch.match.angler('B').phase,'aim');
 });

@@ -21,7 +21,8 @@ export const FISHING=Object.freeze({
  approach:Object.freeze({base:.17,gap:[4,6],nibbles:[.55,.8],spookAbove:.4,spookLoss:.4,spookPause:2,missCooldown:2.5,emptyHint:4}),
  bite:Object.freeze({window:.9,practice:1.2}),
  // 刺鱼：0.4 秒内抬竿至少 12° 且速度不低于 40°/秒；超过不加收益。
- hook:Object.freeze({lift:12,time:.4,minRate:40,cooldown:.5}),
+ // 0.28.1：诱鱼时要抬到 18° 以上才会吓跑鱼（以前和刺鱼同一个门槛，正常诱鱼动作也会吓跑）。
+ hook:Object.freeze({lift:12,spook:18,time:.4,minRate:40,cooldown:.5}),
  // 张力（游戏归一化，不是实测拉力）：0.25–0.70 有效；>0.9 持续 0.8 秒断线；<0.12 持续 1.5 秒脱钩。
  tension:Object.freeze({okLow:.25,okHigh:.7,danger:.9,breakTime:.8,slack:.12,slackTime:1.5,smooth:.12}),
  weed:Object.freeze({warn:1,escape:2}),

@@ -40,7 +40,8 @@ export class CastDetector {
   if(!this.armed||this.done||![pitch,roll,time].every(Number.isFinite))return null;const C=ROD.cast,prev=this.prev;this.prev={pitch,roll,time};
   if(prev&&time-prev.time>C.gap){const was=this.state;this.reset();this.prev={pitch,roll,time};return was==='idle'?null:{reject:'gap'};}
   const rate=prev?(pitch-prev.pitch)/Math.max(1,time-prev.time)*1000:0;
-  if(this.state==='idle'){if(this.base===null||pitch<this.base){this.base=pitch;this.aimRoll=roll;}if(pitch-this.base>=C.back){this.state='back';this.backAt=time;this.peak=pitch;}return null;}
+  // 0.28.1：瞄准取后引前、竿还在起点附近（3° 内）时最近一段的左右倾（平滑），不再停在“最低点”那一刻的随机读数。
+  if(this.state==='idle'){if(this.base===null||pitch<this.base)this.base=pitch;if(pitch-this.base<=3)this.aimRoll=this.aimRoll===null?roll:this.aimRoll+(roll-this.aimRoll)*.35;if(pitch-this.base>=C.back){this.state='back';this.backAt=time;this.peak=pitch;}return null;}
   if(this.state==='back'){
    this.peak=Math.max(this.peak,pitch);
    if(rate<=-C.forwardRate){this.state='forward';this.fwdAt=prev.time;this.fwdFrom=this.peak;this.rollFrom=prev.roll;return null;}

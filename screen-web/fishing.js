@@ -17,7 +17,7 @@ export class FishingRoom {
   Object.assign(this,{root,conn,sfx,toast,pair,onPhase,onWin,storage});this.records=loadFishRecords(storage);this.active=false;this.host=true;this.online=false;this.roster=Array(6).fill(null);this.allReady=false;this.setup={mode:'match',roundSeconds:90};this.state=null;this.keys=new Set();this.kb={pitch:0,roll:0,charge:null};this.notes=new Map();this.lastHUD=0;this.lastPose=0;this.lastPhase=null;this.recorded=null;
   root.innerHTML=`<section class="fs-lobby" id="fs-lobby" aria-label="体感钓鱼大厅">
    <div class="fs-hero"><div class="fs-hero-copy"><span class="toon-badge fish">FISHING · 手机就是鱼竿</span><h1 class="toon-title">湖畔钓鱼</h1><p>竖着握住手机，像握鱼竿一样：左右倾瞄准，<b>后引再前挥</b>把浮漂抛进钓区；浮漂明显下沉时<b>抬竿刺鱼</b>；之后<b>抬竿拉近、放竿收线</b>，鱼冲刺时放低一点。最多 6 人同时钓，各自一块分屏。</p>
-    <ul class="fs-zones">${ZONES.map(z=>`<li style="--zc:${z.color}"><b>${z.name}</b><span>${FISH[z.fish].name} · ${FISH[z.fish].points} 分</span><small>${z.id==='shallow'?'近岸 6–12 米，最好上手':z.id==='reeds'?'12–20 米，两侧有水草':'22–30 米，第二轮开放'}</small></li>`).join('')}</ul></div>
+    <ul class="fs-zones">${ZONES.map(z=>`<li style="--zc:${z.color}"><b>${z.name}</b><span>${FISH[z.fish].name} · ${FISH[z.fish].points} 分</span><small>${`${Math.round(z.distance-z.radius)}–${Math.round(z.distance+z.radius)} 米，`}${z.id==='shallow'?'近岸，最好上手':z.id==='reeds'?'两侧有水草':'第二轮开放'}</small></li>`).join('')}</ul></div>
     <div class="fs-record" id="fs-record"></div></div>
    <div class="fs-setup"><div class="fs-seg" id="fs-mode"><button data-mode="match">比赛 · 两轮</button><button data-mode="practice">练习 · 不限时</button></div><label class="fs-len" id="fs-len-wrap">每轮<select id="fs-len">${FISHING.match.choices.map(s=>`<option value="${s}">${s} 秒</option>`).join('')}</select></label><span class="fs-setup-note" id="fs-setup-note"></span></div>
    <div class="fs-slots" id="fs-slots"></div>
@@ -85,7 +85,7 @@ export class FishingRoom {
   const sfx=this.sfx,name=id=>{const a=this.state?.anglers.find(a=>a.id===id);return a?`${a.slot+1}P ${a.name}`:'';};
   if(['cast','splash','nibble','bite','hook','dash','telegraph','landed','countdown','go'].includes(e.kind))sfx?.play(e.kind);
   if(e.kind==='lost')sfx?.play('lost',e.reason==='break'?1:.3);if(e.kind==='weed_warn')sfx?.play('weed');if(e.kind==='time_up')sfx?.play('timeup');
-  if(e.kind==='empty')this.note(e.id,e.reason==='weeds'?'挂在水草里了 · 收线重抛':e.reason==='closed'?'这一轮还没开放':'附近没有鱼影，换个位置试试','warn',3200);
+  if(e.kind==='empty')this.note(e.id,e.reason==='weeds'?'挂在水草里了 · 收线重抛':e.reason==='closed'?'这一轮还没开放这片水域':`没落进钓区${e.hint?' · '+e.hint:''}`,'warn',3200);
   if(e.kind==='tip')this.note(e.id,`试试：${({small:'慢慢抬、慢慢放（缓拖）',perch:'短促地轻抽',big:'缓拖一下再停住'})[e.type]}`,'info',3400);
   if(e.kind==='spook')this.note(e.id,'抬早了，鱼被吓退了','warn');if(e.kind==='miss')this.note(e.id,'没抬起来，鱼走了','warn');
   if(e.kind==='hook')this.note(e.id,'中鱼了！','good',1500);if(e.kind==='telegraph')this.note(e.id,'它要冲了——放低一点！','warn',1400);if(e.kind==='weed_warn')this.note(e.id,'快进水草了！反方向侧拉','warn',1600);
@@ -111,12 +111,12 @@ export class FishingRoom {
  hint(a,keyboard){
   const touch=a.source==='touch',z=a.zone&&zoneById(a.zone),f=a.fight;
   switch(a.phase){
-   case 'aim':return keyboard?'A / D 瞄准 · 空格准备抛竿':'左右倾瞄准 · 点手机「准备抛竿」';
+   case 'aim':return keyboard?'A / D 瞄准 · 空格准备抛竿':touch?'左右拖动瞄准 · 点手机「准备抛竿」':'左右倾瞄准 · 点手机「准备抛竿」';
    case 'armed':return keyboard?'按住空格蓄力，松开抛出':touch?'在手机上向上划，抛出去！':'挥竿！后引 → 前挥';
    case 'flight':return '';case 'reel':return '收线中…';
    case 'lure':return z?(a.fish?(a.fish.A>.55?'有动静了…等浮漂明显下沉':`诱鱼中 · ${z.name}`):`等鱼过来 · ${z.name}`):'附近没有鱼影 · 收线重抛换个位置';
    case 'bite':return keyboard?'咬钩了！按空格抬竿！':touch?'咬钩了！点「抬竿！」':'咬钩了！抬竿！';
-   case 'fight':return !f?'':f.behavior==='telegraph'?'它要冲了，放低一点':f.T>.85?'太紧了！放低竿':f.S>.6||f.T<.15?'线松了：慢慢抬竿收紧':f.weed>.4?'往反方向侧拉，别进水草':f.E<.2&&f.D<3?'快上岸了，稳住':keyboard?'W 抬竿拉近 · 松开收线':'抬竿拉近 · 放竿收线';
+   case 'fight':return !f?'':f.behavior==='telegraph'?'它要冲了，放低一点':f.T>.85?'太紧了！放低竿':f.S>.6||f.T<.15?'线松了：慢慢抬竿收紧':f.weed>.4?'往反方向侧拉，别进水草':f.E<.2&&f.D<3?'快上岸了，稳住':keyboard?'W 抬竿拉近 · 松开收线':touch?'慢慢上推拉近 · 松手收线':'抬竿拉近 · 放竿收线';
    case 'done':return '这一轮结束了';default:return '';
   }
  }
@@ -134,14 +134,14 @@ export class FishingRoom {
   const hintOn=now<(this.toastUntil||0);this.$('fs-toast').textContent=hintOn?this.toastText:'';this.$('fs-toast').classList.toggle('visible',hintOn);
   let html='';
   if(!this.host)html='<span class="maze-overlay-kicker">已在另一窗口打开</span><h2>请回到正在钓鱼的窗口</h2>';
-  else if(st.phase==='countdown')html=`<span class="maze-overlay-kicker">${st.mode==='practice'?'练习':`第 ${st.round} 轮`} · 握好鱼竿</span><h2 class="roll-countdown">${Math.max(1,Math.ceil(st.countdown||1))}</h2><p>${st.round===2?'深水开放了：大鱼 400 分，但更耗时间':'左右倾瞄准，点手机「准备抛竿」，后引再前挥'}</p>`;
+  else if(st.phase==='countdown')html=`<span class="maze-overlay-kicker">${st.mode==='practice'?'练习':`第 ${st.round} 轮`} · 握好鱼竿</span><h2 class="roll-countdown">${Math.max(1,Math.ceil(st.countdown||1))}</h2><p>${st.round===2?'深水开放了：大鱼 400 分，但更耗时间':'瞄准后点手机「准备抛竿」：体感后引再前挥，触控往上划'}</p>`;
   else if(st.phase==='resuming')html=`<span class="maze-overlay-kicker">马上继续</span><h2 class="roll-countdown">${Math.max(1,Math.ceil(st.countdown||1))}</h2>`;
-  else if(st.phase==='paused')html=`<span class="maze-overlay-kicker">暂停</span><h2>歇一下，鱼不会跑。</h2><p>${PAUSE[st.pauseReason]||PAUSE.manual}${st.waiting?.length?`<br>等待 ${st.waiting.map(s=>`${s+1}P`).join('、')} 重新就绪。`:''}</p><button data-action="resume" class="btn btn-sky btn-big" ${st.waiting?.length?'disabled':''}>继续 →</button><div class="overlay-links"><button data-action="lobby" class="btn btn-ghost btn-small">结束，回到大厅</button></div>`;
+  else if(st.phase==='paused')html=`<span class="maze-overlay-kicker">暂停</span><h2>歇一下，鱼不会跑。</h2><p>${PAUSE[st.pauseReason]||PAUSE.manual}${st.waiting?.length?`<br>等待 ${st.waiting.map(s=>`${s+1}P`).join('、')} 重新就绪。`:''}</p><button data-action="resume" class="btn btn-sky btn-big" ${st.waiting?.length?'disabled':''}>继续 →</button><div class="overlay-links">${st.waiting?.length&&st.mode!=='practice'?`<button data-action="skip" class="btn btn-ghost btn-small">不等 ${st.waiting.map(s=>`${s+1}P`).join('、')}，继续</button>`:''}<button data-action="lobby" class="btn btn-ghost btn-small">结束，回到大厅</button></div>`;
   else if(st.phase==='intermission')html=`<span class="maze-overlay-kicker">第 1 轮结束</span><h2>第 2 轮马上开始</h2>${this.table(st,false)}<p>第 2 轮深水开放：大鱼 400 分。</p>`;
   else if(st.phase==='over')html=this.results(st);
   const o=this.$('fs-overlay');if(this.overlayHTML!==html){o.innerHTML=html;this.overlayHTML=html;}o.classList.toggle('visible',!!html);o.classList.toggle('results',st.phase==='over'||st.phase==='intermission');this.$('fs-stage').classList.toggle('overlay',!!html);
  }
  table(st,full){return `<ol class="fs-results">${st.standings.map(s=>`<li style="--pc:${s.color}"><b>${st.mode==='practice'?'':`第 ${s.rank} 名`}</b><span>${s.slot+1}P ${esc(s.name)}${s.source&&s.source!=='motion'?`<i>${SOURCE[s.source]}</i>`:''}</span><em>${s.score} 分</em><small>${s.count} 条${full&&s.biggest?` · 最大 ${esc(s.biggest.name)} ${s.biggest.size} 厘米`:''}</small>${full?`<p>${(s.catches||[]).map(c=>`<span class="fs-fish ${c.type}">${esc(c.name)} +${c.points}</span>`).join('')||'没有鱼获'}${this.advice(s)}</p>`:''}</li>`).join('')}</ol>`;}
  advice(s){const counts={};for(const r of s.losses||[])counts[r]=(counts[r]||0)+1;const top=Object.entries(counts).filter(([r])=>ADVICE[r]).sort((a,b)=>b[1]-a[1])[0];return top?`<em class="fs-advice">${({break:'断线',unhook:'脱钩',weed:'挂草',timeup:'超时'})[top[0]]} ${top[1]} 次：${ADVICE[top[0]]}</em>`:'';}
- results(st){const top=st.standings[0],mixed=new Set(st.standings.map(s=>s.source)).size>1,r=this.result||{};return `<span class="maze-overlay-kicker">${st.mode==='practice'?'练习结束':`比赛结束 · ${st.standings.length} 人`}${mixed?' · 混合操作':''}</span><h2>${st.mode==='practice'?'今天的鱼获':st.standings.length>1?`${esc(`${top.slot+1}P ${top.name}`)} 获胜！`:`${top.score} 分！`}</h2>${r.newBest?'<span class="toon-badge gold">新纪录！</span>':''}${this.table(st,true)}<button data-action="rematch" class="btn btn-sky btn-big">同一赛题再战 →</button><div class="overlay-links"><button data-action="start" class="btn btn-ghost btn-small">换一个赛题</button><button data-action="lobby" class="btn btn-ghost btn-small">回到大厅</button></div>`;}
+ results(st){const top=st.standings[0],ties=st.standings.filter(s=>s.rank===1),mixed=new Set(st.standings.map(s=>s.source)).size>1,r=this.result||{};return `<span class="maze-overlay-kicker">${st.mode==='practice'?'练习结束':`比赛结束 · ${st.standings.length} 人`}${mixed?' · 混合操作':''}</span><h2>${st.mode==='practice'?'今天的鱼获':st.standings.length>1?(top.score<=0?'这一局没人钓到鱼':ties.length>1?`${ties.map(s=>`${s.slot+1}P`).join('、')} 并列第一！`:`${esc(`${top.slot+1}P ${top.name}`)} 获胜！`):`${top.score} 分！`}</h2>${r.newBest?'<span class="toon-badge gold">新纪录！</span>':''}${this.table(st,true)}<button data-action="rematch" class="btn btn-sky btn-big">同一赛题再战 →</button><div class="overlay-links"><button data-action="start" class="btn btn-ghost btn-small">换一个赛题</button><button data-action="lobby" class="btn btn-ghost btn-small">回到大厅</button></div>`;}
 }

@@ -124,3 +124,74 @@ input,select,textarea{font-size:16px!important;-webkit-user-select:text;user-sel
 .replaced-card b{display:block;font-size:18px;margin-bottom:6px}
 .replaced-card p{margin:0 0 12px;font-size:14px;line-height:1.5}
 .replaced-card .primary{width:100%}
+
+/* 0.28.1 手机端三个小游戏整理 */
+/* 绿底选中按钮改用深色字（白字对比度只有 2.3）；页脚和小字加深 */
+.mode-select button.selected,.detector-seg button.selected,.detector-seg button.active,.game-strip[data-game="golf"]{color:var(--ink)!important;text-shadow:none!important}
+.detector-seg button.pending{background:repeating-linear-gradient(135deg,var(--golf-l) 0 8px,#fff 8px 16px)!important}
+footer,footer span{color:var(--ink-2)!important;opacity:1!important}
+.last-swing strong small{color:var(--muted)!important}
+/* 大厅：不放高尔夫专用的握杆图、击球面板和个性化邀请 */
+body[data-game="hub"] #posture-card,body[data-game="hub"] #ready-controls,body[data-game="hub"] #adapt-card,body[data-game="hub"] #phone-main[data-stage="intro"] #orb{display:none!important}
+/* 高尔夫球局 / 练习进行中：身份卡压成一行、说明不重复；大按钮始终在原位，球在飞时变灰换字 */
+#phone-main[data-active="1"] .identity-card{padding:8px 14px!important;margin-bottom:10px!important}
+#phone-main[data-active="1"] .identity-card>div{flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:2px 10px}
+#phone-main[data-active="1"] .identity-card b{font-size:15px}
+#phone-main[data-active="1"] .identity-card details,#phone-main[data-active="1"] #instruction{display:none}
+#phone-practice-arm.arm-button{min-height:clamp(128px,25vh,220px)}
+#phone-practice-arm.arm-button.waiting{background:#eef0f6!important;color:var(--ink-2)!important;animation:none;opacity:1}
+#phone-practice-arm.arm-button.waiting small{opacity:.9}
+/* 上一杆的结果紧跟在大按钮下面 */
+#phone-main[data-active="1"] .last-swing{margin:10px 0 4px}
+#phone-main[data-active="1"] .last-swing>div{padding:8px 12px}
+#phone-main[data-active="1"] .last-swing strong{font-size:28px}
+#phone-main[data-active="1"] .shot-status{margin:4px 0 10px}
+.prp-aim output{white-space:nowrap;min-width:3.6em;font-size:15px!important}
+.prp-aim button{white-space:nowrap;padding-left:8px!important;padding-right:8px!important}
+.prp-dpad{gap:8px}
+/* 更多设置：小控件至少 44px，进阶工具收进一个折叠 */
+.hp-panel select,.hp-panel button{min-height:44px!important}
+.hp-panel .hp-check{min-height:44px}
+.hp-panel .hp-check input{width:22px;height:22px}
+.hp-panel .hp-note{font-size:12px}
+.phone-more details>summary{min-height:44px;display:flex;align-items:center;gap:8px}
+.dev-tools{border-top:2px dashed #d9dcea;padding-top:4px}
+.dev-tools>summary{font:900 14px var(--toon-font);cursor:pointer;color:var(--ink-2)}
+.dev-tools-body{display:flex;flex-direction:column;gap:10px;padding-top:6px}
+
+/* 云端滚球：说明文字放大加深；按钮 44px、间距 8px；没加入对战前只显示加入卡片 */
+#maze-controller .mc-heading{margin-bottom:8px}
+.mc-heading b{font-size:14px!important;font-weight:800!important}
+.mc-forward,.mc-pad>span{font-size:12px!important;color:#4d6475!important;font-weight:700}
+.mc-stats{color:#4d6475!important}
+.mc-stats>span:last-child{font-size:12px!important;color:#4d6475!important}
+.mc-footnote{font-size:12px!important;color:#4d6475!important;line-height:1.6!important;text-align:center}
+#maze-controller .mc-more summary{font-size:13px!important;color:#4d6475!important;min-height:44px;display:flex;align-items:center}
+.mc-actions,.mc-mode,.mc-vs-actions{gap:8px!important}
+#maze-controller .mc-actions{margin-top:10px}
+#maze-controller .mc-zero{min-height:44px;margin:6px auto}
+#maze-controller.versus:not(.vs-joined) .mc-pad-side,#maze-controller.versus:not(.vs-joined) .mc-mode,#maze-controller.versus:not(.vs-joined) .mc-zero{display:none!important}
+@media (orientation:landscape) and (max-height:500px){
+ #maze-controller button{min-height:44px!important}
+ .mc-footnote{font-size:11px!important;margin:6px 0!important}
+}
+
+/* 体感钓鱼：玩起来时第一屏放得下“准备抛竿 / 抬竿！” */
+#fish-controller .fc-head{margin-bottom:4px;justify-content:flex-end}
+#fish-controller .fc-head b{font-size:15px;color:var(--ink)}
+#fish-controller .fc-main{gap:8px}
+#fish-controller .fc-notice{min-height:0;padding:6px 12px;font-size:14px}
+#fish-controller .fc-big.fc-second{min-height:56px;font-size:16px!important;box-shadow:0 3px 0 var(--ol-c,#22264a)}
+#fish-controller .fc-switch-row{margin:4px 0 8px}
+#fish-controller .fc-switch-row button{width:100%}
+.fc-more summary{min-height:44px;display:flex;align-items:center}
+.fc-meter small,.fc-pad span{color:#4d5275!important}
+@media (max-height:760px){
+ #fish-controller .fc-pad{aspect-ratio:1.9}
+ #fish-controller .fc-live{grid-template-columns:72px 1fr}
+ #fish-controller .fc-rod{width:72px;height:72px}
+ #fish-controller .fc-big:not(.fc-second){min-height:88px}
+}
+@media (orientation:portrait) and (max-height:620px){.mc-pad{max-width:220px!important}}
+/* 诱鱼 / 搏鱼时竿的圆点停在下半区，提示字移到竿姿区上方，免得被盖住 */
+#fish-controller.pad-low .fc-pad span{top:8px;bottom:auto}

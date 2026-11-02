@@ -42,20 +42,25 @@ export class Angler {
  startReel(arm){this.phase='reel';this.timer=0;this.wantArm=arm;this.fish=null;this.reelFrom={...this.bobber};this.emit('reel');}
  // ---------- 动作判定 ----------
  // 刺鱼动作：0.4 秒内抬竿至少 12°，速度不低于 40°/秒（冷却 0.5 秒）。
- lift(){
+ // 0.28.1：从最近一次的最低点算起（以前取窗口里最早的最低点，静止后实际要抬约 16° 才算）。
+ lift(need=FISHING.hook.lift){
   const H=FISHING.hook;if(this.clock-this.lastLift<H.cooldown)return false;let min=Infinity,minT=this.clock;
-  for(const h of this.history)if(h.t>=this.clock-H.time&&h.p<min){min=h.p;minT=h.t;}
-  const rise=this.pose.pitch-min,rate=rise/Math.max(.05,this.clock-minT);if(rise>=H.lift&&rate>=H.minRate){this.lastLift=this.clock;return true;}return false;
+  for(const h of this.history)if(h.t>=this.clock-H.time&&h.p<=min){min=h.p;minT=h.t;}
+  const rise=this.pose.pitch-min,rate=rise/Math.max(.05,this.clock-minT);if(rise>=need&&rate>=H.minRate){this.lastLift=this.clock;return true;}return false;
  }
+ // 落点离最近的开放钓区偏哪边：远了 / 近了、偏左 / 偏右。
+ missHint(open){const t=this.target,zs=ZONES.filter(z=>open.includes(z.id));if(!t||!zs.length)return '';let best=null,bd=Infinity;for(const z of zs){const c=polar(z.distance,z.angle),d=Math.hypot(t.x-c.x,t.z-c.z);if(d<bd){bd=d;best=z;}}
+  const far=t.distance-best.distance,side=(t.angle-best.angle)*Math.PI/180*best.distance,parts=[];if(Math.abs(far)>best.radius*.5)parts.push(far>0?'抛远了':'抛近了');if(Math.abs(side)>best.radius*.5)parts.push(side>0?'偏右':'偏左');
+  return parts.length?`离${best.name}${parts.join('、')}`:`就在${best.name}边上`;}
  // 诱鱼节奏：最近 1.5 秒的抬放形态。
  rhythm(){
   const now=this.clock,win=this.history.filter(h=>h.t>=now-1.5);if(win.length<3)return 'still';
-  let twitch=false;for(let i=0;i<win.length&&!twitch;i++)for(let j=i+1;j<win.length&&win[j].t-win[i].t<=.2;j++){const rise=win[j].p-win[i].p;if(rise>=4&&rise<FISHING.hook.lift){twitch=true;break;}}
+  let twitch=false;for(let i=0;i<win.length&&!twitch;i++)for(let j=i+1;j<win.length&&win[j].t-win[i].t<=.2;j++){const rise=win[j].p-win[i].p;if(rise>=6&&rise<FISHING.hook.spook&&win[j].t-win[i].t<=.15){twitch=true;break;}}
   const last=win.filter(h=>h.t>=now-1),ps=last.map(h=>h.p),range=Math.max(...ps)-Math.min(...ps);let move=0;for(let i=1;i<last.length;i++)move+=Math.abs(last[i].p-last[i-1].p);const speed=move/Math.max(.3,last.at(-1).t-last[0].t);
   let kind;
   if(twitch)kind='twitch';
   else if(range<2.5)kind=now-(this.lastDrag??-9)<3?'dragpause':now-(this.lastMove??-9)>4?'still':'pause';
-  else kind=speed>=3&&speed<=25?'drag':'other';
+  else kind=speed>=3&&speed<=30?'drag':'other';
   if(kind==='drag')this.lastDrag=now;if(['drag','twitch','other'].includes(kind))this.lastMove=now;
   return kind;
  }
@@ -83,14 +88,15 @@ export class Angler {
  }
  lureTick(dt,open){
   this.timer+=dt;const A=FISHING.approach;
-  if(!this.zone||!this.zoneOpen||!open.includes(this.zone)){if(this.timer>=(this.weedCast?1:A.emptyHint)&&!this.emptyHinted){this.emptyHinted=true;this.emit('empty',{reason:this.weedCast?'weeds':this.zone&&(!this.zoneOpen||!open.includes(this.zone))?'closed':'none'});}return;}
+  // 0.28.1：没落进开放的钓区时马上说（以前要等 4 秒），并提示离最近的开放钓区偏哪边；挂水草仍等 1 秒。
+  if(!this.zone||!this.zoneOpen||!open.includes(this.zone)){if(this.timer>=(this.weedCast?1:0)&&!this.emptyHinted){this.emptyHinted=true;const reason=this.weedCast?'weeds':this.zone&&(!this.zoneOpen||!open.includes(this.zone))?'closed':'none';this.emit('empty',{reason,zone:this.zone,hint:reason==='weeds'?'':this.missHint(open)});}return;}
   if(!this.fish){
    if(this.clock<(this.cooldown[this.zone]||0))return;
    const slot=this.scenario.zones[this.zone][this.next[this.zone]%6],r=seededRandom(slot.seed^0x9e37),gap=lerp(A.gap[0],A.gap[1],r()),dir=r()*Math.PI*2;
    this.fish={slot,type:slot.type,A:0,pause:0,from:{x:this.bobber.x+Math.cos(dir)*gap,z:this.bobber.z+Math.sin(dir)*gap},nibble:0,since:this.clock,tipped:false};this.emit('fish_near',{type:slot.type});
   }
   const f=this.fish,kind=this.rhythm(),mult=(RHYTHM[f.type][kind]??.7)*f.slot.approach;f.rhythm=kind;
-  if(this.lift()||this.hookPending){if(f.A>A.spookAbove){f.A=Math.max(0,f.A-A.spookLoss);f.pause=A.spookPause;this.emit('spook');}}
+  if(this.lift(FISHING.hook.spook)||this.hookPending){if(f.A>A.spookAbove){const early=f.nibble>0;f.A=Math.max(0,f.A-A.spookLoss);f.pause=A.spookPause;this.emit('spook',{early});}}
   else if(f.pause>0)f.pause-=dt;else f.A=Math.min(1,f.A+A.base*mult*dt);
   while(f.nibble<A.nibbles.length&&f.A>=A.nibbles[f.nibble]){f.nibble++;this.emit('nibble',{n:f.nibble});}
   if(!f.tipped&&this.clock-f.since>6&&f.A<.6){f.tipped=true;this.emit('tip',{type:f.type,text:PREFER_TIPS[f.type]});}
