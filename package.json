@@ -1,6 +1,6 @@
 {
   "name": "motion-party",
-  "version": "0.28.1",
+  "version": "0.29.0",
   "private": true,
   "type": "module",
   "description": "本地三维高尔夫与 iPhone 体感球杆",

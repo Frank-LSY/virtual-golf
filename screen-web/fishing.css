@@ -74,3 +74,10 @@
 .fv-hint,.fv-meters{transition:opacity .2s}
 .fs-views.n3 .fv:nth-child(odd) .fv-meters,.fs-views.n4 .fv:nth-child(odd) .fv-meters{right:auto;left:10px}
 .fv-board .fv-tag b{background:var(--grape)}
+
+/* 0.29 中鱼后切到水下剖面（这位钓手的分屏） */
+.fv-under{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transform:translateY(-8%);transition:opacity .35s ease-out,transform .35s ease-out;pointer-events:none}
+.fv.under .fv-under{opacity:1;transform:none}
+.fv.under .fv-meters,.fv.under .fv-hint,.fv.under .fv-src{display:none}
+.fv .fv-tag,.fv .fv-note,.fv .fv-src{z-index:2}
+@media (prefers-reduced-motion:reduce){.fv-under{transition:opacity .2s;transform:none}}

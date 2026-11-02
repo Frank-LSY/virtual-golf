@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {RodMapper,CastDetector,REJECT_TEXT} from '../shared/fishing/input.js';
-import {FISH,VERSUS_PALETTE,PREFER_TIPS,ZONES,zonesOpen,zoneAt,polar,castDistance,aimFromRoll,clamp} from '../shared/fishing/rules.js';
+import {FISH,VERSUS_PALETTE,PREFER_TIPS,WATERS,waterAt,waterById,inWeeds,polar,castDistance,aimFromRoll,clamp} from '../shared/fishing/rules.js';
 import {Haptics,hapticsPanelHTML,bindHapticsPanel} from '../phone-web/haptics.js';
 // 手机鱼竿：用最小的假 DOM 运行真实的 phone-web/fishing-controller.js。
 async function harness({vibrate=false}={}){
@@ -15,7 +15,7 @@ async function harness({vibrate=false}={}){
  const conn=new EventTarget();conn.sent=[];conn.send=m=>conn.sent.push(m);const receive=m=>conn.dispatchEvent(new CustomEvent('message',{detail:m}));
  const source=(await readFile(new URL('../phone-web/fishing-controller.js',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,'').replace('export class FishingController','class FishingController');
  const haptics=new Haptics({nav:vibrate?{vibrate:p=>{buzz.push(p);return true;}}:{},doc:null,storage:null,now:()=>clock});
- const Controller=new Function('RodMapper','CastDetector','REJECT_TEXT','FISH','VERSUS_PALETTE','PREFER_TIPS','ZONES','zonesOpen','zoneAt','polar','castDistance','aimFromRoll','clamp','haptics','hapticsPanelHTML','bindHapticsPanel','document','window','screen','navigator','setInterval',source+'\nreturn FishingController;')(RodMapper,CastDetector,REJECT_TEXT,FISH,VERSUS_PALETTE,PREFER_TIPS,ZONES,zonesOpen,zoneAt,polar,castDistance,aimFromRoll,clamp,haptics,hapticsPanelHTML,bindHapticsPanel,document,window,{orientation:{angle:0}},navigator,fn=>{interval=fn;});
+ const Controller=new Function('RodMapper','CastDetector','REJECT_TEXT','FISH','VERSUS_PALETTE','PREFER_TIPS','WATERS','waterAt','waterById','inWeeds','polar','castDistance','aimFromRoll','clamp','haptics','hapticsPanelHTML','bindHapticsPanel','document','window','screen','navigator','setInterval',source+'\nreturn FishingController;')(RodMapper,CastDetector,REJECT_TEXT,FISH,VERSUS_PALETTE,PREFER_TIPS,WATERS,waterAt,waterById,inWeeds,polar,castDistance,aimFromRoll,clamp,haptics,hapticsPanelHTML,bindHapticsPanel,document,window,{orientation:{angle:0}},navigator,fn=>{interval=fn;});
  const c=new Controller(conn,{now:()=>clock});receive({type:'ready'});
  return {c,conn,receive,haptics,el:id=>elements.get(id),hidden:id=>elements.get(id).classList.contains('hidden'),sent:t=>conn.sent.filter(m=>m.type===t),step(ms=33){clock+=ms;interval();},advance(ms){clock+=ms;},orient(beta,gamma,ms=16){clock+=ms;handlers.get('deviceorientation')({beta,gamma});},buzz,document};
 }
@@ -42,21 +42,31 @@ test('手机鱼竿：体感模式静止归零后才就绪；准备后在手机�
  h.receive(personal({slot:0,phase:'lure'}));assert.equal(h.c.cast.armed,false);assert.equal(h.el('fc-arm').textContent,'收线重抛');
 });
 
-test('手机鱼竿：咬钩 / 搏鱼 / 上岸 / 逃鱼的提示与张力条；触控时出现“抬竿！”；震动按事件限频', async()=>{
+test('手机鱼竿：咬钩出现“抬竿！”；中鱼后变成转轮：转圈发出收线速度、每 1/4 圈轻震；冲刺时叫停；往一边钻提示往反方向倾；杂物提示剪线；上岸 / 逃鱼', async()=>{
  const h=await harness({vibrate:true});h.receive({type:'fish_subscription',active:true,joined:true,slot:1,count:2,full:false,locked:false,allReady:true});h.c.useTouch();
+ const F=o=>({T:.5,E:.6,D:9,behavior:'swim',type:'carp',kind:'fish',kg:2.4,points:252,lat:0,width:3.8,snagName:'石头',slack:0,crank:0,dashDir:0,...o});
  h.receive(personal({phase:'bite'},{events:[{kind:'bite'}]}));assert.equal(h.hidden('fc-hook'),false);assert.ok(h.el('fc-hook').classList.contains('now'));h.el('fc-hook').onclick();assert.equal(h.sent('fish_hook').length,1);assert.equal(h.haptics.played.at(-1),'bite');assert.deepEqual(h.buzz.at(-1),[40,60,40]);
- h.receive(personal({phase:'fight',fight:{T:.93,E:.6,D:9,S:0,behavior:'swim',type:'perch',weed:0}},{events:[{kind:'hook'}]}));assert.equal(h.hidden('fc-tension'),false);assert.equal(h.el('fc-tension-fill').dataset.level,'danger');assert.match(h.el('fc-tip').textContent,/太紧/);
- assert.equal(h.haptics.played.at(-1),'hook');h.advance(1000);const before=h.haptics.played.filter(n=>n==='strain').length;h.step();h.step();assert.equal(h.haptics.played.filter(n=>n==='strain').length,before+1,'张力心跳限频');
- // 收线棘轮：每收回约 1 米轻震一下；鱼往外拉不震。
- h.advance(500);h.receive(personal({phase:'fight',fight:{T:.5,E:.6,D:8.5,S:0,behavior:'swim',type:'perch',weed:0}}));h.receive(personal({phase:'fight',fight:{T:.5,E:.6,D:7.4,S:0,behavior:'swim',type:'perch',weed:0}}));assert.equal(h.haptics.played.at(-1),'reel');
- h.advance(500);h.receive(personal({phase:'fight',fight:{T:.5,E:.6,D:9,S:0,behavior:'swim',type:'perch',weed:0}}));assert.equal(h.haptics.played.at(-1),'reel','往外拉不震');h.advance(2000);
- h.receive(personal({phase:'fight',fight:{T:.4,E:.6,D:9,S:0,behavior:'telegraph',type:'perch',weed:0}},{events:[{kind:'telegraph'}]}));assert.match(h.el('fc-notice').textContent,/放低/);
- h.receive(personal({phase:'landed',score:220,last:{name:'芦苇鲈鱼',points:220}},{events:[{kind:'landed',catch:{name:'芦苇鲈鱼',points:220}}]}));assert.match(h.el('fc-notice').textContent,/上岸.*220/);assert.equal(h.haptics.played.at(-1),'success');assert.match(h.el('fc-score').textContent,/220 分/);
- h.receive(personal({phase:'lost',lost:'break'},{events:[{kind:'lost',reason:'break'}]}));assert.match(h.el('fc-notice').textContent,/硬拉/);assert.equal(h.haptics.played.at(-1),'fail');
+ h.receive(personal({phase:'fight',fight:F({})},{events:[{kind:'hook',name:'鲤鱼',kg:2.4,catchKind:'fish',points:252}]}));
+ assert.equal(h.hidden('fc-reel'),false,'中鱼后出现转轮');assert.equal(h.hidden('fc-pad'),true);assert.equal(h.hidden('fc-live'),true);assert.match(h.el('fc-notice').textContent,/鲤鱼 约 2.4 kg/);assert.match(h.el('fc-catch-name').textContent,/鲤鱼 · 约 2.4 kg/);assert.equal(h.el('fc-abandon').textContent,'剪线');assert.equal(h.haptics.played.at(-1),'hook');
+ // 拇指在圈上转一圈（约 0.5 秒，正常转轮速度）：每 1/4 圈轻震，竿姿里带上收线速度（圈/秒）；松手后归零。
+ const wheel=h.el('fc-wheel'),at=a=>({pointerId:7,clientX:100+50*Math.cos(a),clientY:70+50*Math.sin(a)});wheel.fire('pointerdown',at(0));const reels=h.haptics.played.filter(n=>n==='reel').length;
+ for(let i=1;i<=24;i++){h.advance(20);wheel.fire('pointermove',at(i*Math.PI/12));}
+ assert.ok(h.haptics.played.filter(n=>n==='reel').length>=reels+3,'每 1/4 圈轻震');h.step();assert.ok(h.sent('fish_pose').at(-1).crank>1.5,'发出收线速度');
+ wheel.fire('pointerup',at(0));h.advance(400);h.step();assert.equal(h.sent('fish_pose').at(-1).crank,0,'停手后收线速度归零');
+ // 冲刺：叫停；还在转就提醒线要断；张力圈变红，心跳限频。
+ h.receive(personal({phase:'fight',fight:F({behavior:'dash',T:.97,crank:2})},{events:[{kind:'dash'}]}));assert.match(h.el('fc-wheel-say').textContent,/停/);assert.match(h.el('fc-wheel-sub').textContent,/线要断/);assert.equal(h.el('fc-wheel-tension').dataset.level,'danger');assert.match(h.el('fc-notice').textContent,/停/);
+ h.advance(1000);const before=h.haptics.played.filter(n=>n==='strain').length;h.step();h.step();assert.equal(h.haptics.played.filter(n=>n==='strain').length,before+1,'张力心跳限频');
+ h.receive(personal({phase:'fight',fight:F({behavior:'telegraph',T:.4})},{events:[{kind:'telegraph'}]}));assert.match(h.el('fc-notice').textContent,/准备停手/);assert.match(h.el('fc-wheel-say').textContent,/要冲/);
+ h.receive(personal({phase:'fight',fight:F({behavior:'tired',E:.2})},{events:[{kind:'tired'}]}));assert.match(h.el('fc-wheel-say').textContent,/快转/);
+ // 往右钻 → 提示往左倾；触控时按住左键 = 往左倾，松开回正。
+ h.receive(personal({phase:'fight',fight:F({lat:2,width:2.6,snagName:'水草'})},{events:[{kind:'snag_warn',dir:1,name:'水草'}]}));assert.match(h.el('fc-lean-hint').textContent,/往右钻.*往左倾/);assert.ok(h.el('fc-lean-left').classList.contains('now'));assert.match(h.el('fc-notice').textContent,/往右钻水草了.*往左倾/);
+ h.el('fc-lean-left').fire('pointerdown',{});for(let i=0;i<10;i++)h.step();assert.ok(h.sent('fish_pose').at(-1).roll<-15,'按住左键往左倾');h.el('fc-lean-left').fire('pointerup',{});for(let i=0;i<10;i++)h.step();assert.equal(h.sent('fish_pose').at(-1).roll,0,'松开回正');
+ h.receive(personal({phase:'fight',fight:F({kind:'junk',type:'boot',kg:2,points:5})}));assert.match(h.el('fc-wheel-sub').textContent,/剪线/);
+ h.receive(personal({phase:'landed',score:252,last:{name:'鲤鱼',points:252}},{events:[{kind:'landed',catch:{name:'鲤鱼',kg:2.4,points:252}}]}));assert.match(h.el('fc-notice').textContent,/上岸.*鲤鱼 2.4 kg.*252/);assert.equal(h.haptics.played.at(-1),'success');assert.match(h.el('fc-score').textContent,/252 分/);assert.equal(h.hidden('fc-reel'),true);
+ h.receive(personal({phase:'lost',lost:'break'},{events:[{kind:'lost',reason:'break'}]}));assert.match(h.el('fc-notice').textContent,/硬收/);assert.equal(h.haptics.played.at(-1),'fail');
  h.receive(personal({phase:'aim'},{phase:'paused',pauseReason:'stream_gap',waiting:[2]}));assert.match(h.el('fc-state').textContent,/暂停/);assert.match(h.el('fc-tip').textContent,/3P/);
  h.receive(personal({phase:'done',rank:2},{phase:'over'}));assert.equal(h.hidden('fc-again'),false);h.el('fc-again').onclick();assert.equal(h.sent('fish_command').at(-1).action,'rematch');
 });
-
 test('手机鱼竿：放弃本竿要点两次；切到后台会通知暂停；离开钓鱼页面后收起', async()=>{
  const h=await harness();h.receive({type:'fish_subscription',active:true,joined:true,slot:0,count:1,full:false,locked:false,allReady:true});h.c.useTouch();
  h.receive(personal({slot:0,phase:'fight',fight:{T:.4,E:.5,D:6,S:0,behavior:'swim',type:'small',weed:0}}));
@@ -76,11 +86,11 @@ test('0.28.1 触控：左右拖动瞄准松手保持；从最低点往上划抛�
  h.advance(60);fire('pointermove',100,80);assert.match(h.el('fc-pad-label').textContent,/约 \d+ 米/,'拖动时显示大概距离');
  h.advance(60);fire('pointermove',100,40);h.advance(60);fire('pointerup',100,35);
  const cast=h.sent('fish_cast').at(-1);assert.ok(cast,'划出去了');assert.ok(Math.abs(cast.aimRoll-aimed)<.1,'抛竿用保持的瞄准');assert.ok(Math.abs(cast.dir)<1,'竖直划不额外偏转');
- h.receive(personal({phase:'fight',fight:{T:.4,E:.9,D:10,S:0,behavior:'swim',type:'small',weed:0}},{players:1}));
- assert.equal(pose().pitch,0,'进入搏鱼时竿归位、不带侧倾');assert.equal(h.sent('fish_pose').at(-1).roll,0);
+ h.receive(personal({phase:'lure'},{players:1}));
+ assert.equal(pose().pitch,0,'进入诱鱼时竿归位、不带侧倾');assert.equal(h.sent('fish_pose').at(-1).roll,0);
  fire('pointerdown',100,10);assert.equal(pose().pitch,0,'按在顶部不会一下跳到最高');
  fire('pointermove',100,-40);pose();assert.ok(h.sent('fish_pose').at(-1).pitch<5,'竿有惯性，不会一下甩上去');for(let i=0;i<8;i++)h.step();const up=pose().pitch;assert.ok(up>10,'往上推抬竿');
- fire('pointerup',100,-40);const after=pose().pitch;assert.ok(after<up&&after>5,'松手后慢慢放回，不是瞬间');
- for(let i=0;i<40;i++)h.step();assert.equal(h.sent('fish_pose').at(-1).pitch,5,'最后停在搏鱼的放松位置');
+ fire('pointerup',100,-40);const after=pose().pitch;assert.ok(after<up&&after>0,'松手后慢慢放回，不是瞬间');
+ for(let i=0;i<40;i++)h.step();assert.equal(h.sent('fish_pose').at(-1).pitch,0,'最后放回原位');
  fire('pointerdown',100,70);fire('pointermove',100,400);for(let i=0;i<15;i++)h.step();assert.equal(pose().pitch,-3,'最低只到 -3°，不会一拉就松线');fire('pointerup',100,400);
 });

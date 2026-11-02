@@ -29,7 +29,7 @@ try{
  for(let i=0;i<5;i++)send(phones[i],{type:'fish_ready',ready:true,source:i===4?'touch':'motion'});roster=await wait(screen,m=>m.type==='fish_roster'&&m.allReady);assert.equal(roster.slots[4].source,'touch');
  // 竿姿流：每台手机约 30 Hz。
  let seq=10,streaming=true;const pump=(async()=>{while(streaming){seq++;for(let i=0;i<5;i++)if(phones[i].readyState===1&&!phones[i].silent)send(phones[i],{type:'fish_pose',pitch:0,roll:i===0?-12:0,seq});await sleep(33);}})();
- send(phones[0],{type:'fish_command',action:'start'});let st=await wait(screen,m=>m.type==='fish_state'&&m.state?.phase==='countdown');assert.equal(st.state.anglers.length,6);assert.deepEqual(st.state.open,['shallow','reeds']);assert.equal(st.state.roundSeconds,60);
+ send(phones[0],{type:'fish_command',action:'start'});let st=await wait(screen,m=>m.type==='fish_state'&&m.state?.phase==='countdown');assert.equal(st.state.anglers.length,6);assert.equal(st.state.open,undefined,'0.29 整片湖都能钓');assert.equal(st.state.roundSeconds,60);
  const personal=await wait(phones[2],m=>m.type==='fish_personal'&&m.state?.you);assert.equal(personal.state.you.slot,2);assert.equal(personal.state.players,6);
  send(phones[6],{type:'fish_join',join:true});assert.match((await wait(phones[6],m=>m.type==='error')).message,/本局进行中/);send(phones[1],{type:'fish_join',join:false});assert.match((await wait(phones[1],m=>m.type==='error')).message,/不能退出/);
  st=await wait(screen,m=>m.type==='fish_state'&&m.events?.some(e=>e.kind==='go'),6000);assert.equal(st.state.phase,'playing');
@@ -49,7 +49,7 @@ try{
  phones[1].close();st=await wait(screen,m=>m.type==='fish_state'&&m.state?.phase==='paused'&&m.state.pauseReason==='controller_offline',3000);roster=await wait(screen,m=>m.type==='fish_roster'&&m.slots[1]&&!m.slots[1].connected);
  send(screen,{type:'fish_command',action:'lobby'});await wait(screen,m=>m.type==='fish_state'&&m.state===null);roster=await wait(screen,m=>m.type==='fish_roster'&&m.phase==='lobby'&&!m.slots[1]);
  // 练习模式：不限时，深水开放。
- send(screen,{type:'fish_setup',mode:'practice'});await wait(screen,m=>m.type==='fish_roster'&&m.setup.mode==='practice');send(screen,{type:'fish_command',action:'start'});st=await wait(screen,m=>m.type==='fish_state'&&m.state?.mode==='practice');assert.equal(st.state.timeLeft,null);assert.deepEqual(st.state.open,['shallow','reeds','deep']);
+ send(screen,{type:'fish_setup',mode:'practice'});await wait(screen,m=>m.type==='fish_roster'&&m.setup.mode==='practice');send(screen,{type:'fish_command',action:'start'});st=await wait(screen,m=>m.type==='fish_state'&&m.state?.mode==='practice');assert.equal(st.state.timeLeft,null);assert.equal(st.state.open,undefined);
  send(screen,{type:'fish_input',kind:'pose',pitch:0,roll:0});send(screen,{type:'fish_command',action:'lobby'});await wait(screen,m=>m.type==='fish_state'&&m.state===null);
  // 离开钓鱼页面：手机不再显示钓鱼。
  send(screen,{type:'fish_view',active:false});assert.equal((await wait(phones[0],m=>m.type==='fish_subscription'&&!m.active)).active,false);

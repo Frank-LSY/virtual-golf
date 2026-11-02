@@ -6,7 +6,7 @@
 import {FISHING,VERSUS_PALETTE} from '../shared/fishing/rules.js';
 import {FishingMatch} from '../shared/fishing/match.js';
 const STALE_MS=500,HOST_MS=50,PHONE_MS=150;
-const PHONE_EVENTS=new Set(['armed','arm_timeout','cast','splash','empty','fish_near','nibble','bite','miss','spook','tip','hook','telegraph','dash','weed_warn','landed','lost','reel','disarm']);
+const PHONE_EVENTS=new Set(['armed','arm_timeout','cast','splash','empty','fish_near','nibble','bite','miss','spook','tip','hook','telegraph','dash','weed_warn','snag_warn','line_warn','tired','landed','lost','reel','disarm']);
 const COMMANDS=new Set(['start','rematch','pause','resume','lobby','end','skip']);
 export class FishingChannel {
  constructor(clients,send,{now=()=>Date.now(),players=null,timers=globalThis,autoTick=true}={}){
@@ -72,7 +72,7 @@ export class FishingChannel {
    const a=m.angler(ws.clientId),mine=a?events.filter(e=>e.id===a.id&&PHONE_EVENTS.has(e.kind)):[],global=events.filter(e=>!e.id&&['countdown','go','time_up','round','round_end','over','pause','resume','resumed'].includes(e.kind));
    const st=a?standings.find(s=>s.id===a.id):null,f=a?.fight;
    this.send(ws,{type:'fish_personal',state:{phase:m.phase,mode:m.mode,round:m.round,rounds:snap.rounds,timeLeft:snap.timeLeft,finishLeft:snap.finishLeft,countdown:snap.countdown,pauseReason:snap.pauseReason,waiting:m.phase==='paused'?this.waiting():[],players:m.anglers.length,lead:{n:standings.filter(s=>s.rank===1).length,score:standings[0]?.score??0},
-    you:a?{slot:a.slot,phase:a.phase,armed:a.phase==='armed'?+a.armedLeft.toFixed(1):null,bite:a.phase==='bite'?+a.timer.toFixed(2):null,zone:a.zone,aim:+a.aim.toFixed(1),score:a.score,count:a.catches.length,rank:st?.rank??null,fight:f?{T:+f.T.toFixed(3),E:+f.E.toFixed(3),D:+f.D.toFixed(1),S:+f.S.toFixed(2),behavior:f.behavior,type:f.type,weed:+f.weed.toFixed(2)}:null,fish:a.fish?{type:a.fish.type,A:a.fish.A!==undefined?+a.fish.A.toFixed(2):1,rhythm:a.fish.rhythm||null}:null,last:a.lastCatch,lost:a.phase==='lost'?a.lostReason:null}:null},events:[...mine,...global]});
+    you:a?{slot:a.slot,phase:a.phase,armed:a.phase==='armed'?+a.armedLeft.toFixed(1):null,bite:a.phase==='bite'?+a.timer.toFixed(2):null,zone:a.zone,aim:+a.aim.toFixed(1),score:a.score,count:a.catches.length,rank:st?.rank??null,fight:f?{T:+f.T.toFixed(3),E:+f.E.toFixed(3),D:+f.D.toFixed(1),behavior:f.behavior,type:f.type,kind:f.kind,kg:f.kg,points:f.points,lat:+f.lat.toFixed(2),width:f.width,snagName:f.snagName,slack:+f.slack.toFixed(2),crank:+f.crank.toFixed(2),dashDir:f.dashDir}:null,fish:a.fish?{type:a.fish.type,A:a.fish.A!==undefined?+a.fish.A.toFixed(2):1,rhythm:a.fish.rhythm||null}:null,last:a.lastCatch,lost:a.phase==='lost'?a.lostReason:null}:null},events:[...mine,...global]});
   }
  }
  // ---------- 消息 ----------
@@ -113,10 +113,10 @@ export class FishingChannel {
   const holder=ws||(this.keyboardState||(this.keyboardState={}));
   const kind=m.type==='fish_input'?m.kind:m.type.slice(5);
   if(kind==='pose'){
-   if(![m.pitch,m.roll].every(v=>Number.isFinite(v)&&Math.abs(v)<=90))throw Error('竿姿数据无效。');
+   if(![m.pitch,m.roll].every(v=>Number.isFinite(v)&&Math.abs(v)<=90))throw Error('竿姿数据无效。');if(m.crank!==undefined&&!(Number.isFinite(m.crank)&&m.crank>=0&&m.crank<=10))throw Error('收线数据无效。');
    if(m.seq!==undefined){if(!Number.isSafeInteger(m.seq)||m.seq<0)throw Error('竿姿数据无效。');if(m.seq<=(holder.fishSeq??-1))return;holder.fishSeq=m.seq;}
    if(ws){ws.fishPoseAt=this.now();if(ws.fishStale){ws.fishStale=false;this.publish();}}
-   this.match?.input(id,{type:'pose',pitch:m.pitch,roll:m.roll});return;
+   this.match?.input(id,{type:'pose',pitch:m.pitch,roll:m.roll,crank:m.crank});return;
   }
   if(!this.match)return;
   if(kind==='cast'){if(!Number.isFinite(m.power)||m.power<0||m.power>1||(m.dir!==undefined&&(!Number.isFinite(m.dir)||Math.abs(m.dir)>30))||(m.aimRoll!==undefined&&(!Number.isFinite(m.aimRoll)||Math.abs(m.aimRoll)>90)))throw Error('抛投数据无效。');const eid=String(m.eventId??'');if(eid&&holder.fishCastIds?.includes(eid))return;holder.fishCastIds=[...(holder.fishCastIds||[]).slice(-9),eid];this.match.input(id,{type:'cast',power:m.power,dir:m.dir||0,aimRoll:m.aimRoll,source});return;}

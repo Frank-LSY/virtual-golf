@@ -1,7 +1,7 @@
 // 体感钓鱼 · 湖面画面（卡通着色）。所有钓手站在同一座栈桥上、看同一片湖，但每格只显示自己的竿、线、浮漂和鱼
 // （每位钓手的物体放在自己的图层上）。1 人全屏、2 人上下、3–4 人四宫格、5–6 人六宫格；3 人和 5 人时空出的一格是排行榜。
 import * as THREE from 'three';
-import {ZONES,WEEDS,FISH,polar,zoneFrame,clamp,lerp} from '../shared/fishing/rules.js';
+import {WATERS,WEEDS,FISH,REEDS_AT,DEEP_AT,polar,zoneFrame,clamp,lerp} from '../shared/fishing/rules.js';
 import {ROD_TIP} from '../shared/fishing/angler.js';
 const INK='#22264a',UP=new THREE.Vector3(0,1,0);
 const HAND=new THREE.Vector3(.35,1.35,.35);
@@ -26,7 +26,7 @@ export class FishingScene {
   const shore=new THREE.Mesh(new THREE.PlaneGeometry(320,120),this.mat('#8fcf5e'));shore.rotation.x=-Math.PI/2;shore.position.set(0,.18,60.6);shore.receiveShadow=true;S.add(shore);
   const sand=new THREE.Mesh(new THREE.BoxGeometry(320,.4,2.2),this.mat('#f1d9a0'));sand.position.set(0,-.02,.9);sand.receiveShadow=true;S.add(sand);
   // 浅湾（浅色水）与睡莲
-  const sz=ZONES[0],sc=polar(sz.distance,sz.angle);const shallow=new THREE.Mesh(new THREE.CircleGeometry(7.5,48),new THREE.MeshBasicMaterial({color:'#7fd9cf',transparent:true,opacity:.45,depthWrite:false}));shallow.rotation.x=-Math.PI/2;shallow.position.set(sc.x-1.5,.02,sc.z+1.5);S.add(shallow);
+  const sc=polar(9,-30);const shallow=new THREE.Mesh(new THREE.CircleGeometry(7.5,48),new THREE.MeshBasicMaterial({color:'#7fd9cf',transparent:true,opacity:.45,depthWrite:false}));shallow.rotation.x=-Math.PI/2;shallow.position.set(sc.x-1.5,.02,sc.z+1.5);S.add(shallow);
   const lily=this.mat('#5bbf5a');for(let i=0;i<9;i++){const a=i*2.4,rr=4.2+(i%3)*1.1,pad=new THREE.Mesh(new THREE.CylinderGeometry(.55+(i%2)*.2,.55+(i%2)*.2,.05,14,1,false,0,Math.PI*1.8),lily);pad.position.set(sc.x+Math.cos(a)*rr,.04,sc.z+Math.sin(a)*rr*.7);pad.rotation.y=a;S.add(pad);if(i%3===0){const fl=new THREE.Mesh(new THREE.SphereGeometry(.18,10,8),this.mat('#ffb3d1'));fl.position.set(pad.position.x,.15,pad.position.z);S.add(fl);}}
   // 芦苇（实例化）
   const stalk=new THREE.CylinderGeometry(.03,.05,1,5);stalk.translate(0,.5,0);const count=WEEDS.reduce((n,w)=>n+Math.round(w.r*w.r*14),0);this.reeds=new THREE.InstancedMesh(stalk,this.mat('#8fb847'),count);this.reedTops=new THREE.InstancedMesh(new THREE.CylinderGeometry(.07,.07,.32,6),this.mat('#8a5a2b'),count);
@@ -34,10 +34,10 @@ export class FishingScene {
   for(const w of WEEDS){const n=Math.round(w.r*w.r*14);for(let i=0;i<n;i++){const a=rnd()*Math.PI*2,d=Math.sqrt(rnd())*w.r,h=1.4+rnd()*1.1;this.reedData.push({x:w.x+Math.cos(a)*d,z:w.z+Math.sin(a)*d,h,ph:rnd()*6});k++;}}
   this.placeReeds(0);S.add(this.reeds,this.reedTops);
   // 深水浮标
-  const dz=ZONES[2],dc=polar(dz.distance,dz.angle);for(let i=0;i<6;i++){const a=i/6*Math.PI*2,b=new THREE.Mesh(new THREE.SphereGeometry(.32,14,10),this.mat(i%2?'#ff7a3d':'#ffffff'));b.position.set(dc.x+Math.cos(a)*(dz.radius+1.2),.1,dc.z+Math.sin(a)*(dz.radius+1.2));this.hull(b,1.1);S.add(b);}
-  // 钓区标记：水面虚线圈 + 标牌
-  this.zoneMarks=ZONES.map(z=>{const c=polar(z.distance,z.angle),g=new THREE.Group();g.position.set(c.x,.03,c.z);const segs=24;for(let i=0;i<segs;i+=2){const ring=new THREE.Mesh(new THREE.RingGeometry(z.radius-.08,z.radius+.08,6,1,i/segs*Math.PI*2,Math.PI*2/segs),new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:.75,side:THREE.DoubleSide,depthWrite:false}));ring.rotation.x=-Math.PI/2;g.add(ring);}
-   const sign=this.label(`${z.name} · ${FISH[z.fish].points} 分`,{background:z.color,color:'#ffffff',width:3.6+z.distance*.06});sign.position.set(0,1.6+z.distance*.05,0);g.add(sign);S.add(g);return {zone:z,group:g,sign};});
+  const dz=DEEP_AT,dc=polar(dz.distance,dz.angle);for(let i=0;i<6;i++){const a=i/6*Math.PI*2,b=new THREE.Mesh(new THREE.SphereGeometry(.32,14,10),this.mat(i%2?'#ff7a3d':'#ffffff'));b.position.set(dc.x+Math.cos(a)*(dz.radius+1.2),.1,dc.z+Math.sin(a)*(dz.radius+1.2));this.hull(b,1.1);S.add(b);}
+  // 0.29 整片湖都能钓：每片水域一块标牌（浅水 / 芦苇边 / 开阔水 / 深潭），不再画钓区圈。
+   const SIGNS={shallow:{distance:8.5,angle:-34},reeds:{distance:REEDS_AT.distance-4,angle:REEDS_AT.angle+6},open:{distance:16,angle:-12},deep:{distance:DEEP_AT.distance,angle:DEEP_AT.angle}};
+   this.zoneMarks=WATERS.map(w=>{const at=SIGNS[w.id],c=polar(at.distance,at.angle),g=new THREE.Group();g.position.set(c.x,.03,c.z);const sign=this.label(w.name,{background:w.color,color:'#ffffff',width:2.6+at.distance*.05});sign.position.set(0,1.4+at.distance*.05,0);g.add(sign);S.add(g);return {zone:w,group:g,sign};});
   // 远岸：小山、树、云
   const hill=this.mat('#7cc36a'),hill2=this.mat('#a7d98a'),trunk=this.mat('#8a5a2b'),leaf=this.mat('#3f9c5a'),leaf2=this.mat('#5cb85c');
   for(let i=0;i<16;i++){const x=-120+i*16+(i%3)*4,h=10+(i*7%9)*2.4,m=new THREE.Mesh(new THREE.SphereGeometry(h,18,12,0,Math.PI*2,0,Math.PI/2),i%2?hill:hill2);m.scale.set(1.7,.55,1);m.position.set(x,-.5,-118-(i%4)*8);S.add(m);}
@@ -76,7 +76,7 @@ export class FishingScene {
   if(W!==this.width||H!==this.height){this.width=W;this.height=H;this.renderer.setSize(W,H,false);}
   const dt=this.last===undefined?1/60:clamp(time-this.last,0,.1);this.last=time;this.time+=dt;
   this.water.material.map.offset.x=(this.water.material.map.offset.x+dt*.012)%1;this.water.material.map.offset.y=(this.water.material.map.offset.y+dt*.02)%1;if(Math.floor(this.time*20)!==this.reedFrame){this.reedFrame=Math.floor(this.time*20);this.placeReeds(this.time);}
-  for(const z of this.zoneMarks){const open=state.open.includes(z.zone.id);z.group.visible=true;z.sign.material.opacity=open?1:.45;z.group.children.forEach(c=>{if(c.isMesh)c.material.opacity=open?.75:.25;});}
+  
   const ids=new Set(state.anglers.map(a=>a.id));for(const [id,v] of this.views)if(!ids.has(id)){v.g.removeFromParent();this.views.delete(id);}
   for(const a of state.anglers)this.update(this.view(a),a,dt);
   for(let i=this.pulses.length-1;i>=0;i--){const p=this.pulses[i];p.age+=dt;const k=p.age/p.life;p.m.scale.setScalar(1+k*3*p.size);p.m.material.opacity=Math.max(0,.9*(1-k));if(k>=1){p.m.geometry.dispose();p.m.material.dispose();p.m.removeFromParent();this.pulses.splice(i,1);}}
@@ -94,7 +94,7 @@ export class FishingScene {
   const lure=['lure','bite'].includes(a.phase),fight=a.phase==='fight';
   let bobY=0;if(lure){bobY=Math.sin(this.time*2.2+a.slot)*.03;if(a.fish&&a.fish.A>.55)bobY-=.05*Math.abs(Math.sin(this.time*14));if(a.phase==='bite')bobY=-.22+Math.sin(this.time*20)*.04;}
   v.bob.visible=!v.bobHidden&&!fight;v.bob.position.set(v.bobPos.x,a.phase==='flight'||a.phase==='reel'?v.bobPos.y:bobY,v.bobPos.z);
-  v.fish.visible=v.fishShown;if(v.fishShown){const sz=a.fish.type==='big'?1.6:a.fish.type==='perch'?1.15:.85,dash=fight&&a.fight?.behavior==='dash';v.fish.position.set(v.fishPos.x,-.25,v.fishPos.z);v.fish.scale.set(.32*sz,.06,.8*sz*(dash?1.25:1));const dx=v.fishPos.x-HAND.x,dz=v.fishPos.z-HAND.z;v.fish.rotation.y=Math.atan2(dx,dz)+(lure?Math.sin(this.time*3)*.3:0);v.fish.material.opacity=lure?.18+.3*(a.fish.A||0):.45;}
+  v.fish.visible=v.fishShown;if(v.fishShown){const sz=a.fight?clamp(.7+a.fight.kg*.12,.7,1.8):({big:1.6,carp:1.3,perch:1.15,golden:1,chest:1.4,boot:1})[a.fish.type]||.85,dash=fight&&a.fight?.behavior==='dash';v.fish.position.set(v.fishPos.x,-.25,v.fishPos.z);v.fish.scale.set(.32*sz,.06,.8*sz*(dash?1.25:1));const dx=v.fishPos.x-HAND.x,dz=v.fishPos.z-HAND.z;v.fish.rotation.y=Math.atan2(dx,dz)+(lure?Math.sin(this.time*3)*.3:0);v.fish.material.opacity=lure?.18+.3*(a.fish.A||0):.45;}
   // 瞄准扇区：准备时变亮并闪动。
   // 瞄准线：水面上一串虚线（每 2 米一段，越远越宽），准备时闪动。
   const aiming=['aim','armed'].includes(a.phase);v.fan.visible=aiming;if(aiming){const key=Math.round(a.aim*4);if(key!==v.fanKey){v.fanKey=key;const pts=[],idx=[],dir=polar(1,a.aim),side={x:-dir.z,z:dir.x};let n=0;for(let d=5;d<31;d+=2){const w=.08+d*.012,p0=polar(d,a.aim),p1=polar(d+1.1,a.aim);pts.push(p0.x+side.x*w,.05,p0.z+side.z*w,p0.x-side.x*w,.05,p0.z-side.z*w,p1.x+side.x*w,.05,p1.z+side.z*w,p1.x-side.x*w,.05,p1.z-side.z*w);idx.push(n,n+1,n+2,n+1,n+3,n+2);n+=4;}v.fan.geometry.dispose();v.fan.geometry=new THREE.BufferGeometry();v.fan.geometry.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));v.fan.geometry.setIndex(idx);}v.fan.material.opacity=a.phase==='armed'?.65+.3*Math.sin(this.time*10):.7;}
